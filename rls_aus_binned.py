@@ -1,0 +1,128 @@
+"""Main script to run training or inference on RLS-aus dataset.
+
+Author: Gaetan Morand <gaetan.morand@umontpellier.fr>
+Adapted from: examples/benchmarks/geolifeclef/geolifeclef2022/cnn_on_rgb_temperature_patches.py
+"""
+
+
+from pathlib import Path
+from shutil import copy2
+from typing import Callable, Mapping, Optional, Union
+
+import hydra
+
+from malpolon.data.data_module import RLSDataModule
+from malpolon.logging import Summary
+from malpolon.models.custom_loss import MultiModalModel
+from malpolon.models.standard_prediction_systems import GenericPredictionSystem
+
+from omegaconf import DictConfig
+
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+
+import torch
+from torch import Tensor
+
+import torchmetrics.functional as Fmetrics
+
+
+def get_custom_metric(nbins, average_type):
+
+    def custom_metric(predictions, target):
+
+        predictions = predictions.argmax(dim=-1)
+        return Fmetrics.classification.multiclass_accuracy(predictions, target, num_classes=nbins, average=average_type)
+
+    return custom_metric
+
+
+class PresenceSystem(GenericPredictionSystem):
+    def __init__(
+        self,
+        submodels: DictConfig,
+        num_species: int,
+        num_bins: int,
+        freeze_submodels: bool,
+        loss: Union[torch.nn.modules.loss._Loss, str] = None,
+        optimizer: Union[torch.nn.Module, Mapping] = None,
+        metrics: Optional[dict[str, Callable]] = None,
+        loss_weights: Optional[Tensor] = None,
+    ):
+
+        model = MultiModalModel(
+            submodels,
+            num_species,
+            num_bins,
+            freeze_submodels
+        )
+
+        metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
+                   'macro_acc': get_custom_metric(num_bins, 'macro')}
+
+        super().__init__(model, loss, loss_weights, optimizer, metrics=metrics)
+
+
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
+def main(cfg: DictConfig) -> None:
+
+    torch.set_float32_matmul_precision('high')
+
+    # Loggers
+    log_dir = cfg.loggers.log_dir_name
+    logger_csv = pl.loggers.CSVLogger(log_dir, name=cfg.run.run_name, version="")
+    logger_csv.log_hyperparams(cfg)
+    logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=cfg.run.run_name, version="",
+                                             default_hp_metric=False)
+    logger_tb.log_hyperparams(cfg)
+
+    # Datamodule & Model
+    datamodule = RLSDataModule(**cfg.data, target_transform=lambda x: (x != 0).astype(float))
+    reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_weights=datamodule.get_class_weights())
+
+    # Copy current file to log folder
+    # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
+
+    # Lightning Trainer
+    callbacks = [
+        Summary(),
+        ModelCheckpoint(
+            dirpath=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+            filename="checkpoint-{epoch:02d}-{step}-{macro_acc/val:.4f}",
+            monitor="macro_acc/val",
+            mode="max",
+            save_on_train_epoch_end=True,
+            save_last=True,
+            auto_insert_metric_name=False
+        ),
+        LearningRateMonitor(logging_interval='step')
+    ]
+
+    trainer = pl.Trainer(logger=[logger_csv, logger_tb], callbacks=callbacks, **cfg.trainer)
+
+    # Training / Inference
+
+    if cfg.run.predict:
+        model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
+
+        predictions = model_loaded.predict(datamodule, trainer)
+        datamodule.export_predictions(predictions,
+                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      classif=True,
+                                      probabilities=True,
+                                      out_name='predictions-probs')
+        datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
+                                           predictions,
+                                           out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+
+    else:
+        if cfg.run.checkpoint_path is not None:
+            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
+            reg_system.load_state_dict(checkpoint['state_dict'])
+
+        trainer.fit(reg_system, datamodule=datamodule)
+        trainer.validate(reg_system, datamodule=datamodule)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,7 +1,8 @@
 """This module provides a base class for data modules.
 
-Author: Theo Larcher <theo.larcher@inria.fr>
-        Titouan Lorieul <titouan.lorieul@gmail.com>
+Original Authors:   Theo Larcher <theo.larcher@inria.fr>
+                    Titouan Lorieul <titouan.lorieul@gmail.com>
+Author: Gaetan Morand <gaetan.morand@umontpellier.fr>
 """
 
 from __future__ import annotations
@@ -10,17 +11,34 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from PIL import Image
+
+from matplotlib import pyplot as plt
+
 import numpy as np
+
 import pandas as pd
+
 import pytorch_lightning as pl
+
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+
 import torch
 from torch.utils.data import DataLoader
+
+from torchvision.transforms import v2
+
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Optional, Union
 
     from torch import Tensor
     from torch.utils.data import Dataset
+
+    import numpy.typing as npt
+
+    Patches = npt.NDArray
+    Targets = npt.NDArray
 
 
 class BaseDataModule(pl.LightningDataModule, ABC):
@@ -271,145 +289,329 @@ class BaseDataModule(pl.LightningDataModule, ABC):
                 class_preds[batch_i] = classes[indices[batch_i]]
         return class_preds.to('cpu').numpy().astype(int), probas.to('cpu').numpy()
 
-    def export_predict_csv_basic(self,
-                                 predictions: Union[Tensor, np.ndarray],
-                                 targets: Union[np.ndarray, list],
-                                 probas: Union[Tensor, np.ndarray] = None,
-                                 ids: Union[np.ndarray, list] = None,
-                                 out_name: str = "predictions",
-                                 out_dir: str = './',
-                                 return_csv: bool = False,
-                                 top_k: int = None,
-                                 **kwargs: Any):
-        """Export predictions to csv file.
 
-        Exports predictions, probabilities and ids to a csv file.
+def load_patch(
+    survey_id: Union[int, str],
+    inputs_path: Path,
+    *,
+    data: Union[str, list[str]] = "all",
+    return_arrays: bool = True,
+) -> dict[str, Patches]:
+    """Load the patch data associated to an observation id.
 
-        Parameters
-        ----------
-        predictions : Union[Tensor, np.ndarray]
-            model's predictions.
-        targets : Union[np.ndarray, list], optional
-            target species ids, by default None
-        probas : Union[Tensor, np.ndarray], optional
-            predictions' raw logits or logits passed through an
-            activation function, by default None
-        ids : Union[np.ndarray, list], optional
-            ids of the observations, by default None
-        out_name : str, optional
-            output CSV file name, by default "predictions"
-        out_dir : str, optional
-            output directory name, by default "./"
-        return_csv : bool, optional
-            if true, the method returns the CSV as a pandas DataFrame,
-            by default False
-        top_k : int, optional
-            number of top predictions to return, by default None (max
-            number of predictions)
+    Parameters
+    ----------
+    survey_id : integer / string
+        Identifier of the observation.
+    patches_path : string / pathlib.Path
+        Path to the folder containing all the patches.
+    data : string or list of string
+        Specifies what data to load, possible values: 'all', 'env', 'sat', 'timeseries'.
+    return_arrays : boolean
+        If True, returns all the patches as Numpy arrays (no PIL.Image returned).
 
-        Returns
-        -------
-        pandas.DataFrame
-            CSV content as a pandas DataFrame if `return_csv` is True
+    Returns
+    -------
+    patches : dict containing 3d array-like objects
+        Returns a dict containing the requested patches.
+    """
+    survey_id = str(survey_id)
+
+    patches = {}
+
+    if data == "all":
+        data = ['env', 'sat', 'timeseries']
+
+    if "env" in data:
+        filename = Path(inputs_path) / "env" / (survey_id + '.npy')
+        x = np.load(filename).astype(np.float32)
+        patches["env"] = np.transpose(x, (2, 0, 1))
+
+    if "sat" in data:
+        filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
+        if filename.exists():
+            with Image.open(filename) as rgb_patch:
+                patches["sat"] = v2.functional.pil_to_tensor(rgb_patch).float() / 255
+        else:
+            patches['sat'] = torch.zeros([3, 995, 995])
+
+    if "timeseries" in data:
+        pass
+
+    return patches
+
+
+class RLSDataset(Dataset):
+    """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
+
+    Parameters
+    ----------
+    root : string or pathlib.Path
+        Root directory of dataset.
+    subset : string, either "train", "val", "train+val" or "test"
+        Use the given subset ("train+val" is the complete training data).
+    region : string, either "both", "fr" or "us"
+        Load the observations of both France and US or only a single region.
+    patch_data : string or list of string
+        Specifies what type of patch data to load, possible values: 'all', 'rgb', 'near_ir', 'landcover' or 'altitude'.
+    use_rasters : boolean (optional)
+        If True, extracts patches from environmental rasters.
+    patch_extractor : PatchExtractor object (optional)
+        Patch extractor to use if rasters are used.
+    use_localisation : boolean
+        If True, returns also the localisation as a tuple (latitude, longitude).
+    transform : callable (optional)
+        A function/transform that takes a list of arrays and returns a transformed version.
+    target_transform : callable (optional)
+        A function/transform that takes in the target and transforms it.
+    """
+    def __init__(
+        self,
+        root: Union[str, Path],
+        dataset_name: str,
+        inputs_path: Union[str, Path],
+        subset: str,
+        num_classes: int,
+        *,
+        patch_data: str = "all",
+        transform: Optional[Callable] = None,
+        target_transform: Optional[Callable] = None,
+        **kwargs,
+    ):
+        root = Path(root)
+
+        possible_subsets = ["train", "val", "train+val", "test"]
+        if subset not in possible_subsets:
+            raise ValueError(f"Possible values for 'subset' are:"
+                             f" {possible_subsets} (given {subset})")
+
+        self.root = root
+        self.dataset_name = dataset_name
+        self.inputs_path = Path(inputs_path)
+        self.subset = subset
+        self.patch_data = patch_data
+        self.transform = transform
+        self.target_transform = target_transform
+        self.training = subset != "test"
+        self.num_classes = num_classes
+
+        df = self._load_observation_data()
+
+        self.survey_ids = df.index
+
+        first_species_index = list(df.columns).index('eventDate') + 1
+
+        self.species = df.columns[first_species_index:]
+
+        assert len(self.species) == num_classes
+
+        if self.training:
+            self.targets = df[self.species].values.astype(np.float32)
+
+            if self.target_transform:
+                self.targets = self.target_transform(self.targets)
+
+            # self.targets = (self.species.values.astype(np.float32) > 0).sum(axis=0)
+            assert not (np.isnan(self.targets).any())
+        else:
+            self.targets = None
+
+    def _load_observation_data(
+        self
+    ) -> pd.DataFrame:
+
+        df = pd.read_csv(self.inputs_path / self.dataset_name,
+                         index_col='survey_id',
+                         dtype={22: str, 24: str, 25: str})
+
+        if self.subset == "train+val":
+            ind = df.index[df["subset"] == 'train'].union(df.index[df["subset"] == 'val'])
+        else:
+            ind = df.index[df["subset"] == self.subset]
+
+        df = df.loc[ind].drop(columns='subset')
+
+        return df
+
+    def __len__(self) -> int:
+        """Return the number of observations in the dataset."""
+        return len(self.survey_ids)
+
+    def __getitem__(
+        self,
+        index: int,
+    ) -> Union[dict[str, Patches], tuple[dict[str, Patches], Targets]]:
+        """Return a dataset item.
+
+        Args:
+            index (int): dataset id.
+
+        Returns:
+            Union[dict[str, Patches], tuple[dict[str, Patches], Targets]]:
+                data and labels corresponding to the dataset id.
         """
-        predictions = [None] * len(predictions) if predictions is None else predictions
-        probas = [None] * len(probas) if probas is None else probas
-        ids = np.arange(len(predictions)) if ids is None else ids
-        df = pd.DataFrame({'ids': ids,
-                           'predictions': tuple(predictions[:, :top_k].astype(str)),
-                           'targets': targets,
-                           'probas': tuple(probas[:, :top_k].astype(str))})
-        for key in ['probas', 'predictions']:
-            df[key] = df[key].apply(' '.join)
-        df.to_csv(Path(out_dir) / Path(out_name + ".csv"), index=False, sep=',', **kwargs)
-        if return_csv:
-            return df
-        return None
 
-    def export_predict_csv(self,
+        survey_id = self.survey_ids[index]
+
+        patches = load_patch(survey_id, self.inputs_path, data=self.patch_data)
+
+        if self.transform:
+            patches = self.transform(patches)
+
+        if self.training:
+            target = self.targets[index]
+
+            # if self.target_transform:
+            #     target = self.target_transform(target)
+
+            return patches, target
+        return patches, -1
+
+
+class RLSDataModule(BaseDataModule):
+    r"""
+    Data module for RLS-aus 2024.
+
+    Parameters
+    ----------
+        dataset_path: Path to dataset
+        train_batch_size: Size of batch for training
+        inference_batch_size: Size of batch for inference (validation, testing, prediction)
+        num_workers: Number of workers to use for data loading
+    """
+    def __init__(
+        self,
+        root: str,
+        dataset_name: str,
+        inputs_path: Union[str, Path],
+        num_classes: int,
+        train_batch_size: int = 32,
+        inference_batch_size: int = 256,
+        num_workers: int = 8,
+        target_transform: Callable = None
+    ):
+        super().__init__(train_batch_size, inference_batch_size, num_workers)
+        self.dataset_name = dataset_name
+        self.inputs_path = Path(inputs_path)
+        self.num_classes = num_classes
+        self.root = root
+        self.target_transform = target_transform  # check_transform(target_transform)
+
+    @property
+    def train_transform(self):
+        return self.general_transform
+
+    @property
+    def test_transform(self):
+        return self.general_transform
+
+    def general_transform(self, x):
+
+        if 'sat' in x:
+            x['sat'] = v2.functional.center_crop(x['sat'], output_size=384)
+            # x['sat'] = v2.functional.center_crop(x['sat'], output_size=995)
+
+        return x
+
+    def get_dataset(self, split, transform, **kwargs):
+
+        dataset = RLSDataset(
+            self.root,
+            self.dataset_name,
+            self.inputs_path,
+            split,
+            self.num_classes,
+            patch_data=["env", "sat"],
+            transform=transform,
+            target_transform=self.target_transform,
+            **kwargs
+        )
+        return dataset
+
+    def export_predictions(self,
                            predictions: Union[Tensor, np.ndarray],
-                           probas: Union[Tensor, np.ndarray] = None,
-                           single_point_query: dict = None,
                            out_name: str = "predictions",
                            out_dir: str = './',
-                           return_csv: bool = False,
-                           top_k: int = None,
-                           **kwargs: Any) -> Any:
-        """Export predictions to csv file.
+                           classif: bool = False,
+                           probabilities: bool = False,
+                           **kwargs: Any):
 
-        This method is used to export predictions to a csv file.
-        It can be used with a single point query or with the whole
-        test dataset.
-        This method is adapted for a classification task with an
-        observations file and multi-modal data.
-        Keys in the csv file match the ones used to inistantiate the
-        `RasterTorchGeoDataset` class, that is to say :
-        `observation_id`, `lon`, `lat`, `target_species_id`. The `crs`
-        key is also mandatory in the case of singl-point query.
+        test_ds = self.get_test_dataset()
 
-        Parameters
-        ----------
-        predictions : Union[Tensor, np.ndarray]
-            model's predictions.
-        probas : Union[Tensor, np.ndarray], optional
-            predictions' raw logits or logits passed through an
-            activation function, by default None
-        single_point_query : dict, optional
-            query dictionnary of the single-point prediction.
-            'target_species_id' key is mandatory expects a list of
-            numpy arrays of species ids.
-            'predictions' and 'probas' keys expect numpy arrays of
-            predictions and probabilities.
-            By default None (whole test dataset predictions)
-        out_name : str, optional
-            output CSV file name, by default "predictions"
-        out_dir : str, optional
-            output directory name, by default "./"
-        return_csv : bool, optional
-            if true, the method returns the CSV as a pandas DataFrame,
-            by default False
-        top_k : int, optional
-            number of top predictions to return, by default None (max
-            number of predictions)
+        if classif:
+            if probabilities:
+                predictions = predictions.softmax(dim=-1)[..., 1]
+            else:
+                predictions = predictions.argmax(dim=-1)
 
-        Returns
-        -------
-        pandas.DataFrame
-            CSV content as a pandas DataFrame if `return_csv` is True
-        """
-        out_name = out_name + ".csv" if not out_name.endswith(".csv") else out_name
-        fp = Path(out_dir) / Path(out_name)
-        top_k = top_k if top_k is not None else predictions.shape[1]
-        if single_point_query:
-            df = pd.DataFrame({'observation_id': [single_point_query['observation_id'] if 'observation_id' in single_point_query else None],
-                               'lon': [single_point_query['lon'] if 'lon' in single_point_query else None],
-                               'lat': [single_point_query['lat'] if 'lat' in single_point_query else None],
-                               'crs': [single_point_query['crs'] if 'crs' in single_point_query else None],
-                               'target_species_id': tuple(np.array(single_point_query['species_id']).astype(str) if 'species_id' in single_point_query else None),
-                               'predictions': tuple(predictions[:, :top_k].astype(str)),
-                               'probas': tuple(probas[:, :top_k].astype(str))})
-        else:
-            test_ds = self.get_test_dataset()
-            targets = test_ds.targets if test_ds.targets is not None else [-1] * len(predictions)
-            print('Constructing predictions CSV file...')
-            df = pd.DataFrame({'observation_id': test_ds.observation_ids,
-                               'lon': [None] * len(test_ds.observation_ids) if not hasattr(test_ds, 'coordinates') else test_ds.coordinates[:, 0],
-                               'lat': [None] * len(test_ds.observation_ids) if not hasattr(test_ds, 'coordinates') else test_ds.coordinates[:, 1],
-                               'target_species_id': tuple(np.array(targets).astype(int).astype(str)),
-                               'predictions': tuple(predictions[:, :top_k].astype(str)),
-                               'probas': [None] * len(predictions)})
-            if 'multilabel' in self.task:
-                predictions_multilabel = []
-                for obs_id in df['observation_id']:
-                    predictions_multilabel.append(' '.join(targets[df.index[df['observation_id'] == obs_id].values].astype(str)))
-                df['target_species_id'] = predictions_multilabel  # values must already be strings since the number of targets may vary per obs_id, however pd.DataFrame expects arrays of same lengths
-        if probas is not None:
-            df['probas'] = tuple(probas[:, :top_k].astype(str))
-        for key in ['probas', 'predictions', 'target_species_id']:
-            if not isinstance(df.loc[0, key], str) and len(df.loc[0, key]) >= 1:
-                df[key] = df[key].apply(' '.join)
-        print('Writing predictions CSV file...')
-        df.to_csv(fp, index=False, sep=';', **kwargs)
-        if return_csv:
-            return df
+        df = pd.DataFrame(index=test_ds.survey_ids,
+                          columns=test_ds.species,
+                          data=predictions)
+
+        df.to_csv(Path(out_dir) / Path(out_name + ".csv"), sep=',', **kwargs)
+
         return None
+
+    def export_confusion_matrix(self,
+                                dataset_path,
+                                predictions: Union[Tensor, np.ndarray],
+                                binary: bool = True,
+                                out_name: str = "confusion_matrix",
+                                out_dir: str = './',
+                                **kwargs: Any):
+
+        # Load targets
+        df = pd.read_csv(dataset_path, index_col='survey_id',
+                         dtype={22: str, 24: str, 25: str})
+        first_species_index = list(df.columns).index('eventDate') + 1
+        species_columns = df.columns[first_species_index:-1]
+        targets = df.loc[df['subset'] == 'test', species_columns]
+
+        if binary:
+            targets = (targets != 0).astype(int)
+
+        # Create chart
+        numbins = targets.to_numpy().max() + 1
+
+        cm = confusion_matrix(targets.to_numpy().flatten(),
+                              predictions.argmax(dim=-1).numpy().flatten(),
+                              labels=range(numbins),
+                              normalize='true')
+        cm = cm.round(2)
+
+        fig, ax = plt.subplots(figsize=(16, 16))
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=range(numbins))
+        disp.plot(xticks_rotation='vertical',
+                  colorbar=False,
+                  text_kw={'fontsize': 'x-small'},
+                  ax=ax,
+                  **kwargs)
+        plt.tight_layout()
+
+        plt.savefig(Path(out_dir) / f"{out_name}.png")
+
+    def get_species_weights(self):
+
+        """ get weights (= number of observations per species) """
+
+        ds = self.get_dataset("train+val", transform=self.train_transform)
+
+        sp_occ = np.log(1+(ds.targets > 0).sum(axis=0)).tolist()
+
+        return sp_occ
+
+    def get_class_weights(self):
+
+        """ get weights (= number of observations per class) """
+
+        ds = self.get_dataset("train+val", transform=self.train_transform)
+
+        class_counts = np.bincount(ds.targets.flatten().astype(int))
+
+        alpha = 1
+        weights = 1.0 / (class_counts ** alpha + 1e-6)
+
+        # Normalize to stabilize loss scale
+        weights /= weights.sum()
+
+        return weights

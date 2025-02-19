@@ -14,11 +14,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import timm
-from torch import nn
-from torchvision import models
 
-from malpolon.models.custom_models.glc2024_multimodal_ensemble_model import \
-    MultimodalEnsemble
+from torch import nn
+
+from torchvision import models
 
 if TYPE_CHECKING:
     from typing import Any, Callable, Optional
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
     Provider = Callable[..., nn.Module]
     Modifier = Callable[..., nn.Module]
 
-MALPOLON_MODELS = {'glc24_multimodal_ensemble': MultimodalEnsemble, }
+MALPOLON_MODELS = {}
 
 
 class _ModelBuilder:

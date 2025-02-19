@@ -11,12 +11,15 @@ import sys
 from pathlib import Path
 from typing import Mapping, Union
 
-import torchmetrics.functional as Fmetrics
 from omegaconf import OmegaConf
+
 from torch import nn, optim
 from torch.optim import Optimizer, lr_scheduler
 from torch.optim.lr_scheduler import LRScheduler
 
+import torchmetrics.functional as Fmetrics
+
+from .custom_loss import FilteredHuberLoss, LogSpacingLoss, ModifiedCELoss
 from .model_builder import ModelBuilder
 
 FMETRICS_CALLABLES = {'binary_accuracy': Fmetrics.classification.binary_accuracy,
@@ -38,7 +41,10 @@ SCHEDULER_CALLABLES = {'step_lr': lr_scheduler.StepLR,
 LOSS_CALLABLES = {'huber_loss': nn.HuberLoss,
                   'mse_loss': nn.MSELoss,
                   'cross_entropy_loss': nn.CrossEntropyLoss,
-                  'bce_loss': nn.BCELoss, }
+                  'bce_loss': nn.BCELoss,
+                  'filtered_huber_loss': FilteredHuberLoss,
+                  'modified_ce_loss': ModifiedCELoss,
+                  'log_spacing_loss': LogSpacingLoss}
 
 
 class CrashHandler():
@@ -125,7 +131,7 @@ def check_loss(loss: Union[nn.modules.loss._Loss, str]) -> nn.modules.loss._Loss
         return loss
     elif isinstance(loss, str):
         if loss in LOSS_CALLABLES:
-            return(LOSS_CALLABLES[loss])
+            return LOSS_CALLABLES[loss]
     raise ValueError(f"Loss must be of type nn.modules.loss or string from LOSS_CALLABLES"
                      f"Loss given type {type(loss)} instead")
 

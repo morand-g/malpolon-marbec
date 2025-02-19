@@ -1,0 +1,74 @@
+import torch
+import torch.nn.functional as F
+from torch import Tensor, nn
+
+
+class LogSpacingLoss(nn.modules.loss._Loss):
+
+    def __init__(self, num_bins, num_species, loss_weights=None):
+        super(LogSpacingLoss, self).__init__()
+
+        self.num_bins = num_bins
+        self.num_species = num_species
+        self.loss_weights = torch.Tensor(loss_weights) if loss_weights is not None else None
+
+        # Precompute log-scaled distances
+        log_indices = torch.log1p(torch.arange(num_bins, dtype=torch.float32))
+        distances = torch.abs(log_indices.unsqueeze(0) - log_indices.unsqueeze(1))
+        distances = torch.exp(distances)
+        self.register_buffer("distances", distances)  # Store as a non-trainable tensor
+
+    def forward(self, predictions, target):
+
+        target_indices = target.to(torch.int64)
+
+        prob_predictions = torch.softmax(predictions, dim=-1)
+        calculated_distances = self.distances[target_indices]
+        loss = (calculated_distances * prob_predictions)
+
+        if self.loss_weights is not None:
+            loss = (loss * self.loss_weights.to(loss.device)).mean(dim=-1)
+
+        return loss.mean()
+
+
+class ModifiedCELoss(nn.modules.loss._Loss):
+
+    def __init__(self, num_bins, num_species, loss_weights=None):
+        super(ModifiedCELoss, self).__init__()
+
+        self.num_bins = num_bins
+        self.num_species = num_species
+        self.loss_weights = torch.tensor(loss_weights, dtype=torch.float32) if loss_weights is not None else None
+
+    def forward(self, predictions, targets):
+        """
+        predictions: (batch_size, num_species, num_classes) -> Raw logits
+        targets: (batch_size, num_species) -> Class indices (0 to num_classes - 1)
+        """
+
+        # Reshape for cross-entropy compatibility
+        predictions = predictions.view(-1, self.num_bins)  # (batch_size * num_species, num_classes)
+        targets = targets.view(-1).to(torch.int64)  # (batch_size * num_species,)
+
+        # Apply optional class weights
+        if self.loss_weights is not None:
+            loss = F.cross_entropy(predictions, targets, weight=self.loss_weights.to(predictions.device), reduction='mean')
+        else:
+            loss = F.cross_entropy(predictions, targets, reduction='mean')
+
+        return loss
+
+
+class FilteredHuberLoss(nn.HuberLoss):
+
+    def __init__(self, delta: float = 1.0) -> None:
+
+        super().__init__(delta=delta, reduction='none')
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+
+        present = (target != 0).to(int)
+        huber_loss = super().forward(input, target)
+        filtered_loss = (huber_loss * present).mean()
+        return filtered_loss
