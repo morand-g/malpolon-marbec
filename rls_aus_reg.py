@@ -13,7 +13,7 @@ import hydra
 
 from malpolon.data.data_module import RLSDataModule
 from malpolon.logging import Summary
-from malpolon.models.custom_loss import MultiModalModel
+from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
 from malpolon.models.utils import check_metric
 

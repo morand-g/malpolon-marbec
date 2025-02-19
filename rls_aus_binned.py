@@ -13,10 +13,10 @@ import hydra
 
 from malpolon.data.data_module import RLSDataModule
 from malpolon.logging import Summary
-from malpolon.models.custom_loss import MultiModalModel
+from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -26,6 +26,7 @@ from torch import Tensor
 
 import torchmetrics.functional as Fmetrics
 
+OmegaConf.register_new_resolver("eval", eval)
 
 def get_custom_metric(nbins, average_type):
 
@@ -47,7 +48,7 @@ class PresenceSystem(GenericPredictionSystem):
         loss: Union[torch.nn.modules.loss._Loss, str] = None,
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[dict[str, Callable]] = None,
-        loss_weights: Optional[Tensor] = None,
+        loss_kwargs: Optional[Mapping] = {},
     ):
 
         model = MultiModalModel(
@@ -60,7 +61,7 @@ class PresenceSystem(GenericPredictionSystem):
         metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
                    'macro_acc': get_custom_metric(num_bins, 'macro')}
 
-        super().__init__(model, loss, loss_weights, optimizer, metrics=metrics)
+        super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
@@ -78,7 +79,12 @@ def main(cfg: DictConfig) -> None:
 
     # Datamodule & Model
     datamodule = RLSDataModule(**cfg.data, target_transform=lambda x: (x != 0).astype(float))
-    reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_weights=datamodule.get_class_weights())
+
+    loss_kwargs = {'num_bins': cfg.model.num_bins,
+                   'num_species': cfg.model.num_species,
+                   'loss_weights': datamodule.get_class_weights()}
+
+    reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
 
     # Copy current file to log folder
     # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)

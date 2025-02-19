@@ -24,7 +24,7 @@ import pytorch_lightning as pl
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from torchvision.transforms import v2
 

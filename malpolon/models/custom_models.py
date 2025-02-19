@@ -23,7 +23,7 @@ class MultiModalModel(nn.Module):
         self.monomodal = (len(modality_models) == 1)
         self.num_species = num_species
         self.num_bins = num_bins
-        self.classifying = False
+        self.classifying = True
 
         if num_bins == -1:
             self.classifying = False

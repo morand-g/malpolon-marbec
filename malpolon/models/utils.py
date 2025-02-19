@@ -13,7 +13,7 @@ from typing import Mapping, Union
 
 from omegaconf import OmegaConf
 
-from torch import nn, optim
+from torch import nn, optim, Tensor
 from torch.optim import Optimizer, lr_scheduler
 from torch.optim.lr_scheduler import LRScheduler
 
@@ -115,7 +115,8 @@ def check_metric(metrics: OmegaConf) -> OmegaConf:
     return metrics
 
 
-def check_loss(loss: Union[nn.modules.loss._Loss, str]) -> nn.modules.loss._Loss:
+def check_loss(loss: Union[nn.modules.loss._Loss, str],
+               loss_kwargs: Mapping = {}) -> nn.modules.loss._Loss:
     """Ensure input loss is a pytorch loss.
 
     Args:
@@ -131,7 +132,8 @@ def check_loss(loss: Union[nn.modules.loss._Loss, str]) -> nn.modules.loss._Loss
         return loss
     elif isinstance(loss, str):
         if loss in LOSS_CALLABLES:
-            return LOSS_CALLABLES[loss]
+            return LOSS_CALLABLES[loss](**loss_kwargs)
+
     raise ValueError(f"Loss must be of type nn.modules.loss or string from LOSS_CALLABLES"
                      f"Loss given type {type(loss)} instead")
 

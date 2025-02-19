@@ -5,12 +5,12 @@ run:
   predict: false
   exp_name: 0_test
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: /mnt/marbec-data/RLS-Australia/malpolon/outputs/11_satenv_pa-2025-02-05_17-45/last.ckpt
+  checkpoint_path: null #/mnt/marbec-data/RLS-Australia/malpolon/outputs/11_satenv_pa-2025-02-05_17-45/last.ckpt
 data:
   root: /mnt/marbec-data/RLS-Australia/malpolon/
   inputs_path: /mnt/marbec-data/RLS-Australia/malpolon/inputs
   dataset_name: database_split_binned-25.csv
-  num_classes: &num_classes 1796
+  num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
   num_workers: 8
@@ -22,30 +22,21 @@ trainer:
   check_val_every_n_epoch: 1
   detect_anomaly: false
 model:
-  num_species: *num_classes
-  num_bins: &num_bins 2
+  num_species: ${data.num_classes}
+  num_bins: 2
   freeze_submodels: true
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: /mnt/marbec-data/RLS-Australia/malpolon/outputs/9_env_pa-2025-02-05_11-07/last.ckpt
+      checkpoint: null #/mnt/marbec-data/RLS-Australia/malpolon/outputs/9_env_pa-2025-02-05_11-07/last.ckpt
       model_kwargs:
         weights: null
       modifiers:
         change_last_layer:
-          num_outputs: 3592
+          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
           num_input_channels: 17
-    sat:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: /mnt/marbec-data/RLS-Australia/malpolon/outputs/10_sat_pa-2025-02-05_14-22/last.ckpt
-      model_kwargs:
-        weights: null
-      modifiers:
-        change_last_layer:
-          num_outputs: 3592
 optim:
   optimizer:
     adamw:
@@ -60,6 +51,6 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: linear_distance_loss
+  loss: modified_ce_loss
 loggers:
   log_dir_name: /mnt/marbec-data/RLS-Australia/malpolon/logs/

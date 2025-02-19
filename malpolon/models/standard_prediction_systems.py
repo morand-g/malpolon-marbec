@@ -34,6 +34,7 @@ class GenericPredictionSystem(pl.LightningModule):
         model: Union[torch.nn.Module, Mapping],
         loss: torch.nn.modules.loss._Loss,
         optimizer: Union[torch.optim.Optimizer, Mapping],
+        loss_kwargs: Mapping = {},
         scheduler: Union[torch.optim.Optimizer] = None,
         metrics: Optional[dict[str, Callable]] = None,
         save_hyperparameters: Optional[bool] = True,
@@ -69,7 +70,7 @@ class GenericPredictionSystem(pl.LightningModule):
         self.model = check_model(model)
         self.optimizer, config_scheduler = check_optimizer(optimizer, self.model)
         self.scheduler = config_scheduler if scheduler is None else check_scheduler(scheduler, self.optimizer)
-        self.loss = check_loss(loss)
+        self.loss = check_loss(loss, loss_kwargs)
         self.metrics = metrics or {}
         if len(self.optimizer) > 1:
             print('[INFO] Multiple optimizers detected: setting automatic optimization to False... you are responsible for calling ``.backward()``, ``.step()``, ``.zero_grad()`` of your prediction system.')

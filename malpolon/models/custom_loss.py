@@ -60,6 +60,7 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         return loss
 
 
+
 class FilteredHuberLoss(nn.HuberLoss):
 
     def __init__(self, delta: float = 1.0) -> None:

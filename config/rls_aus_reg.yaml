@@ -1,18 +1,18 @@
 hydra:
   run:
-    dir: /marbec-data/RLS-Australia/malpolon/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
     
 run:
-  predict: true
-  exp_name: 12_env_reg
+  predict: false
+  exp_name: 0_test
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: '/marbec-data/RLS-Australia/malpolon/outputs/12_env_reg-2025-02-06_11-21/last.ckpt'
-  pa_predictions_path: '/marbec-data/RLS-Australia/malpolon/outputs/9_env_pa-2025-02-07_11-48-preds/presences.csv'
+  checkpoint_path: null # ${data.root}outputs/12_env_reg-2025-02-06_11-21/last.ckpt
+  pa_predictions_path: '/home/gaetan/presences.csv'
 data:
-  root: "/marbec-data/RLS-Australia/malpolon/"
-  inputs_path: "/marbec-data/RLS-Australia/malpolon/inputs"
+  root: /mnt/marbec-data/RLS-Australia/malpolon/
+  inputs_path: ${data.root}inputs
   dataset_name: database_split.csv
-  num_classes: &num_classes 1796
+  num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
   num_workers: 8
@@ -24,6 +24,7 @@ trainer:
   check_val_every_n_epoch: 1
   detect_anomaly: false
 model:
+  num_species: ${data.num_classes}
   freeze_submodels: false
   submodels:
     env:
@@ -33,7 +34,7 @@ model:
         weights: IMAGENET1K_V1
       modifiers:
         change_last_layer:
-          num_outputs: *num_classes
+          num_outputs: ${data.num_classes}
         change_first_convolutional_layer:
           num_input_channels: 17
 optim:
@@ -50,7 +51,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: "weighted_huber_loss"
+  loss: "filtered_huber_loss"
   metrics:
     r2:
       callable: "Fmetrics.regression.r2_score"
@@ -61,4 +62,4 @@ optim:
       kwargs:
         num_outputs: 1
 loggers:
-  log_dir_name: "/marbec-data/RLS-Australia/malpolon/logs/"
+  log_dir_name: ${data.root}logs/
