@@ -7,9 +7,9 @@ run:
   exp_name: 0_test
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null # ${data.root}outputs/12_env_reg-2025-02-06_11-21/last.ckpt
-  pa_predictions_path: '/home/gaetan/presences.csv'
+  pa_predictions_path: ${data.root}outputs/9_env_pa-2025-02-07_11-48-preds/presences.csv
 data:
-  root: /mnt/marbec-data/RLS-Australia/malpolon/
+  root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs
   dataset_name: database_split.csv
   num_classes: 1796

@@ -1,14 +1,14 @@
 hydra:
   run:
-    dir: /mnt/marbec-data/RLS-Australia/malpolon/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}outputs/${run.run_name}
 run:
   predict: false
   exp_name: 0_test
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #/mnt/marbec-data/RLS-Australia/malpolon/outputs/11_satenv_pa-2025-02-05_17-45/last.ckpt
+  checkpoint_path: null #${data.root}outputs/${run.run_name}outputs/11_satenv_pa-2025-02-05_17-45/last.ckpt
 data:
-  root: /mnt/marbec-data/RLS-Australia/malpolon/
-  inputs_path: /mnt/marbec-data/RLS-Australia/malpolon/inputs
+  root: /marbec-data/RLS-Australia/malpolon/
+  inputs_path: ${data.root}inputs
   dataset_name: database_split_binned-25.csv
   num_classes: 1796
   train_batch_size: 64
@@ -29,7 +29,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #/mnt/marbec-data/RLS-Australia/malpolon/outputs/9_env_pa-2025-02-05_11-07/last.ckpt
+      checkpoint: null #${data.root}outputs/${run.run_name}outputs/9_env_pa-2025-02-05_11-07/last.ckpt
       model_kwargs:
         weights: null
       modifiers:
@@ -53,4 +53,4 @@ optim:
             monitor: loss/val
   loss: modified_ce_loss
 loggers:
-  log_dir_name: /mnt/marbec-data/RLS-Australia/malpolon/logs/
+  log_dir_name: ${data.root}outputs/${run.run_name}logs/
