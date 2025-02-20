@@ -19,5 +19,6 @@ build/
 # Resources
 
 # Debugging
-
+malpolon_rls.err
+malpolon_rls.out
 # Miscellaneous

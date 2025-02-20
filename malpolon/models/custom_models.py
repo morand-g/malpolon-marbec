@@ -51,11 +51,9 @@ class MultiModalModel(nn.Module):
 
                 # Instantiate model
                 submodels[modality_name] = check_model(model_copy)
-
+            
                 # Add LayerNorm to fc layer to be able to load checkpoint
-                in_size = submodels[modality_name].fc.in_features
-                submodels[modality_name].fc = nn.Sequential(nn.LayerNorm(in_size),
-                                                            submodels[modality_name].fc)
+                submodels[modality_name] = self.add_layer_norm(submodels[modality_name])
 
                 # Load data from checkpoint
                 checkpoint = torch.load(modality_checkpoint, weights_only=False)
@@ -66,11 +64,8 @@ class MultiModalModel(nn.Module):
 
             else:
                 submodels[modality_name] = check_model(model)
-
-                # Add LayerNorm to fc layer
-                in_size = submodels[modality_name].fc.in_features
-                submodels[modality_name].fc = nn.Sequential(nn.LayerNorm(in_size),
-                                                            submodels[modality_name].fc)
+                submodels[modality_name] = self.add_layer_norm(submodels[modality_name])
+                
 
         self.modality_models = nn.ModuleDict(submodels)
 
@@ -82,8 +77,7 @@ class MultiModalModel(nn.Module):
 
             for modality_name in self.modality_models:
 
-                linears.append(self.modality_models[modality_name].fc[1])
-                self.modality_models[modality_name].fc[1] = nn.Identity()
+                linears.append(self.pop_linear(modality))
 
                 # Freeze submodels
                 if freeze_submodels:
@@ -126,3 +120,30 @@ class MultiModalModel(nn.Module):
 
         else:
             return out
+
+    def add_layer_norm(self, modality: nn.Module) -> nn.Module:
+
+        # Add LayerNorm to fc/head layer
+
+        if modality.__class__.__name__ == 'SwinTransformer':
+            in_size = modality.head.in_features
+            modality.head = nn.Sequential(nn.LayerNorm(in_size), modality.head)
+        else:
+            in_size = modality.fc.in_features
+            modality.fc = nn.Sequential(nn.LayerNorm(in_size), modality.fc)
+
+        return modality
+
+    def pop_linear(self, modality_name: str) -> nn.Module:
+
+        # Remove linear and return it
+
+        if modality.__class__.__name__ == 'SwinTransformer':
+            lin = self.modality_models[modality_name].head[1]
+            self.modality_models[modality_name].head[1] = nn.Identity()
+
+        else:
+            lin = self.modality_models[modality_name].fc[1]
+            self.modality_models[modality_name].fc[1] = nn.Identity()
+
+        return lin
