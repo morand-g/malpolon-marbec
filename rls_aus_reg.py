@@ -36,7 +36,7 @@ class AbundanceSystem(GenericPredictionSystem):
         submodels: DictConfig,
         num_species: int,
         freeze_submodels: bool,
-        loss: Union[torch.nn.modules.loss._Loss, str] = None,
+        loss: Union[torch.nn.modules.loss._Loss, str] = 'filtered_huber_loss',
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[dict[str, Callable]] = None,
         loss_weights: Optional[Tensor] = None,

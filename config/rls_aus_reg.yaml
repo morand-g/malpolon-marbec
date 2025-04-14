@@ -3,14 +3,14 @@ hydra:
     dir: ${data.root}outputs/${run.run_name}
     
 run:
-  predict: false
-  exp_name: 0_test
+  predict: true
+  exp_name: 17_envhum_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null # ${data.root}outputs/12_env_reg-2025-02-06_11-21/last.ckpt
-  pa_predictions_path: ${data.root}outputs/9_env_pa-2025-02-07_11-48-preds/presences.csv
+  checkpoint_path: ${data.root}outputs/17_envhum_reg-2025-03-04_00-15/last.ckpt
+  pa_predictions_path: ${data.root}outputs/14_humenv_pa-2025-03-04_11-45-preds/presences.csv
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs
+  inputs_path: ${data.root}inputs/australia
   dataset_name: database_split.csv
   num_classes: 1796
   train_batch_size: 64
@@ -30,18 +30,30 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
+      checkpoint: ${data.root}outputs/12_env_reg-2025-03-03_12-06/last.ckpt
       model_kwargs:
-        weights: IMAGENET1K_V1
+        weights: null #IMAGENET1K_V1
       modifiers:
         change_last_layer:
           num_outputs: ${data.num_classes}
         change_first_convolutional_layer:
-          num_input_channels: 17
+          num_input_channels: 15
+    hum:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/16_hum_reg-2025-03-03_18-07/last.ckpt
+      model_kwargs:
+        weights: null #IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${data.num_classes}
+        change_first_convolutional_layer:
+          num_input_channels: 4
 optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-3
+        lr: 1e-5
         weight_decay: 0.1
       scheduler: 
         reduce_lr_on_plateau:

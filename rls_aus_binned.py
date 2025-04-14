@@ -45,7 +45,7 @@ class PresenceSystem(GenericPredictionSystem):
         num_species: int,
         num_bins: int,
         freeze_submodels: bool,
-        loss: Union[torch.nn.modules.loss._Loss, str] = None,
+        loss: Union[torch.nn.modules.loss._Loss, str] = "modified_ce_loss",
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[dict[str, Callable]] = None,
         loss_kwargs: Optional[Mapping] = {},
@@ -117,6 +117,11 @@ def main(cfg: DictConfig) -> None:
                                       classif=True,
                                       probabilities=True,
                                       out_name='predictions-probs')
+        datamodule.export_predictions(predictions,
+                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      classif=True,
+                                      probabilities=False,
+                                      out_name='presences')
         datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
                                            predictions,
                                            out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)

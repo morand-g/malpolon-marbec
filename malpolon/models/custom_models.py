@@ -77,7 +77,7 @@ class MultiModalModel(nn.Module):
 
             for modality_name in self.modality_models:
 
-                linears.append(self.pop_linear(modality))
+                linears.append(self.pop_linear(modality_name))
 
                 # Freeze submodels
                 if freeze_submodels:
@@ -138,7 +138,7 @@ class MultiModalModel(nn.Module):
 
         # Remove linear and return it
 
-        if modality.__class__.__name__ == 'SwinTransformer':
+        if self.modality_models[modality_name].__class__.__name__ == 'SwinTransformer':
             lin = self.modality_models[modality_name].head[1]
             self.modality_models[modality_name].head[1] = nn.Identity()
 

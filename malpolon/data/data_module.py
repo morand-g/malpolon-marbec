@@ -320,12 +320,20 @@ def load_patch(
     patches = {}
 
     if data == "all":
-        data = ['env', 'sat', 'timeseries']
+        data = ['env', 'hum', 'sat', 'timeseries']
 
     if "env" in data:
         filename = Path(inputs_path) / "env" / (survey_id + '.npy')
         x = np.load(filename).astype(np.float32)
         patches["env"] = np.transpose(x, (2, 0, 1))
+
+    if "hum" in data:
+        filename = Path(inputs_path) / "hum" / (survey_id + '.npy')
+        x = np.load(filename).astype(np.float32)
+        patches["hum"] = np.transpose(x, (2, 0, 1))
+
+    if ("env" in data and "hum" in data):
+        patches["envhum"] = np.concatenate([patches["env"], patches["hum"]], axis=0)
 
     if "sat" in data:
         filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
@@ -508,8 +516,8 @@ class RLSDataModule(BaseDataModule):
     def general_transform(self, x):
 
         if 'sat' in x:
-            x['sat'] = v2.functional.center_crop(x['sat'], output_size=384)
-            # x['sat'] = v2.functional.center_crop(x['sat'], output_size=995)
+            # x['sat'] = v2.functional.center_crop(x['sat'], output_size=384)
+            x['sat'] = v2.functional.center_crop(x['sat'], output_size=500)
 
         return x
 
@@ -521,7 +529,7 @@ class RLSDataModule(BaseDataModule):
             self.inputs_path,
             split,
             self.num_classes,
-            patch_data=["env", "sat"],
+            patch_data=["env", "hum", "sat"],
             transform=transform,
             target_transform=self.target_transform,
             **kwargs

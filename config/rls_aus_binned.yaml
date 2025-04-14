@@ -2,14 +2,14 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
-  exp_name: 10_sat_pa
+  predict: true
+  exp_name: 15_humenv_cat_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/11_satenv_pa-2025-02-05_17-45/last.ckpt
+  checkpoint_path: ${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/
-  dataset_name: database_split_binned-25.csv
+  inputs_path: ${data.root}inputs/australia/
+  dataset_name: database_split.csv
   num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
@@ -17,29 +17,32 @@ data:
 trainer:
   accelerator: "auto"
   devices: "auto"
-  max_epochs: 40
+  max_epochs: 60
   val_check_interval: 100
   check_val_every_n_epoch: 1
+  log_every_n_steps: 100
   detect_anomaly: false
 model:
   num_species: ${data.num_classes}
   num_bins: 2
   freeze_submodels: false
   submodels:
-    sat:
+    envhum:
       provider_name: torchvision
-      model_name: swin_t
-      checkpoint: null #${data.root}outputs/9_env_pa-2025-02-05_11-07/last.ckpt
+      model_name: resnet18
+      checkpoint: null #${data.root}outputs/13_hum_pa-2025-02-27_16-20/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
         change_last_layer:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+        change_first_convolutional_layer:
+          num_input_channels: 19
 optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 0.1
+        lr: 0.01
         weight_decay: 0.5
       scheduler: 
         reduce_lr_on_plateau:
