@@ -126,6 +126,10 @@ def main(cfg: DictConfig) -> None:
                                            predictions,
                                            out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
+        if cfg.run.interpretable:
+            ig = IntegratedGradients(model)
+            test_ds = datamodule.get_test_dataset()
+
     else:
         if cfg.run.checkpoint_path is not None:
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
