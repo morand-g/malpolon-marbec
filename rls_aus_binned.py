@@ -15,6 +15,7 @@ from malpolon.data.data_module import RLSDataModule
 from malpolon.logging import Summary
 from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
+from captum.attr import IntegratedGradients
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -25,6 +26,9 @@ import torch
 from torch import Tensor
 
 import torchmetrics.functional as Fmetrics
+import os
+import numpy as np
+import pandas as pd
 
 OmegaConf.register_new_resolver("eval", eval)
 
@@ -36,6 +40,24 @@ def get_custom_metric(nbins, average_type):
         return Fmetrics.classification.multiclass_accuracy(predictions, target, num_classes=nbins, average=average_type)
 
     return custom_metric
+
+
+def save_integrated_gradients(model, dataloader, class_indices, output_dir):
+    integrated_gradients = IntegratedGradients(model)
+    os.makedirs(output_dir, exist_ok=True)
+    class_attributions = {class_idx: [] for class_idx in class_indices}
+
+    for i, (inputs, targets) in enumerate(dataloader):
+        inputs = {k: v.to(model.device).require_grad_() for k, v in inputs.items()}
+        targets = targets.to(model.device).require_grad_()
+
+        for class_idx in class_indices:
+            attributions, delta = integrated_gradients.attribute(inputs, target=targets, return_convergence_delta=True)
+            attributions_np = attributions.cpu().numpy()
+            class_attributions[class_idx].append({i:attributions_np})
+
+    return(class_attributions)
+
 
 
 class PresenceSystem(GenericPredictionSystem):
@@ -127,8 +149,16 @@ def main(cfg: DictConfig) -> None:
                                            out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
         if cfg.run.interpretable:
-            ig = IntegratedGradients(model)
-            test_ds = datamodule.get_test_dataset()
+            output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients'
+
+            dataset = datamodule.get_test_dataset()
+            species = dataset.species
+
+            best_species = list(pd.read_csv(output_dir.parent / 'best_species.csv', index_col = 0).index)
+            class_indices = [species.index(s) for s in best_species]
+
+            test_loader = datamodule.test_dataloader()
+            atts = save_integrated_gradients(model_loaded, test_loader, class_indices, output_dir)
 
     else:
         if cfg.run.checkpoint_path is not None:

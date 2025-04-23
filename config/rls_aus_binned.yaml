@@ -4,11 +4,11 @@ hydra:
 run:
   predict: true
   interpretable: true
-  exp_name: 15_humenv_cat_pa
+  exp_name: 14_humenv_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
+  checkpoint_path: /home/gaetan/Desktop/checkpoints/14_humenv_pa-2025-02-28_11-38/last.ckpt # ${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
 data:
-  root: /marbec-data/RLS-Australia/malpolon/
+  root: /mnt/marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
   dataset_name: database_split.csv
   num_classes: 1796
@@ -31,7 +31,7 @@ model:
     envhum:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/13_hum_pa-2025-02-27_16-20/last.ckpt
+      checkpoint: null
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
