@@ -43,13 +43,14 @@ def get_custom_metric(nbins, average_type):
 
 
 def save_integrated_gradients(model, dataloader, class_indices, output_dir):
+
     integrated_gradients = IntegratedGradients(model)
     os.makedirs(output_dir, exist_ok=True)
     class_attributions = {class_idx: [] for class_idx in class_indices}
 
     for i, (inputs, targets) in enumerate(dataloader):
-        inputs = {k: v.to(model.device).require_grad_() for k, v in inputs.items()}
-        targets = targets.to(model.device).require_grad_()
+        inputs = {k: v.to(model.device).requires_grad_() for k, v in inputs.items()}
+        targets = targets.to(model.device).float().requires_grad_()
 
         for class_idx in class_indices:
             attributions, delta = integrated_gradients.attribute(inputs, target=targets, return_convergence_delta=True)
@@ -133,31 +134,36 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
         model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
-        predictions = model_loaded.predict(datamodule, trainer)
-        datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                      classif=True,
-                                      probabilities=True,
-                                      out_name='predictions-probs')
-        datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                      classif=True,
-                                      probabilities=False,
-                                      out_name='presences')
-        datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
-                                           predictions,
-                                           out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+        # predictions = model_loaded.predict(datamodule, trainer)
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+        #                               classif=True,
+        #                               probabilities=True,
+        #                               out_name='predictions-probs')
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+        #                               classif=True,
+        #                               probabilities=False,
+        #                               out_name='presences')
+        # datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
+        #                                    predictions,
+        #                                    out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
         if cfg.run.interpretable:
             output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients'
 
             dataset = datamodule.get_test_dataset()
-            species = dataset.species
+            species = list(dataset.species)
 
             best_species = list(pd.read_csv(output_dir.parent / 'best_species.csv', index_col = 0).index)
             class_indices = [species.index(s) for s in best_species]
 
             test_loader = datamodule.test_dataloader()
+
+            print(f"Dataset length: {len(dataset)}")
+            print(f"DataLoader length: {sum(1 for _ in test_loader)}")
+            
+
             atts = save_integrated_gradients(model_loaded, test_loader, class_indices, output_dir)
 
     else:
