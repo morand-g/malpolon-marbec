@@ -42,18 +42,28 @@ def get_custom_metric(nbins, average_type):
     return custom_metric
 
 
-def save_integrated_gradients(model, dataloader, class_indices, output_dir):
+def save_integrated_gradients(model, dataset, class_indices, output_dir):
 
     integrated_gradients = IntegratedGradients(model)
     os.makedirs(output_dir, exist_ok=True)
     class_attributions = {class_idx: [] for class_idx in class_indices}
 
-    for i, (inputs, targets) in enumerate(dataloader):
-        inputs = {k: v.to(model.device).requires_grad_() for k, v in inputs.items()}
-        targets = targets.to(model.device).float().requires_grad_()
+    #df = dataset._load_observation_data()
+    #alltargets = df[dataset.species]
+
+    for i in range(len(dataset)):
+        # Get the i-th sample from the dataset
+
+        ind = dataset.survey_ids[i]
+        inputs, _ = dataset[i]
+        #targets = torch.from_numpy(alltargets.loc[ind].values)
+
+        inputs = {k:v.to(model.device).requires_grad_() for k, v in inputs.items()}
+        #targets = targets.to(model.device).float().requires_grad_()
 
         for class_idx in class_indices:
-            attributions, delta = integrated_gradients.attribute(inputs, target=targets, return_convergence_delta=True)
+            target = torch.nn.functional.one_hot(torch.tensor(class_idx), num_classes=len(dataset.species)).to(model.device).float().requires_grad_()
+            attributions = integrated_gradients.attribute(tuple(inputs.values()), target=target)
             attributions_np = attributions.cpu().numpy()
             class_attributions[class_idx].append({i:attributions_np})
 
@@ -101,7 +111,9 @@ def main(cfg: DictConfig) -> None:
     logger_tb.log_hyperparams(cfg)
 
     # Datamodule & Model
-    datamodule = RLSDataModule(**cfg.data, target_transform=lambda x: (x != 0).astype(float))
+    datamodule = RLSDataModule(**cfg.data,
+                               modality_names= list(cfg.model.submodels.keys()),
+                               target_transform=lambda x: (x != 0).astype(float))
 
     loss_kwargs = {'num_bins': cfg.model.num_bins,
                    'num_species': cfg.model.num_species,
@@ -110,7 +122,7 @@ def main(cfg: DictConfig) -> None:
     reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
 
     # Copy current file to log folder
-    # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
+    #copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
 
     # Lightning Trainer
     callbacks = [
@@ -134,7 +146,7 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
         model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
-        # predictions = model_loaded.predict(datamodule, trainer)
+        #predictions = model_loaded.predict(datamodule, trainer)
         # datamodule.export_predictions(predictions,
         #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
         #                               classif=True,
@@ -152,19 +164,13 @@ def main(cfg: DictConfig) -> None:
         if cfg.run.interpretable:
             output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients'
 
-            dataset = datamodule.get_test_dataset()
-            species = list(dataset.species)
+            test_dataset = datamodule.get_test_dataset()
+            species = list(test_dataset.species)
 
             best_species = list(pd.read_csv(output_dir.parent / 'best_species.csv', index_col = 0).index)
             class_indices = [species.index(s) for s in best_species]
 
-            test_loader = datamodule.test_dataloader()
-
-            print(f"Dataset length: {len(dataset)}")
-            print(f"DataLoader length: {sum(1 for _ in test_loader)}")
-            
-
-            atts = save_integrated_gradients(model_loaded, test_loader, class_indices, output_dir)
+            atts = save_integrated_gradients(model_loaded, test_dataset, class_indices, output_dir)
 
     else:
         if cfg.run.checkpoint_path is not None:

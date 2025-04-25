@@ -1,7 +1,0 @@
-hydra-core
-pytorch-lightning
-scikit-learn
-timm
-matplotlib
-pandas
-tensorboard

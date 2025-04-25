@@ -290,6 +290,32 @@ class BaseDataModule(pl.LightningDataModule, ABC):
         return class_preds.to('cpu').numpy().astype(int), probas.to('cpu').numpy()
 
 
+def load_modality(survey_id, inputs_path, modality):
+
+    match modality:
+        case "env":
+            filename = Path(inputs_path) / "env" / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.from_numpy(np.transpose(x, (2, 0, 1)))
+        case "hum":
+            filename = Path(inputs_path) / "hum" / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.from_numpy(np.transpose(x, (2, 0, 1)))
+        case "sat":
+            filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
+            if filename.exists():
+                with Image.open(filename) as rgb_patch:
+                    return v2.functional.pil_to_tensor(rgb_patch).float() / 255
+            else:
+                return torch.zeros([3, 995, 995]) 
+        case "timeseries":
+            pass
+        case "envhum":
+            env = load_modality(survey_id, inputs_path, "env")
+            hum = load_modality(survey_id, inputs_path, "hum")
+            return torch.from_numpy(np.concatenate([env, hum], axis=0))
+
+
 def load_patch(
     survey_id: Union[int, str],
     inputs_path: Path,
@@ -297,6 +323,7 @@ def load_patch(
     data: Union[str, list[str]] = "all",
     return_arrays: bool = True,
 ) -> dict[str, Patches]:
+    
     """Load the patch data associated to an observation id.
 
     Parameters
@@ -322,29 +349,8 @@ def load_patch(
     if data == "all":
         data = ['env', 'hum', 'sat', 'timeseries']
 
-    if "env" in data:
-        filename = Path(inputs_path) / "env" / (survey_id + '.npy')
-        x = np.load(filename).astype(np.float32)
-        patches["env"] = np.transpose(x, (2, 0, 1))
-
-    if "hum" in data:
-        filename = Path(inputs_path) / "hum" / (survey_id + '.npy')
-        x = np.load(filename).astype(np.float32)
-        patches["hum"] = np.transpose(x, (2, 0, 1))
-
-    if ("env" in data and "hum" in data):
-        patches["envhum"] = np.concatenate([patches["env"], patches["hum"]], axis=0)
-
-    if "sat" in data:
-        filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
-        if filename.exists():
-            with Image.open(filename) as rgb_patch:
-                patches["sat"] = v2.functional.pil_to_tensor(rgb_patch).float() / 255
-        else:
-            patches['sat'] = torch.zeros([3, 995, 995])
-
-    if "timeseries" in data:
-        pass
+    for n in data:
+        patches[n] = load_modality(survey_id, inputs_path, n)
 
     return patches
 
@@ -496,7 +502,8 @@ class RLSDataModule(BaseDataModule):
         train_batch_size: int = 32,
         inference_batch_size: int = 256,
         num_workers: int = 8,
-        target_transform: Callable = None
+        target_transform: Callable = None,
+        modality_names: Optional[dict[str, str]] = ["env", "hum", "sat"],
     ):
         super().__init__(train_batch_size, inference_batch_size, num_workers)
         self.dataset_name = dataset_name
@@ -504,6 +511,7 @@ class RLSDataModule(BaseDataModule):
         self.num_classes = num_classes
         self.root = root
         self.target_transform = target_transform  # check_transform(target_transform)
+        self.modality_names = modality_names
 
     @property
     def train_transform(self):
@@ -529,7 +537,7 @@ class RLSDataModule(BaseDataModule):
             self.inputs_path,
             split,
             self.num_classes,
-            patch_data=["env", "hum", "sat"],
+            patch_data=self.modality_names,
             transform=transform,
             target_transform=self.target_transform,
             **kwargs

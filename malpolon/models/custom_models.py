@@ -94,7 +94,17 @@ class MultiModalModel(nn.Module):
 
             self.aggregator_model = lin
 
-    def forward(self, x: dict[Any]) -> Any:
+    def forward(self, *arg) -> Any:
+
+        # Check if input is a dict or a tuple
+        if type(arg[0]) != dict:
+            mods = list(self.modality_models.keys())
+            if len(arg) == len(mods):
+                x = {mods[i]:arg[i] for i in range(len(arg))}
+            else:
+                raise ValueError(f"The number of inputs ({len(arg)}) does not match the number of submodels ({len(self.modality_models)}).")
+        else:
+            x = arg[0]
 
         if self.monomodal:
             modname = list(self.modality_models.keys())[0]
