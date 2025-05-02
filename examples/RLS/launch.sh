@@ -9,5 +9,5 @@
 #SBATCH -e malpolon_rls.err
 
 
-source /home/gmorand/venvs/deepsdm/bin/activate
-python rls_aus_binned.py 
+source /home/gmorand/venvs/deepsdm2/bin/activate
+python3.12 rls_aus_binned.py 
