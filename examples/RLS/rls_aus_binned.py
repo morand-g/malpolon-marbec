@@ -15,7 +15,7 @@ from malpolon.data.data_module import RLSDataModule
 from malpolon.logging import Summary
 from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
-from captum.attr import IntegratedGradients
+from captum.attr import IntegratedGradients, ShapleyValueSampling, DeepLift
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -42,11 +42,10 @@ def get_custom_metric(nbins, average_type):
     return custom_metric
 
 
-def save_integrated_gradients(model, dataset, class_indices, output_dir):
+def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
 
     integrated_gradients = IntegratedGradients(model)
     os.makedirs(output_dir, exist_ok=True)
-    class_attributions = {class_idx: [] for class_idx in class_indices}
 
     #df = dataset._load_observation_data()
     #alltargets = df[dataset.species]
@@ -58,16 +57,21 @@ def save_integrated_gradients(model, dataset, class_indices, output_dir):
         inputs, _ = dataset[i]
         #targets = torch.from_numpy(alltargets.loc[ind].values)
 
-        inputs = {k:v.to(model.device).requires_grad_() for k, v in inputs.items()}
+        inputs = {k:v.to(model.device).unsqueeze(0).requires_grad_() for k, v in inputs.items()}
         #targets = targets.to(model.device).float().requires_grad_()
 
-        for class_idx in class_indices:
-            target = torch.nn.functional.one_hot(torch.tensor(class_idx), num_classes=len(dataset.species)).to(model.device).float().requires_grad_()
-            attributions = integrated_gradients.attribute(tuple(inputs.values()), target=target)
-            attributions_np = attributions.cpu().numpy()
-            class_attributions[class_idx].append({i:attributions_np})
+        for i in range(len(best_species)):
+            class_idx = class_indices[i]
 
-    return(class_attributions)
+            os.makedirs(output_dir / str(class_idx), exist_ok=True)
+
+            target = torch.nn.functional.one_hot(torch.tensor(class_idx), num_classes=len(dataset.species)).to(model.device).float().requires_grad_()
+            negativetarget = 1 - target
+            fulltarget = torch.stack([negativetarget, target], dim=-1).unsqueeze(0)
+            attributions = integrated_gradients.attribute(tuple(inputs.values()), target=(class_idx,1))
+            attributions_np = attributions[0].cpu().detach().numpy()
+            np.save(output_dir / str(best_species[i]) / f'ig_{ind}.npy', attributions_np)
+
 
 
 
@@ -122,7 +126,10 @@ def main(cfg: DictConfig) -> None:
     reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
 
     # Copy current file to log folder
-    #copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
+    try:
+        copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
+    except Exception as e:
+        print(f"Could not copy config file to log folder. Please check your permissions. Error: {e}")
 
     # Lightning Trainer
     callbacks = [
@@ -170,7 +177,7 @@ def main(cfg: DictConfig) -> None:
             best_species = list(pd.read_csv(output_dir.parent / 'best_species.csv', index_col = 0).index)
             class_indices = [species.index(s) for s in best_species]
 
-            atts = save_integrated_gradients(model_loaded, test_dataset, class_indices, output_dir)
+            atts = save_integrated_gradients(model_loaded, test_dataset, best_species, class_indices, output_dir)
 
     else:
         if cfg.run.checkpoint_path is not None:
