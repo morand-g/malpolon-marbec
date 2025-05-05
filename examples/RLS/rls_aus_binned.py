@@ -153,20 +153,20 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
         model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
-        predictions = model_loaded.predict(datamodule, trainer)
-        datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                      classif=True,
-                                      probabilities=True,
-                                      out_name='predictions-probs')
-        datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                      classif=True,
-                                      probabilities=False,
-                                      out_name='presences')
-        datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
-                                           predictions,
-                                           out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+        # predictions = model_loaded.predict(datamodule, trainer)
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+        #                               classif=True,
+        #                               probabilities=True,
+        #                               out_name='predictions-probs')
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+        #                               classif=True,
+        #                               probabilities=False,
+        #                               out_name='presences')
+        # datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
+        #                                    predictions,
+        #                                    out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
         if cfg.run.interpretable:
             output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'integrated_gradients'
@@ -174,7 +174,7 @@ def main(cfg: DictConfig) -> None:
             test_dataset = datamodule.get_test_dataset()
             species = list(test_dataset.species)
 
-            best_species = list(pd.read_csv(output_dir.parent / 'best_species.csv', index_col = 0).index)
+            best_species = list(pd.read_csv(Path(cfg.run.checkpoint_path).parent / 'best_species.csv', index_col = 0).index)
             class_indices = [species.index(s) for s in best_species]
 
             atts = save_integrated_gradients(model_loaded, test_dataset, best_species, class_indices, output_dir)
