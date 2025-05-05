@@ -1,9 +1,9 @@
-[tool.setuptools]
-py-modules = ["data",
-            "models"]
+# Import Packages pointing to their package folders
+[tool.setuptools.package-dir]
+malpolon = '.'
 
 [build-system]
-requires = ["setuptools>=42"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -19,3 +19,4 @@ dependencies =  ["hydra-core",
 	"pandas",
     "tensorboard"]
 requires-python = ">= 3.7"
+
