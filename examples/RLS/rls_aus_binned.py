@@ -169,7 +169,7 @@ def main(cfg: DictConfig) -> None:
                                            out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
         if cfg.run.interpretable:
-            output_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir / 'integrated_gradients'
+            output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'integrated_gradients'
 
             test_dataset = datamodule.get_test_dataset()
             species = list(test_dataset.species)
