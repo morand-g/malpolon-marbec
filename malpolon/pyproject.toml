@@ -1,3 +1,7 @@
+[tool.setuptools]
+py-modules = ["data",
+            "models"]
+
 [build-system]
 requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
@@ -5,6 +9,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "malpolon"
 version = "0.1"
-dynamic = ["authors"]
-dynamic = ["dependencies"]
-dynamic = ["requires-python"]
+authors = [{name="LIRMM"},
+            {name="Marbec"}]
+dependencies =  ["hydra-core",
+	"pytorch-lightning",
+	"scikit-learn",
+	"timm",
+	"matplotlib",
+	"pandas",
+    "tensorboard"]
+requires-python = ">= 3.7"
