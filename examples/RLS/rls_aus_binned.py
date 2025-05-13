@@ -15,7 +15,7 @@ from malpolon.data.data_module import RLSDataModule
 from malpolon.logging import Summary
 from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
-from captum.attr import IntegratedGradients, ShapleyValueSampling, DeepLift
+from captum.attr import IntegratedGradients, Saliency
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -44,7 +44,8 @@ def get_custom_metric(nbins, average_type):
 
 def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
 
-    integrated_gradients = IntegratedGradients(model)
+    model.eval()
+    integrated_gradients = Saliency(model)
     os.makedirs(output_dir, exist_ok=True)
 
     #df = dataset._load_observation_data()

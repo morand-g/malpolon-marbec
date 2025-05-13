@@ -17,6 +17,7 @@ dependencies =  ["hydra-core",
 	"timm",
 	"matplotlib",
 	"pandas",
-    "tensorboard"]
+    "tensorboard",
+    "captum"]
 requires-python = ">= 3.7"
 

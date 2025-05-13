@@ -2,7 +2,7 @@
 
 #SBATCH --partition=standard
 #SBATCH --job-name=malpolon_rls
-#SBATCH --mem=32G
+#SBATCH --mem=16G
 #SBATCH --gres=gpu:1
 ###SBATCH --dependency=afterany:5772
 #SBATCH -o malpolon_rls.out
