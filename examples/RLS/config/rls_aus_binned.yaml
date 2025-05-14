@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
-  exp_name: 19_hum_env_dhw_pa
+  exp_name: 18_humenv_dhw_cat_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-05-13_22-53/last.ckpt
+  checkpoint_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-05-13_22-53/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -61,10 +61,6 @@ model:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
           num_input_channels: 1
-    best10:
-      provider_name: malpolon
-      model_name: identity
-      model_kwargs: {}
 optim:
   optimizer:
     adamw:

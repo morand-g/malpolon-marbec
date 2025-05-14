@@ -312,6 +312,10 @@ def load_modality(survey_id, inputs_path, modality):
             filename = Path(inputs_path) / "dhw" / (survey_id + '.npy')
             x = np.load(filename).astype(np.float32)
             return torch.unsqueeze(torch.from_numpy(x),0)
+        case "best10":
+            filename = Path(inputs_path) / "best10" / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.from_numpy(x)
         case "timeseries":
             pass
         case "envhum":
