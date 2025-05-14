@@ -1,0 +1,78 @@
+hydra:
+#  output_subdir: null
+  run:
+    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+
+run:
+  predict: false
+  checkpoint_path:
+
+
+data:
+  num_classes: 1
+  dataset_path: C:\Users\Isabelle\Documents\dhs\data\
+  tif_dir: images\cloudless_composite-2y_centered
+  labels_name: landsat7.csv
+  train_batch_size: 64
+  inference_batch_size: 64
+  num_workers: 8
+  val_split: 0.2
+  test_split: 0.2
+  dhs_folds: False
+  nature: composite
+  dict_normalize: mean_std_normalize_all.json
+  fold_path: folds_mada_rural.pkl
+
+task:
+  task: regression
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  max_epochs: 60
+  check_val_every_n_epoch: 1
+
+model:
+  provider_name: torchvision
+  model_name: resnet18
+  model_kwargs:
+    weights: null
+    num_classes: null
+    in_chans: null
+    output_stride: null
+    global_pool: null
+  modifiers:
+    change_first_convolutional_layer:
+      num_input_channels: 16
+    change_last_layer:
+      num_outputs: 1
+
+optim:
+  optimizer:
+    adamw: # ['adam', 'sgd', 'adamw', 'adadelta', 'adagrad', 'adamax', 'rmsprop']
+      # callable: 'optim.SGD'
+      kwargs:
+        lr: 1e-4
+        weight_decay: 1.0e-05
+      scheduler: # Optional, delete key or leave empty to not use any learning rate scheduler
+        reduce_lr_on_plateau:
+          kwargs:
+            threshold: 0.001
+          lr_scheduler_config:
+            monitor: loss/val  # ['loss/train', 'loss/val', '<metric>/train', '<metric>/val', ...]
+
+  loss: mse_loss
+
+
+
+  metrics:
+    r2:
+      callable: "Fmetrics.regression.r2_score"
+      kwargs:
+        multioutput: "uniform_average"
+    mae:
+      callable: "Fmetrics.regression.mean_absolute_error"
+      kwargs: {}
+
+seed: 42
+
