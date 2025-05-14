@@ -61,6 +61,10 @@ model:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
           num_input_channels: 1
+    best10:
+      provider_name: malpolon
+      model_name: identity
+      model_kwargs: {}
 optim:
   optimizer:
     adamw:

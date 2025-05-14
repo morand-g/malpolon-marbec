@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     Provider = Callable[..., nn.Module]
     Modifier = Callable[..., nn.Module]
 
-MALPOLON_MODELS = {}
+MALPOLON_MODELS = {'identity': nn.Identity}
 
 
 class _ModelBuilder:
