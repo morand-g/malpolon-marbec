@@ -308,6 +308,10 @@ def load_modality(survey_id, inputs_path, modality):
                     return v2.functional.pil_to_tensor(rgb_patch).float() / 255
             else:
                 return torch.zeros([3, 995, 995]) 
+        case "dhw":
+            filename = Path(inputs_path) / "dhw" / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.unsqueeze(torch.from_numpy(x),0)
         case "timeseries":
             pass
         case "envhum":
