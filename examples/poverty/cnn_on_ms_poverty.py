@@ -26,7 +26,6 @@ import torch
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
-
 from poverty_dataset import PovertyDataModule
 from malpolon.logging import Summary
 from malpolon.models.utils import check_metric, check_model, check_loss

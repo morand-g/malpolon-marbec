@@ -13,9 +13,6 @@ import hydra
 from omegaconf import DictConfig
 import torch
 
-# Force work with the malpolon github package localled at the root of the project
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'mlpn')))
-
 torch.set_float32_matmul_precision('medium')
 from poverty_dataset import PovertyDataModule
 
