@@ -138,9 +138,12 @@ class MultiModalModel(nn.Module):
         if modality.__class__.__name__ == 'SwinTransformer':
             in_size = modality.head.in_features
             modality.head = nn.Sequential(nn.LayerNorm(in_size), modality.head)
-        else:
+        elif modality.__class__.__name__ == 'ResNet':
             in_size = modality.fc.in_features
             modality.fc = nn.Sequential(nn.LayerNorm(in_size), modality.fc)
+        elif modality.__class__.__name__ == 'Linear':
+            in_size = modality.in_features
+            modality = nn.Sequential(nn.LayerNorm(in_size), modality)
 
         return modality
 
@@ -152,8 +155,12 @@ class MultiModalModel(nn.Module):
             lin = self.modality_models[modality_name].head[1]
             self.modality_models[modality_name].head[1] = nn.Identity()
 
-        else:
+        elif self.modality_models[modality_name].__class__.__name__ == 'ResNet':
             lin = self.modality_models[modality_name].fc[1]
             self.modality_models[modality_name].fc[1] = nn.Identity()
+
+        elif self.modality_models[modality_name].__class__.__name__ == 'Sequential':
+            lin = self.modality_models[modality_name][1]
+            self.modality_models[modality_name] = nn.Identity()
 
         return lin

@@ -355,7 +355,7 @@ def load_patch(
     patches = {}
 
     if data == "all":
-        data = ['env', 'hum', 'sat', 'timeseries']
+        data = ['env', 'hum', 'sat', 'timeseries', 'best10']
 
     for n in data:
         patches[n] = load_modality(survey_id, inputs_path, n)
@@ -539,6 +539,7 @@ class RLSDataModule(BaseDataModule):
 
     def get_dataset(self, split, transform, **kwargs):
 
+        print(self.modality_names)
         dataset = RLSDataset(
             self.root,
             self.dataset_name,
@@ -560,6 +561,9 @@ class RLSDataModule(BaseDataModule):
                            probabilities: bool = False,
                            **kwargs: Any):
 
+        #p = Path(out_dir) / Path(out_name + '.csv')
+        #print(f"Saving output files to {p}")
+        
         test_ds = self.get_test_dataset()
 
         if classif:
@@ -573,6 +577,8 @@ class RLSDataModule(BaseDataModule):
                           data=predictions)
 
         df.to_csv(Path(out_dir) / Path(out_name + ".csv"), sep=',', **kwargs)
+        #print(df)
+        #print("Saved")
 
         return None
 
