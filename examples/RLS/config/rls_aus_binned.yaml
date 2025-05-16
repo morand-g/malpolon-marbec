@@ -4,7 +4,7 @@ hydra:
 run:
   predict: true
   interpretable: false
-  exp_name: 22_humenv_dhw_best10_pa
+  exp_name: 20_humenv_best10_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: ${data.root}outputs/22_humenv_dhw_best10_pa-2025-05-16_12-11/last.ckpt
 data:
