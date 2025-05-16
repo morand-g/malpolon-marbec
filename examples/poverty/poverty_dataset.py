@@ -18,9 +18,6 @@ from torchvision import transforms
 
 from sklearn.preprocessing import StandardScaler
 
-# Force work with the malpolon github package localled at the root of the project
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'mlpn')))
-
 from malpolon.data.data_module import BaseDataModule
 
 import datetime
