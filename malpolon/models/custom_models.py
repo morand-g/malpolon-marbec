@@ -92,7 +92,7 @@ class MultiModalModel(nn.Module):
 
             # Aggregation model
 
-            self.aggregator_model = nn.Sequential(nn.LayerNorm(lin.in_features), lin)
+            self.aggregator_model = lin
 
     def forward(self, *arg) -> Any:
 
