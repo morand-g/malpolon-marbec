@@ -68,11 +68,16 @@ def main(cfg: DictConfig) -> None:
     logger_tb.log_hyperparams(cfg)
 
     # Datamodule & Model
-    datamodule = RLSDataModule(**cfg.data, target_transform=lambda x: np.log(x+1))
+    datamodule = RLSDataModule(**cfg.data,
+                               modality_names= list(cfg.model.submodels.keys()),
+                               target_transform=lambda x: np.log(x+1))
     reg_system = AbundanceSystem(**cfg.model, **cfg.optim)
 
     # Copy current file to log folder
-    # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
+    try:
+        copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
+    except Exception as e:
+        print(f"Could not copy config file to log folder. Please check your permissions. Error: {e}")
 
     # Lightning Trainer
     callbacks = [
@@ -100,6 +105,12 @@ def main(cfg: DictConfig) -> None:
 
         # Load predicted_presence
         presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
+        if cfg.data.num_classes == 10:
+            best_species = ['Assiculus punctatus', 'Notolabrus parilus', 'Parma mccullochi', 
+                            'Coris auricularis', 'Notolabrus gymnogenis', 'Notolabrus tetricus',
+                            'Pomacentrus wardi', 'Chrysiptera rollandi', 'Pomacentrus moluccensis',
+                            'Halichoeres melanurus']
+            presence = presence[best_species]
         predictions = predictions.numpy() * presence.to_numpy()
 
         datamodule.export_predictions(predictions,

@@ -425,6 +425,12 @@ class RLSDataset(Dataset):
 
         self.species = df.columns[first_species_index:]
 
+        if num_classes == 10:
+            self.species = ['Assiculus punctatus', 'Notolabrus parilus', 'Parma mccullochi', 
+                            'Coris auricularis', 'Notolabrus gymnogenis', 'Notolabrus tetricus',
+                            'Pomacentrus wardi', 'Chrysiptera rollandi', 'Pomacentrus moluccensis',
+                            'Halichoeres melanurus']
+        
         assert len(self.species) == num_classes
 
         if self.training:
