@@ -85,7 +85,7 @@ def main(cfg: DictConfig) -> None:
         ModelCheckpoint(
             dirpath=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
             filename="checkpoint-{epoch:02d}-{step}-{r2/val:.4f}",
-            monitor=None #"r2/val",
+            monitor=None, #"r2/val",
             #mode="max",
             save_on_train_epoch_end=True,
             save_last=True,
