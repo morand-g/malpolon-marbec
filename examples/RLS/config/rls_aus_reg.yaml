@@ -6,7 +6,7 @@ run:
   predict: true
   exp_name: 17_humenv_cat_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/17_humenv_cat_reg-2025-05-19_11-04/last.ckpt
+  checkpoint_path: ${data.root}outputs/17_humenv_cat_reg-2025-05-20_11-42/last.ckpt
   pa_predictions_path: ${data.root}outputs/14_humenv_pa-2025-03-04_11-45-preds/presences.csv
 data:
   root: /marbec-data/RLS-Australia/malpolon/
