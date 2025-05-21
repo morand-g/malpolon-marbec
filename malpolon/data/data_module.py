@@ -547,7 +547,6 @@ class RLSDataModule(BaseDataModule):
 
     def get_dataset(self, split, transform, **kwargs):
 
-        print(self.modality_names)
         dataset = RLSDataset(
             self.root,
             self.dataset_name,
