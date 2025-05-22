@@ -295,36 +295,38 @@ class BaseDataModule(pl.LightningDataModule, ABC):
 
 def load_modality(survey_id, inputs_path, modality):
 
-    match modality:
-        case "env":
-            filename = Path(inputs_path) / "env" / (survey_id + '.npy')
-            x = np.load(filename).astype(np.float32)
-            return torch.from_numpy(np.transpose(x, (2, 0, 1)))
-        case "hum":
-            filename = Path(inputs_path) / "hum" / (survey_id + '.npy')
-            x = np.load(filename).astype(np.float32)
-            return torch.from_numpy(np.transpose(x, (2, 0, 1)))
-        case "sat":
-            filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
-            if filename.exists():
-                with Image.open(filename) as rgb_patch:
-                    return v2.functional.pil_to_tensor(rgb_patch).float() / 255
-            else:
-                return torch.zeros([3, 995, 995]) 
-        case "dhw":
-            filename = Path(inputs_path) / "dhw" / (survey_id + '.npy')
-            x = np.load(filename).astype(np.float32)
-            return torch.unsqueeze(torch.from_numpy(x),0)
-        case "best10":
-            filename = Path(inputs_path) / "best10" / (survey_id + '.npy')
-            x = np.load(filename).astype(np.float32)
-            return torch.from_numpy(x)
-        case "timeseries":
-            pass
-        case "envhum":
-            env = load_modality(survey_id, inputs_path, "env")
-            hum = load_modality(survey_id, inputs_path, "hum")
-            return torch.from_numpy(np.concatenate([env, hum], axis=0))
+    if modality == 'sat':
+        filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
+        if filename.exists():
+            with Image.open(filename) as rgb_patch:
+                return v2.functional.pil_to_tensor(rgb_patch).float() / 255
+        else:
+            return torch.zeros([3, 995, 995]) 
+                
+    elif modality == 'envhum':
+        env = load_modality(survey_id, inputs_path, "env")
+        hum = load_modality(survey_id, inputs_path, "hum")
+        return torch.from_numpy(np.concatenate([env, hum], axis=0))
+        
+    elif modality in ('env', 'hum'):
+        # 3D cubes
+        filename = Path(inputs_path) / modality / (survey_id + '.npy')
+        x = np.load(filename).astype(np.float32)
+        return torch.from_numpy(np.transpose(x, (2, 0, 1)))
+
+    elif modality == 'dhw':
+        # 2D data
+        filename = Path(inputs_path) / "dhw" / (survey_id + '.npy')
+        x = np.load(filename).astype(np.float32)
+        return torch.unsqueeze(torch.from_numpy(x),0)
+        
+    else:
+        # 1D data
+        filename = Path(inputs_path) / modality / (survey_id + '.npy')
+        x = np.load(filename).astype(np.float32)
+        return torch.from_numpy(x)
+
+            
 
 
 def load_patch(
@@ -428,6 +430,12 @@ class RLSDataset(Dataset):
 
         self.species = df.columns[first_species_index:]
 
+        if num_classes == 10:
+            self.species = ['Assiculus punctatus', 'Notolabrus parilus', 'Parma mccullochi', 
+                            'Coris auricularis', 'Notolabrus gymnogenis', 'Notolabrus tetricus',
+                            'Pomacentrus wardi', 'Chrysiptera rollandi', 'Pomacentrus moluccensis',
+                            'Halichoeres melanurus']
+        
         assert len(self.species) == num_classes
 
         if self.training:
@@ -542,7 +550,6 @@ class RLSDataModule(BaseDataModule):
 
     def get_dataset(self, split, transform, **kwargs):
 
-        print(self.modality_names)
         dataset = RLSDataset(
             self.root,
             self.dataset_name,
