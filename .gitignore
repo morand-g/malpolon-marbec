@@ -9,8 +9,7 @@
 # Build utilities
 
 # Data
-
-
+examples/POPDENS/inputs/**
 
 # Packaging
 dist/
@@ -21,4 +20,5 @@ build/
 # Debugging
 malpolon_rls.err
 malpolon_rls.out
+
 # Miscellaneous
