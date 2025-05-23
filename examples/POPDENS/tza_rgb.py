@@ -11,6 +11,7 @@ from typing import Callable, Mapping, Optional, Union
 import hydra
 
 from malpolon.logging import Summary
+from malpolon.data.data_module import PopDensGeoDataModule
 from malpolon.models.standard_prediction_systems import RegressionSystem
 from malpolon.models.utils import check_metric
 
@@ -23,13 +24,15 @@ from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from torchgeo.datasets import RasterDataset
 from torchgeo.datamodules import GeoDataModule
+from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler
 
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="tza_popdens")
+@hydra.main(version_base="1.3", config_path="config", config_name="cnn_rgb_config")
 def main(cfg: DictConfig) -> None:
     """Run main script used for either training or inference.
 
@@ -39,7 +42,7 @@ def main(cfg: DictConfig) -> None:
         hydra config dictionary created from the .yaml config file
         associated with this script.
     """
-    torch.set_float32_matmul_precision('high') # flag for internal precision of float32 matrix multiplications
+    #torch.set_float32_matmul_precision('high') # flag for internal precision of float32 matrix multiplications
 
     # Loggers
     log_dir = cfg.loggers.log_dir_name
@@ -52,11 +55,7 @@ def main(cfg: DictConfig) -> None:
     # initialize raster datasets
     raster_data = RasterDataset(paths = [cfg.data.inputs_path])
     label_data = RasterDataset(paths=[cfg.data.labels_path])
-    dataset = raster_data & label_data  # this means I'm creating an IntersectionDataset
-
-    # Sampler and dataloader
-    sampler = RandomGeoSampler(dataset, size=IMG_SIZE, length=SAMPLE_SIZE)
-    dataloader = DataLoader(dataset, sampler=sampler, collate_fn=stack_samples)
+    dataset = raster_data & label_data  # creating an IntersectionDataset from TorchGeo
 
     # Datamodule & Model
     datamodule = PopDensGeoDataModule(
@@ -68,7 +67,7 @@ def main(cfg: DictConfig) -> None:
         dataset1=raster_data,  # passed to the Intersection dataset init
         dataset2=label_data,  # passed to the Intersection dataset init
     )
-    reg_system = RegressionSystem(**cfg.model, **cfg.optim, checkpoint_path=cfg.run.checkpoint_path)
+    reg_system = RegressionSystem(cfg.model, cfg.optim)
 
     # Copy current file to log folder
     # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
@@ -98,10 +97,7 @@ def main(cfg: DictConfig) -> None:
         predictions = model_loaded.predict(datamodule, trainer)
 
         # Load predicted_presence
-        presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
-        predictions = predictions.numpy() * presence.to_numpy()
-
-        datamodule.export_predictions(predictions,
+        datamodule.export_predictions(predictions.numpy(),
                                       out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
     else:

@@ -1,26 +1,25 @@
 hydra:
   run:
-    dir: ${data.root}outputs/${run.run_name}
+    dir: outputs/${run.run_name}
 
 run:
   predict: true
   interpretable: true
   exp_name: 00_tza_popdens
-  run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
+  run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M-%S}
   checkpoint_path: ${data.root}outputs/00_tza_popdens-2025-05-26_11-17/last.ckpt
 
 data:
-  root: /sarah/malpolon_pop_density/malpolon-marbec/examples/POPDENS/
+  root: /home/sarah/malpolon_pop_density/malpolon-marbec/examples/POPDENS/
   inputs_path: ${data.root}inputs/landsat/
-  labels_path: ${data_root}inputs/labels/
-  dataset_name: database_split.csv
+  labels_path: ${data.root}inputs/labels/
   patch_size: 224
   batch_size: 64
   num_workers: 8
   sample_size: 500
 
 trainer:
-  accelerator: "auto"
+  accelerator: gpu
   devices: "auto"
   max_epochs: 60
   val_check_interval: 100
@@ -29,21 +28,15 @@ trainer:
   detect_anomaly: false
 
 model:
-  num_species: ${data.num_classes}
-  num_bins: 2
-  freeze_submodels: false
-  submodels:
-    envhum:
-      provider_name: torchvision
-      model_name: unet
-      checkpoint: null
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
-        change_first_convolutional_layer:
-          num_input_channels: 19
+  provider_name: torchvision segmentation
+  model_name: deeplabv3_resnet50
+  model_kwargs:
+    weights: null
+  modifiers:
+    change_first_convolutional_layer:
+      num_input_channels: 3
+    change_last_layer:
+      num_outputs: 1
 
 optim:
   optimizer:
@@ -59,7 +52,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: modified_ce_loss
+  loss: huber_loss
 
 loggers:
   log_dir_name: ${data.root}logs/

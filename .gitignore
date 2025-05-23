@@ -10,6 +10,7 @@
 
 # Data
 examples/POPDENS/inputs/**
+examples/POPDENS/logs
 
 # Packaging
 dist/

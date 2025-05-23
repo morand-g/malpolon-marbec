@@ -124,6 +124,29 @@ def torchvision_model_provider(
     return model
 
 
+def torchvision_segmentation_model_provider(
+    model_name: str, *model_args: Any, **model_kwargs: Any
+) -> nn.Module:
+    """Return a model of semantic segmentation from torchvision's library.
+
+    This method uses tochvision's API to retrieve a model from its
+    library.
+
+    Parameters
+    ----------
+    model_name : str
+        name of the model to retrieve from torchvision's library
+
+    Returns
+    -------
+    nn.Module
+        model object
+    """
+    model = getattr(models.segmentation, model_name)
+    model = model(*model_args, **model_kwargs)
+    return model
+
+
 def timm_model_provider(
     model_name: str, *model_args: Any, **model_kwargs: Any
 ) -> nn.Module:
@@ -334,6 +357,7 @@ ModelBuilder = _ModelBuilder()
 ModelBuilder.register_provider("torchvision", torchvision_model_provider)
 ModelBuilder.register_provider("timm", timm_model_provider)
 ModelBuilder.register_provider("malpolon", malpolon_model_provider)
+ModelBuilder.register_provider("torchvision segmentation", torchvision_segmentation_model_provider)
 
 ModelBuilder.register_modifier(
     "change_first_convolutional_layer",
