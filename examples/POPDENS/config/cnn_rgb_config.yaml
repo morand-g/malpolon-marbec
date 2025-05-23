@@ -28,7 +28,7 @@ trainer:
   detect_anomaly: false
 
 model:
-  provider_name: torchvision segmentation
+  provider_name: torchvision_segmentation
   model_name: deeplabv3_resnet50
   model_kwargs:
     weights: null

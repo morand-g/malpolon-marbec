@@ -357,7 +357,7 @@ ModelBuilder = _ModelBuilder()
 ModelBuilder.register_provider("torchvision", torchvision_model_provider)
 ModelBuilder.register_provider("timm", timm_model_provider)
 ModelBuilder.register_provider("malpolon", malpolon_model_provider)
-ModelBuilder.register_provider("torchvision segmentation", torchvision_segmentation_model_provider)
+ModelBuilder.register_provider("torchvision_segmentation", torchvision_segmentation_model_provider)
 
 ModelBuilder.register_modifier(
     "change_first_convolutional_layer",
