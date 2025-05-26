@@ -67,7 +67,7 @@ def main(cfg: DictConfig) -> None:
         dataset1=raster_data,  # passed to the Intersection dataset init
         dataset2=label_data,  # passed to the Intersection dataset init
     )
-    reg_system = RegressionSystem(cfg.model, cfg.optim)
+    reg_system = RegressionSystem(cfg.model, **cfg.optim)
 
     # Copy current file to log folder
     # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
@@ -79,12 +79,11 @@ def main(cfg: DictConfig) -> None:
             dirpath=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
             filename="checkpoint-{epoch:02d}-{step}-{r2/val:.4f}",
             monitor="r2/val",
-            mode="max",
             save_on_train_epoch_end=True,
             save_last=True,
             auto_insert_metric_name=False
         ),
-        LearningRateMonitor(logging_interval='step')
+        LearningRateMonitor(logging_interval='epoch')
     ]
 
     trainer = pl.Trainer(logger=[logger_csv, logger_tb], callbacks=callbacks, **cfg.trainer)

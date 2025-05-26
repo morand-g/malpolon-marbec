@@ -352,6 +352,65 @@ def change_last_layer_to_identity_modifier(model: nn.Module) -> nn.Module:
     return model
 
 
+def change_last_layer_modifier_dlv3(
+    model: nn.Module,
+    num_outputs: int,
+    flatten: bool = False,
+) -> nn.Module:
+    """Remove the last registered linear layer of a model and replaces it by a new dense layer with the provided number of outputs.
+
+    Parameters
+    ----------
+    model: torch.nn.Module
+        Model to adapt.
+    num_outputs: integer
+        Number of outputs of the new output layer.
+    flatten: boolean
+        If True, adds a nn.Flatten layer to squeeze the last dimension. Can be useful when num_outputs=1.
+
+    Returns
+    -------
+    model: torch.nn.Module
+        Reference to model object given in input.
+    """
+    submodule, layer_name = _find_module_of_type(model, nn.Conv2d, "last")
+    old_layer = getattr(submodule, layer_name)
+
+    num_features = old_layer.in_channels
+    new_layer = nn.Linear(num_features, num_outputs)
+
+    if flatten:
+        new_layer = nn.Sequential(
+            new_layer,
+            nn.Flatten(0, -1),
+        )
+
+    setattr(submodule, layer_name, new_layer)
+
+    return model
+
+
+def change_last_layer_to_identity_modifier_dlv3(model: nn.Module) -> nn.Module:
+    """Remove the last conv2d layer of a deeplabv3 model and replaces it by an nn.Identity layer.
+
+    Parameters
+    ----------
+    model: torch.nn.Module
+        Model to adapt.
+
+    Returns
+    -------
+    num_features: int
+        Size of the feature space.
+    """
+    submodule, layer_name = _find_module_of_type(model, nn.Conv2d, "last")
+
+    new_layer = nn.Identity()
+    setattr(submodule, layer_name, new_layer)
+
+    return model
+
+
 ModelBuilder = _ModelBuilder()
 
 ModelBuilder.register_provider("torchvision", torchvision_model_provider)
@@ -370,4 +429,14 @@ ModelBuilder.register_modifier(
 ModelBuilder.register_modifier(
     "change_last_layer_to_identity",
     change_last_layer_to_identity_modifier,
+)
+
+ModelBuilder.register_modifier(
+    "change_last_layer_dlv3",
+    change_last_layer_modifier_dlv3,
+)
+
+ModelBuilder.register_modifier(
+    "change_last_layer_to_identity_dlv3",
+    change_last_layer_to_identity_modifier_dlv3,
 )

@@ -3,16 +3,18 @@ hydra:
     dir: outputs/${run.run_name}
 
 run:
-  predict: true
+  predict: false
   interpretable: true
   exp_name: 00_tza_popdens
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M-%S}
-  checkpoint_path: ${data.root}outputs/00_tza_popdens-2025-05-26_11-17/last.ckpt
+  checkpoint_path:
 
 data:
   root: /home/sarah/malpolon_pop_density/malpolon-marbec/examples/POPDENS/
   inputs_path: ${data.root}inputs/landsat/
   labels_path: ${data.root}inputs/labels/
+  num_channels: 3
+  num_classes: 1
   patch_size: 224
   batch_size: 64
   num_workers: 8
@@ -34,15 +36,15 @@ model:
     weights: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 3
-    change_last_layer:
-      num_outputs: 1
+      num_input_channels: ${data.num_channels}
+    change_last_layer_dlv3:
+      num_outputs: ${data.num_classes}
 
 optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 0.01
+        lr: 0.001
         weight_decay: 0.5
       scheduler:
         reduce_lr_on_plateau:
@@ -52,7 +54,14 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: huber_loss
+  loss: "huber_loss"
+  metrics:
+    r2:
+      callable: "Fmetrics.regression.r2_score"
+    mae:
+      callable: "Fmetrics.regression.mean_absolute_error"
+      kwargs:
+        num_outputs: 1
 
 loggers:
   log_dir_name: ${data.root}logs/
