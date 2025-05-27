@@ -9,9 +9,8 @@ run:
 
 
 data:
-  num_classes: 1
-  dataset_path: /lustre/fsn1/projects/rech/cvn/udm31lu/
-  tif_dir: composites
+  dataset_path: C:\Users\Isabelle\Documents\dhs\data\
+  tif_dir: images\cloudless_composite-2y_centered
   labels_name: landsat7.csv
   train_batch_size: 64
   inference_batch_size: 64
@@ -20,8 +19,8 @@ data:
   test_split: 0.2
   dhs_folds: False
   nature: composite
-  dict_normalize: malpolon-marbec/examples/poverty/mean_std_normalize_all.json
-  fold_path: malpolon-marbec/examples/poverty/folds_mada_rural.pkl
+  dict_normalize: mean_std_normalize_all.json
+  fold_path: folds_mada_rural.pkl
 
 task:
   task: regression
