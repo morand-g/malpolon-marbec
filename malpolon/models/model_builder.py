@@ -6,6 +6,7 @@ pre-trained weights, and modify it by adding or removing layers.
 
 Author: Titouan Lorieul <titouan.lorieul@gmail.com>
         Theo Larcher <theo.larcher@inria.fr>
+        Sarah Kiati <sarah.kiati@umontpellier.fr>
 
 """
 

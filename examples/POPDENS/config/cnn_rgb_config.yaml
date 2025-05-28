@@ -7,7 +7,7 @@ run:
   interpretable: true
   exp_name: 00_tza_popdens
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M-%S}
-  checkpoint_path:
+  checkpoint_path: null
 
 data:
   root: /home/sarah/malpolon_pop_density/malpolon-marbec/examples/POPDENS/

@@ -2,7 +2,8 @@
 
 Original Authors:   Theo Larcher <theo.larcher@inria.fr>
                     Titouan Lorieul <titouan.lorieul@gmail.com>
-Author: Gaetan Morand <gaetan.morand@umontpellier.fr>
+Author: Gaetan Morand <gaetan.morand@umontpellier.fr> ;
+        Sarah Kiati <sarah.kiati@umontpellier.fr>
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from torchvision.transforms import v2
 
+from torchgeo.datasets import RasterDataset, random_bbox_assignment
 from torchgeo.datamodules import GeoDataModule
 from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler
 
@@ -657,85 +659,83 @@ class RLSDataModule(BaseDataModule):
         return weights
 
 
-class PopDensGeoDataModule(GeoDataModule):
+class PopDensGeoDataModule(BaseDataModule):
+    def __init__(self, batch_size, patch_size, length, num_workers, dataset1_path, dataset2_path):
+        super().__init__()
+        self.batch_size = batch_size
+        self.patch_size = patch_size
+        self.length = length
+        self.num_workers = num_workers
+        self.dataset1_path = dataset1_path
+        self.dataset2_path = dataset2_path
 
-    def get_dataset(self, split: str, transform: Callable, **kwargs: Any) -> Dataset:
+        # initialize raster datasets
+        self.raster_data = RasterDataset(paths=[self.dataset1_path])
+        self.label_data = RasterDataset(paths=[self.dataset2_path])
+        self.intersect_dataset = self.raster_data & self.label_data  # creating an IntersectionDataset from TorchGeo
+
+    @property
+    def train_transform(self):
+        return None
+
+    @property
+    def test_transform(self):
+        return None
+
+    def get_dataset(self, split, transform, **kwargs):
         """Return the dataset corresponding to the split.
 
-        Parameters
-        ----------
-        split : str
-            Type of dataset. Values must be on of ["train", "val",
-            "test"]
-        transform : Callable
-            data transforms to apply when loading the dataset
+                Parameters
+                ----------
+                split : str
+                    Type of dataset. Values must be on of ["train", "val",
+                    "test"]
+                transform : Callable
+                    data transforms to apply when loading the dataset
 
-        Returns
-        -------
-        Dataset
-            dataset corresponding to the split
+                Returns
+                -------
+                Dataset
+                    dataset corresponding to the split
         """
 
-    def get_train_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the train dataset.
+        #define split of dataset
+        generator = torch.Generator().manual_seed(0)
+        (
+            self.train_dataset,
+            self.val_dataset,
+            self.test_dataset,
+        ) = random_bbox_assignment(self.intersect_dataset, [0.6, 0.2, 0.2], generator)
+        print("TRAIN: ", self.train_dataset)
+        if split == "train":
+            dataset = self.train_dataset
+        elif split == "val":
+            dataset = self.val_dataset
+        elif split == "test":
+            dataset = self.test_dataset
+        else:
+            print("Wrong split partition, valid ones : train, val, test.")
 
-        Returns
-        -------
-        Dataset
-            train dataset
-        """
-        dataset = self.get_dataset(
-            split="train",
-            transform=self.train_transform,
-        )
         return dataset
-
-    def get_val_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the validation dataset.
-
-        Returns
-        -------
-        Dataset
-            validation dataset
-        """
-        dataset = self.get_dataset(
-            split="val",
-            transform=self.test_transform,
-        )
-        return dataset
-
-    def get_test_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the test dataset.
-
-        Returns
-        -------
-        Dataset
-            test dataset
-        """
-        dataset = self.get_dataset(
-            split="test",
-            transform=self.test_transform,
-        )
-        return dataset
-
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Register the correct datasets to the class attributes.
 
-        Depending on the trainer's stage, this method will retrieve
-        the train, val or test dataset and register it as a class
-        attribute. The "predict" stage calls for the test dataset.
+                Depending on the trainer's stage, this method will retrieve
+                the train, val or test dataset and register it as a class
+                attribute. The "predict" stage calls for the test dataset.
 
-        Parameters
-        ----------
-        stage : Optional[str], optional
-            trainer's stage, by default None (train)
+                Parameters
+                ----------
+                stage : Optional[str], optional
+                    trainer's stage, by default None (train)
         """
+
         if stage in (None, "fit"):
             self.dataset_train = self.get_train_dataset()
             self.dataset_val = self.get_val_dataset()
 
-            self.train_sampler = RandomBatchGeoSampler(self.dataset_train, size=self.patch_size, batch_size=self.batch_size, length=10000)
+            self.train_sampler = RandomBatchGeoSampler(self.dataset_train, size=self.patch_size, batch_size=self.batch_size, length=self.length)
             self.val_sampler = GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
 
         if stage == "test":
@@ -756,7 +756,7 @@ class PopDensGeoDataModule(GeoDataModule):
         """
         dataloader = DataLoader(
             self.dataset_train,
-            sampler=train_sampler,
+            sampler=self.train_sampler,
             batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
