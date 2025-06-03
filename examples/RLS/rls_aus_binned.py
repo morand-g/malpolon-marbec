@@ -19,8 +19,8 @@ from captum.attr import IntegratedGradients, Saliency
 
 from omegaconf import DictConfig, OmegaConf
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
 from torch import Tensor
