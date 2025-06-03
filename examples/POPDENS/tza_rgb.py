@@ -21,8 +21,8 @@ import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
 
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+import lightning.pytorch as pl
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
 
@@ -49,10 +49,12 @@ def main(cfg: DictConfig) -> None:
 
     # Datamodule & Model
     datamodule = PopDensGeoDataModule(
+        dataset_class = cfg.data.dataset_class,
         batch_size=cfg.data.batch_size,
         patch_size=cfg.data.patch_size,
         length=cfg.data.sample_size,
         num_workers=cfg.data.num_workers,
+        pin_memory = cfg.data.pin_memory,
         dataset1_path=cfg.data.inputs_path,  # passed to the Intersection dataset init
         dataset2_path=cfg.data.labels_path,  # passed to the Intersection dataset init
     )

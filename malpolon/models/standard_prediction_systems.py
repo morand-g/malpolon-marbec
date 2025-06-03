@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 import torch
 
@@ -154,7 +154,6 @@ class GenericPredictionSystem(pl.LightningModule):
             log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
         else:
             log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
-
         x, y = batch
         y_hat = self(x)
 
@@ -420,3 +419,12 @@ class RegressionSystem(GenericPredictionSystem):
             loss = check_loss(loss)
 
         super().__init__(model, loss, optimizer, metrics=metrics)
+
+    def _cast_type_to_loss(self, y):
+        if isinstance(self.loss, torch.nn.HuberLoss) and len(y.shape) == 1 or \
+                isinstance(self.loss, torch.nn.L1Loss) or \
+                isinstance(self.loss, torch.nn.MSELoss):
+            y = y.to(torch.int64)
+        else:
+            y = y.to(torch.float32)
+        return y

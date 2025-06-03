@@ -8,12 +8,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from pytorch_lightning.callbacks import Callback
+from lightning.pytorch.callbacks import Callback
 
 if TYPE_CHECKING:
     from typing import Any
 
-    import pytorch_lightning as pl
+    import lightning.pytorch as pl
 
     from .models.standard_prediction_systems import GenericPredictionSystem
 

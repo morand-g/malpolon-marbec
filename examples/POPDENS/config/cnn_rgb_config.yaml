@@ -13,11 +13,13 @@ data:
   root: /home/sarah/malpolon_pop_density/malpolon-marbec/examples/POPDENS/
   inputs_path: ${data.root}inputs/landsat/
   labels_path: ${data.root}inputs/labels/
+  dataset_class: torchgeo.datasets.IntersectionDataset
   num_channels: 3
   num_classes: 1
   patch_size: 224
   batch_size: 64
   num_workers: 8
+  pin_memory: True
   sample_size: 500
 
 trainer:

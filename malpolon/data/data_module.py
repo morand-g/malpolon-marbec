@@ -20,7 +20,7 @@ import numpy as np
 
 import pandas as pd
 
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
@@ -29,7 +29,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from torchvision.transforms import v2
 
-from torchgeo.datasets import RasterDataset, random_bbox_assignment
+from torchgeo.datasets import RasterDataset, VectorDataset, random_bbox_assignment, concat_samples, stack_samples
 from torchgeo.datamodules import GeoDataModule
 from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler
 
@@ -659,19 +659,21 @@ class RLSDataModule(BaseDataModule):
         return weights
 
 
-class PopDensGeoDataModule(BaseDataModule):
-    def __init__(self, batch_size, patch_size, length, num_workers, dataset1_path, dataset2_path):
-        super().__init__()
+class PopDensGeoDataModule(GeoDataModule):
+    def __init__(self, dataset_class, batch_size, patch_size, length, num_workers, pin_memory, dataset1_path, dataset2_path):
+        super().__init__(dataset_class)
+        self.dataset_class = dataset_class
         self.batch_size = batch_size
         self.patch_size = patch_size
         self.length = length
         self.num_workers = num_workers
+        self.pin_memory = pin_memory
         self.dataset1_path = dataset1_path
         self.dataset2_path = dataset2_path
 
         # initialize raster datasets
         self.raster_data = RasterDataset(paths=[self.dataset1_path])
-        self.label_data = RasterDataset(paths=[self.dataset2_path])
+        self.label_data = VectorDataset(paths=[self.dataset2_path], label_name="POPCENSUS22")
         self.intersect_dataset = self.raster_data & self.label_data  # creating an IntersectionDataset from TorchGeo
 
     @property
@@ -706,7 +708,6 @@ class PopDensGeoDataModule(BaseDataModule):
             self.val_dataset,
             self.test_dataset,
         ) = random_bbox_assignment(self.intersect_dataset, [0.6, 0.2, 0.2], generator)
-        print("TRAIN: ", self.train_dataset)
         if split == "train":
             dataset = self.train_dataset
         elif split == "val":
@@ -716,6 +717,50 @@ class PopDensGeoDataModule(BaseDataModule):
         else:
             print("Wrong split partition, valid ones : train, val, test.")
 
+        return dataset
+
+    def get_train_dataset(self) -> Dataset:
+        """Call self.get_dataset to return the train dataset.
+
+        Returns
+        -------
+        Dataset
+            train dataset
+        """
+        dataset = self.get_dataset(
+            split="train",
+            transform=self.train_transform,
+        )
+
+        return dataset
+
+    def get_val_dataset(self) -> Dataset:
+        """Call self.get_dataset to return the validation dataset.
+
+        Returns
+        -------
+        Dataset
+            validation dataset
+        """
+        dataset = self.get_dataset(
+            split="val",
+            transform=self.test_transform,
+        )
+
+        return dataset
+
+    def get_test_dataset(self) -> Dataset:
+        """Call self.get_dataset to return the test dataset.
+
+        Returns
+        -------
+        Dataset
+            test dataset
+        """
+        dataset = self.get_dataset(
+            split="test",
+            transform=self.test_transform,
+        )
         return dataset
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -738,6 +783,8 @@ class PopDensGeoDataModule(BaseDataModule):
             self.train_sampler = RandomBatchGeoSampler(self.dataset_train, size=self.patch_size, batch_size=self.batch_size, length=self.length)
             self.val_sampler = GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
 
+            print("ONE ITEM DATASET: ", self.dataset_train.__getitem__(next(iter(self.train_sampler))[0]))
+
         if stage == "test":
             self.dataset_test = self.get_test_dataset()
             self.test_sampler = GridGeoSampler(self.dataset_test, size=self.patch_size, stride=self.patch_size)
@@ -757,10 +804,11 @@ class PopDensGeoDataModule(BaseDataModule):
         dataloader = DataLoader(
             self.dataset_train,
             sampler=self.train_sampler,
-            batch_size=self.train_batch_size,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
             shuffle=True,
+            collate_fn=stack_samples
         )
         return dataloader
 
@@ -775,9 +823,10 @@ class PopDensGeoDataModule(BaseDataModule):
         dataloader = DataLoader(
             self.dataset_val,
             sampler=self.val_sampler,
-            batch_size=self.inference_batch_size,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            collate_fn=stack_samples
         )
         return dataloader
 
@@ -792,9 +841,10 @@ class PopDensGeoDataModule(BaseDataModule):
         dataloader = DataLoader(
             self.dataset_test,
             sampler=self.test_sampler,
-            batch_size=self.inference_batch_size,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            collate_fn=stack_samples
         )
         return dataloader
 
@@ -809,8 +859,9 @@ class PopDensGeoDataModule(BaseDataModule):
         dataloader = DataLoader(
             self.dataset_predict,
             sampler=self.predict_sampler,
-            batch_size=self.inference_batch_size,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
+            collate_fn=stack_samples
         )
         return dataloader
