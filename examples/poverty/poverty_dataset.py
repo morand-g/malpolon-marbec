@@ -38,6 +38,7 @@ class PovertyDataModule(BaseDataModule):
             fold: str = 'A',
             fold_path: str = 'folds.pkl',
             nature: str = 'composite',
+            nightlight: bool = False,
             dict_normalize: str = 'mean_std_normalize_rgb.json',
             **kwargs
     ):
@@ -65,6 +66,7 @@ class PovertyDataModule(BaseDataModule):
         self.train_batch_size = train_batch_size
         self.inference_batch_size = inference_batch_size
         self.nature = nature
+        self.nightlight = nightlight
         self.num_workers = num_workers
         self.dict_normalize = json.load(open(dict_normalize, 'r'))
 
@@ -86,13 +88,17 @@ class PovertyDataModule(BaseDataModule):
 
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
         if split == 'train':
-            dataset = MSDataset(self.dataframe_train, self.tif_dir, nature=self.nature, transform=transform)
+            dataset = MSDataset(self.dataframe_train, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
+                                transform=transform)
         elif split == 'val':
-            dataset = MSDataset(self.dataframe_val, self.tif_dir, nature=self.nature, transform=transform)
+            dataset = MSDataset(self.dataframe_val, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
+                                transform=transform)
         elif split == 'test':
-            dataset = MSDataset(self.dataframe_test, self.tif_dir, nature=self.nature, transform=transform)
+            dataset = MSDataset(self.dataframe_test, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
+                                transform=transform)
         elif split == 'all':
-            dataset = MSDataset(self.dataframe, self.tif_dir, nature=self.nature, transform=transform)
+            dataset = MSDataset(self.dataframe, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
+                                transform=transform)
         return dataset
 
     def get_all_dataset(self) -> Dataset:
@@ -104,12 +110,12 @@ class PovertyDataModule(BaseDataModule):
                           num_workers=self.num_workers, persistent_workers=True)
 
     def val_dataloader(self):
-        return DataLoader(self.get_val_dataset(), batch_size=self.train_batch_size, shuffle=True,
+        return DataLoader(self.get_val_dataset(), batch_size=self.train_batch_size, shuffle=False,
                           num_workers=self.num_workers, persistent_workers=True)
 
 
     def all_dataloader(self):
-        return DataLoader(self.get_all_dataset(), batch_size=self.train_batch_size, shuffle=True,
+        return DataLoader(self.get_all_dataset(), batch_size=self.train_batch_size, shuffle=False,
                           num_workers=self.num_workers, persistent_workers=True)
 
 
@@ -162,7 +168,7 @@ class MSDataset(Dataset):
         Rasters were previously downloaded from Earth Engine and stored in the 'landsat_tiles' directory.
         Images contain 8 bands, one of them being a nightlight image. Only the first 7 bands are selected."""
 
-    def __init__(self, dataframe, root_dir, nature="composite", transform=None):
+    def __init__(self, dataframe, root_dir, nature="composite", nightlight=False, transform=None):
         """
         Args:
             dataframe (Pandas DataFrame): Pandas DataFrame containing image file names and labels.
@@ -171,6 +177,7 @@ class MSDataset(Dataset):
         self.dataframe = dataframe
         self.root_dir = root_dir
         self.nature = nature
+        self.nightlight = nightlight
         self.transform = transform
         self.targets = dataframe['iwi'].values
         self.observation_ids = dataframe[['country', 'year', 'cluster_id']].apply(lambda x: '_'.join(x.astype(str)),
@@ -243,6 +250,29 @@ class MSDataset(Dataset):
                 tile_t = np.nan_to_num(tile_t)
                 tile_t = self.transform(torch.tensor(tile_t, dtype=torch.float32))
                 tile = torch.concat((tile, tile_t), dim=0)
+
+        if self.nightlight:
+            tile_name = os.path.join(self.root_dir,
+                                     "../VIIRS",
+                                     str(row.country),
+                                     str(row.year),
+                                     str(row.cluster_id) + ".tif"
+                                     )
+
+            with rasterio.open(tile_name) as src:
+                layer = src.read(1)
+            tile_n = np.nan_to_num(layer)
+            transforms = torchvision.transforms.Compose([
+        torchvision.transforms.CenterCrop(224),
+        torchvision.transforms.RandomHorizontalFlip(),
+        torchvision.transforms.RandomVerticalFlip(),
+        torchvision.transforms.Normalize(mean=0.10995499789714813, std=6.345280647277832),
+    ])
+            tile_n = transforms(torch.from_numpy(tile_n).unsqueeze(0))
+            tile = torch.concat((tile, tile_n), dim=0)
+
+
+
         value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
 
         return tile, value
@@ -265,11 +295,10 @@ class MSDataset(Dataset):
             ax.set_title(f"Value: {value}, RGB")
         else:
 
-            fig, axs = pyplot.subplots(8, 8)
+            fig, axs = pyplot.subplots(4, 5)
 
             for i, ax in enumerate(axs.flat[:]):
-                # if i >= len(spectrum):
-                #     break
+                if i == len(tile): break
                 ax.imshow(tile[i, ...], cmap='pink')
 
                 ax.set_title(f"Band: {SPECTRUM_ALL[i%4]}")

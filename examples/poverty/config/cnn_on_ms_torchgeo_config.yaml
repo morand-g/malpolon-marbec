@@ -19,8 +19,9 @@ data:
   test_split: 0.2
   dhs_folds: False
   nature: composite
+  nightlight: True
   dict_normalize: mean_std_normalize_all.json
-  fold_path: folds_mada_rural.pkl
+  fold_path: folds_mada.pkl
 
 task:
   task: regression
@@ -42,7 +43,7 @@ model:
     global_pool: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 16
+      num_input_channels: 17
     change_last_layer:
       num_outputs: 1
 

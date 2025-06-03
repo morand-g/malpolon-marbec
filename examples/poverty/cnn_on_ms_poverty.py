@@ -36,61 +36,6 @@ from rasterio.errors import NotGeoreferencedWarning
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
-# class RegressionSystem(GenericPredictionSystem):
-#     """Regression task class."""
-#     def __init__(
-#         self,
-#         model: Union[torch.nn.Module, Mapping],
-#         loss: Union[torch.nn.modules.loss._Loss, str],
-#         optimizer: Union[torch.nn.Module, Mapping] = None,
-#         lr: float = 1e-2,
-#         weight_decay: float = 0,
-#         metrics: Optional[dict[str, Callable]] = None,
-#         loss_kwargs: Optional[dict] = {},
-#     ):
-#         """Class constructor.
-#         Parameters
-#         ----------
-#         model : dict
-#             model to use
-#         loss : Union[torch.nn.modules.loss._Loss, str]
-#             loss or string from the predifined LOSS_CALLABLES.
-#         optimizer : Union[torch.nn.Module, Mapping]
-#             optional custom optimizer to use for training
-#         lr : float
-#             learning rate
-#         weight_decay : float
-#             weight decay
-#         metrics : dict
-#             dictionnary containing the metrics to compute.
-#             Keys must match metrics' names and have a subkey with each
-#             metric's functional methods as value. This subkey is either
-#             created from the `malpolon.models.utils.FMETRICS_CALLABLES`
-#             constant or supplied, by the user directly.
-#         loss_kwargs: Optional[dict] = {}
-#             Arguments to be passed to loss constructor.
-#         """
-#
-#         metrics = check_metric(metrics)
-#
-#         self.lr = lr
-#         self.weight_decay = weight_decay
-#
-#         model = check_model(model)
-#
-#         if optimizer is None:
-#             print(f'[INFO] No optimizer provided: using AdamW with lr={lr}, weight_decay={weight_decay}')
-#             optimizer = torch.optim.AdamW(
-#                 model.parameters(),
-#                 lr=self.lr,
-#                 weight_decay=self.weight_decay
-#             )
-#
-#
-#         loss = check_loss(loss)
-#
-#         super().__init__(model, loss, optimizer, metrics=metrics)
-
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def main(cfg: DictConfig) -> None:
@@ -170,7 +115,7 @@ def main(cfg: DictConfig) -> None:
 def plot_test(cfg: DictConfig, rgb=False) -> None:
     dataM = PovertyDataModule(**cfg.data, **cfg.task)
 
-    dataset = dataM.get_all_dataset()
+    dataset = dataM.get_train_dataset()
     idx = random.randint(0, len(dataset)-1)
     dataset.plot(idx, rgb=rgb)
 
