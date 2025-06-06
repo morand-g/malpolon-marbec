@@ -31,7 +31,7 @@ from torchvision.transforms import v2
 
 from torchgeo.datasets import RasterDataset, VectorDataset, random_bbox_assignment, concat_samples, stack_samples
 from torchgeo.datamodules import GeoDataModule
-from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler
+from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler, RandomGeoSampler
 
 
 if TYPE_CHECKING:
@@ -678,11 +678,17 @@ class PopDensGeoDataModule(GeoDataModule):
 
     @property
     def train_transform(self):
-        return None
+        transforms = v2.Compose([
+            v2.CenterCrop(512),
+        ])
+        return transforms
 
     @property
     def test_transform(self):
-        return None
+        transforms = v2.Compose([
+            v2.CenterCrop(512),
+        ])
+        return transforms
 
     def get_dataset(self, split, transform, **kwargs):
         """Return the dataset corresponding to the split.
@@ -778,12 +784,11 @@ class PopDensGeoDataModule(GeoDataModule):
 
         if stage in (None, "fit"):
             self.dataset_train = self.get_train_dataset()
+            print("DATASET INDEX: ", self.dataset_train.index)
+            self.train_sampler = RandomGeoSampler(self.dataset_train, size=self.patch_size, length=self.length)
+
             self.dataset_val = self.get_val_dataset()
-
-            self.train_sampler = RandomBatchGeoSampler(self.dataset_train, size=self.patch_size, batch_size=self.batch_size, length=self.length)
             self.val_sampler = GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
-
-            print("ONE ITEM DATASET: ", self.dataset_train.__getitem__(next(iter(self.train_sampler))[0]))
 
         if stage == "test":
             self.dataset_test = self.get_test_dataset()
@@ -807,7 +812,6 @@ class PopDensGeoDataModule(GeoDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            shuffle=True,
             collate_fn=stack_samples
         )
         return dataloader

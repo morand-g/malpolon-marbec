@@ -356,7 +356,6 @@ def change_last_layer_to_identity_modifier(model: nn.Module) -> nn.Module:
 def change_last_layer_modifier_dlv3(
     model: nn.Module,
     num_outputs: int,
-    flatten: bool = False,
 ) -> nn.Module:
     """Remove the last registered linear layer of a model and replaces it by a new dense layer with the provided number of outputs.
 
@@ -374,19 +373,8 @@ def change_last_layer_modifier_dlv3(
     model: torch.nn.Module
         Reference to model object given in input.
     """
-    submodule, layer_name = _find_module_of_type(model, nn.Conv2d, "last")
-    old_layer = getattr(submodule, layer_name)
-
-    num_features = old_layer.in_channels
-    new_layer = nn.Linear(num_features, num_outputs)
-
-    if flatten:
-        new_layer = nn.Sequential(
-            new_layer,
-            nn.Flatten(0, -1),
-        )
-
-    setattr(submodule, layer_name, new_layer)
+    in_channels = model.classifier[4].in_channels #256
+    model.classifier[4] = nn.Conv2d(in_channels, num_outputs, kernel_size=1)
 
     return model
 

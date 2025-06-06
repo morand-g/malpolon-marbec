@@ -428,3 +428,89 @@ class RegressionSystem(GenericPredictionSystem):
         else:
             y = y.to(torch.float32)
         return y
+
+
+class PopDensSystem(RegressionSystem):
+    def __init__(
+            self,
+            model: Union[torch.nn.Module, Mapping],
+            loss: Union[torch.nn.modules.loss._Loss, str],
+            optimizer: Union[torch.nn.Module, Mapping] = None,
+            lr: float = 1e-2,
+            weight_decay: float = 0,
+            metrics: Optional[dict[str, Callable]] = None,
+            loss_kwargs: Optional[dict] = {},
+    ):
+        """Class constructor.
+        Parameters
+        ----------
+        model : dict
+            model to use
+        loss : Union[torch.nn.modules.loss._Loss, str]
+            loss or string from the predifined LOSS_CALLABLES.
+        optimizer : Union[torch.nn.Module, Mapping]
+            optional custom optimizer to use for training
+        lr : float
+            learning rate
+        weight_decay : float
+            weight decay
+        metrics : dict
+            dictionnary containing the metrics to compute.
+            Keys must match metrics' names and have a subkey with each
+            metric's functional methods as value. This subkey is either
+            created from the `malpolon.models.utils.FMETRICS_CALLABLES`
+            constant or supplied, by the user directly.
+        loss_kwargs: Optional[dict] = {}
+            Arguments to be passed to loss constructor.
+        """
+
+        metrics = check_metric(metrics)
+
+        self.lr = lr
+        self.weight_decay = weight_decay
+
+        model = check_model(model)
+
+        if optimizer is None:
+            print(f'[INFO] No optimizer provided: using AdamW with lr={lr}, weight_decay={weight_decay}')
+            optimizer = torch.optim.AdamW(
+                model.parameters(),
+                lr=self.lr,
+                weight_decay=self.weight_decay
+            )
+            loss = check_loss(loss)
+
+        super().__init__(model, loss, optimizer, metrics=metrics)
+
+    def _cast_type_to_loss(self, y):
+        if isinstance(self.loss, torch.nn.HuberLoss) and len(y.shape) == 1 or \
+                isinstance(self.loss, torch.nn.L1Loss) or \
+                isinstance(self.loss, torch.nn.MSELoss):
+            y = y.to(torch.int64)
+        else:
+            y = y.to(torch.float32)
+        return y
+
+    def _step(
+        self, split: str, batch: tuple[Any, Any], batch_idx: int
+    ) -> Union[Tensor, dict[str, Any]]:
+        if split == "train":
+            log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
+        else:
+            log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
+        x, y = batch['image'], batch['mask']
+        y_hat = self(x)
+        if isinstance(y_hat, dict):
+            y_hat = y_hat['out']
+
+        loss = self.loss(y_hat, self._cast_type_to_loss(y.unsqueeze(1)))  # Shape mismatch for binary: need to 'y = y.unsqueeze(1)' (or use .reshape(2)) to cast from [2] to [2,1] and cast y to float with .float()
+        self.log(f"loss/{split}", loss, **log_kwargs)
+
+        for metric_name, metric_func in self.metrics.items():
+            if isinstance(metric_func, dict):
+                score = metric_func['callable'](y_hat, y, **metric_func['kwargs'])
+            else:
+                score = metric_func(y_hat, y)
+            self.log(f"{metric_name}/{split}", score, **log_kwargs)
+
+        return loss

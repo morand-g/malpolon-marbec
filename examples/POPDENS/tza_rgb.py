@@ -14,7 +14,7 @@ import hydra
 
 from malpolon.logging import Summary
 from malpolon.data.data_module import PopDensGeoDataModule
-from malpolon.models.standard_prediction_systems import RegressionSystem
+from malpolon.models.standard_prediction_systems import PopDensSystem
 from malpolon.models.utils import check_metric
 
 import numpy as np
@@ -58,7 +58,7 @@ def main(cfg: DictConfig) -> None:
         dataset1_path=cfg.data.inputs_path,  # passed to the Intersection dataset init
         dataset2_path=cfg.data.labels_path,  # passed to the Intersection dataset init
     )
-    reg_system = RegressionSystem(cfg.model, **cfg.optim)
+    reg_system = PopDensSystem(cfg.model, **cfg.optim)
 
     # Copy current file to log folder
     # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
@@ -82,7 +82,7 @@ def main(cfg: DictConfig) -> None:
     # Training / Inference
 
     if cfg.run.predict:
-        model_loaded = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path)
+        model_loaded = PopDensSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
         predictions = model_loaded.predict(datamodule, trainer)
 
