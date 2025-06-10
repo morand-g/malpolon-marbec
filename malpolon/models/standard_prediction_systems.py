@@ -422,8 +422,7 @@ class RegressionSystem(GenericPredictionSystem):
 
     def _cast_type_to_loss(self, y):
         if isinstance(self.loss, torch.nn.HuberLoss) and len(y.shape) == 1 or \
-                isinstance(self.loss, torch.nn.L1Loss) or \
-                isinstance(self.loss, torch.nn.MSELoss):
+                isinstance(self.loss, torch.nn.L1Loss):
             y = y.to(torch.int64)
         else:
             y = y.to(torch.float32)
@@ -490,27 +489,3 @@ class PopDensSystem(RegressionSystem):
         else:
             y = y.to(torch.float32)
         return y
-
-    def _step(
-        self, split: str, batch: tuple[Any, Any], batch_idx: int
-    ) -> Union[Tensor, dict[str, Any]]:
-        if split == "train":
-            log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
-        else:
-            log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
-        x, y = batch['image'], batch['mask']
-        y_hat = self(x)
-        if isinstance(y_hat, dict):
-            y_hat = y_hat['out']
-
-        loss = self.loss(y_hat, self._cast_type_to_loss(y.unsqueeze(1)))  # Shape mismatch for binary: need to 'y = y.unsqueeze(1)' (or use .reshape(2)) to cast from [2] to [2,1] and cast y to float with .float()
-        self.log(f"loss/{split}", loss, **log_kwargs)
-
-        for metric_name, metric_func in self.metrics.items():
-            if isinstance(metric_func, dict):
-                score = metric_func['callable'](y_hat, y, **metric_func['kwargs'])
-            else:
-                score = metric_func(y_hat, y)
-            self.log(f"{metric_name}/{split}", score, **log_kwargs)
-
-        return loss
