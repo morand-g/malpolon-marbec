@@ -19,6 +19,7 @@ from malpolon.models.utils import check_metric
 
 import numpy as np
 import pandas as pd
+from matplotlib.font_manager import weight_dict
 from omegaconf import DictConfig
 
 import lightning.pytorch as pl
@@ -58,7 +59,7 @@ def main(cfg: DictConfig) -> None:
         dataset1_path=cfg.data.inputs_path,  # passed to the Intersection dataset init
         dataset2_path=cfg.data.labels_path,  # passed to the Intersection dataset init
     )
-    reg_system = PopDensSystem(cfg.model, **cfg.optim)
+    model = PopDensSystem(cfg.model, **cfg.optim)
 
     # Copy current file to log folder
     # copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
@@ -68,11 +69,12 @@ def main(cfg: DictConfig) -> None:
         Summary(),
         ModelCheckpoint(
             dirpath=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-            filename="checkpoint-{epoch:02d}-{step}-{r2/val:.4f}",
-            monitor="r2/val",
+            filename="{epoch:02d}-{step}-{" + f"{next(iter(model.metrics.keys()))}/val" + ":.4f}",
+            monitor= "loss/val",
+            mode="min",
             save_on_train_epoch_end=True,
             save_last=True,
-            every_n_train_steps=10
+            every_n_train_steps=8
         ),
         LearningRateMonitor(logging_interval='epoch')
     ]
@@ -82,7 +84,10 @@ def main(cfg: DictConfig) -> None:
     # Training / Inference
 
     if cfg.run.predict:
-        model_loaded = PopDensSystem.load_from_checkpoint(cfg.run.checkpoint_path)
+        model_loaded = PopDensSystem.load_from_checkpoint(cfg.run.checkpoint_path,
+                                                          model=model.model,
+                                                          hparams_preprocess=False,
+                                                          weight_dir=log_dir)
 
         predictions = model_loaded.predict(datamodule, trainer)
 
@@ -93,10 +98,10 @@ def main(cfg: DictConfig) -> None:
     else:
         if cfg.run.checkpoint_path is not None:
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
-            reg_system.load_state_dict(checkpoint['state_dict'])
+            model.load_state_dict(checkpoint['state_dict'])
 
-        trainer.fit(reg_system, datamodule=datamodule)
-        trainer.validate(reg_system, datamodule=datamodule)
+        trainer.fit(model, datamodule=datamodule)
+        trainer.test(model, datamodule=datamodule)
 
 
 if __name__ == "__main__":

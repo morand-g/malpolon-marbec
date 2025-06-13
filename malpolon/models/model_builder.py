@@ -357,7 +357,7 @@ def change_last_layer_modifier_dlv3(
     model: nn.Module,
     num_outputs: int,
 ) -> nn.Module:
-    """Remove the last registered linear layer of a model and replaces it by a new dense layer with the provided number of outputs.
+    """Modify the last layer of the classification head of a model with the provided number of outputs and kernel size of 1.
 
     Parameters
     ----------

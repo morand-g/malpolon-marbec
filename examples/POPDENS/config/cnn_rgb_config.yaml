@@ -7,7 +7,7 @@ run:
   interpretable: true
   exp_name: 00_tza_popdens
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M-%S}
-  checkpoint_path: null
+  checkpoint_path: ${data.root}outputs/00_tza_popdens-2025-06-13_15-01-13/last.ckpt
 
 data:
   root: /home/sarah/malpolon_pop_density/malpolon-marbec/examples/POPDENS/
@@ -24,11 +24,11 @@ data:
 
 trainer:
   accelerator: gpu
-  devices: "auto"
+  devices: auto
   max_epochs: 60
   #val_check_interval: 1
   check_val_every_n_epoch: 1
-  log_every_n_steps: 100
+  log_every_n_steps: 1
   detect_anomaly: false
 
 model:
@@ -51,17 +51,20 @@ optim:
       scheduler:
         reduce_lr_on_plateau:
           kwargs:
-            patience: 6
+            mode: min
+            patience: 2
             eps: 1e-9
             factor: 0.2
           lr_scheduler_config:
-            monitor: loss/val
-  loss: "huber_loss" #L1loss or MSEloss
+            monitor: loss/val #Available metrics are: ['lr-AdamW', 'loss/train', 'loss/train_step', 'loss/train_epoch']
+  loss: huber_loss #L1loss or MSEloss
   metrics:
     r2:
-      callable: "Fmetrics.regression.r2_score"
+      callable: Fmetrics.regression.r2_score
+      kwargs:
+        multioutput: "uniform_average"
     mae:
-      callable: "Fmetrics.regression.mean_absolute_error"
+      callable: Fmetrics.regression.mean_absolute_error
       kwargs:
         num_outputs: ${data.num_classes}
 

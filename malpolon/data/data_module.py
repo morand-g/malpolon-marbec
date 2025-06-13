@@ -720,8 +720,10 @@ class PopDensGeoDataModule(GeoDataModule):
             dataset = self.val_dataset
         elif split == "test":
             dataset = self.test_dataset
+        elif split == "predict":
+            dataset = self.test_dataset
         else:
-            print("Wrong split partition, valid ones : train, val, test.")
+            print("Wrong split partition, valid ones : train, val, test, predict.")
 
         return dataset
 
@@ -769,6 +771,20 @@ class PopDensGeoDataModule(GeoDataModule):
         )
         return dataset
 
+    def get_predict_dataset(self) -> Dataset:
+        """Call self.get_dataset to return the test dataset.
+
+        Returns
+        -------
+        Dataset
+            test dataset
+        """
+        dataset = self.get_dataset(
+            split="predict",
+            transform=self.test_transform,
+        )
+        return dataset
+
     def setup(self, stage: Optional[str] = None) -> None:
         """Register the correct datasets to the class attributes.
 
@@ -784,11 +800,11 @@ class PopDensGeoDataModule(GeoDataModule):
 
         if stage in (None, "fit"):
             self.dataset_train = self.get_train_dataset()
-            print("DATASET INDEX: ", self.dataset_train.index)
             self.train_sampler = RandomGeoSampler(self.dataset_train, size=self.patch_size, length=self.length)
 
             self.dataset_val = self.get_val_dataset()
-            self.val_sampler = GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
+            self.val_sampler = RandomGeoSampler(self.dataset_val, size=self.patch_size, length=self.length)
+            #GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
 
         if stage == "test":
             self.dataset_test = self.get_test_dataset()
@@ -812,7 +828,8 @@ class PopDensGeoDataModule(GeoDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            collate_fn=stack_samples
+            collate_fn=stack_samples,
+            persistent_workers = True
         )
         return dataloader
 
@@ -830,7 +847,8 @@ class PopDensGeoDataModule(GeoDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            collate_fn=stack_samples
+            collate_fn=stack_samples,
+            persistent_workers = True
         )
         return dataloader
 
@@ -848,7 +866,8 @@ class PopDensGeoDataModule(GeoDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            collate_fn=stack_samples
+            collate_fn=stack_samples,
+            persistent_workers = True
         )
         return dataloader
 
