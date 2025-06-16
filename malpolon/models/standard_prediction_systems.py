@@ -422,8 +422,7 @@ class RegressionSystem(GenericPredictionSystem):
 
     def _cast_type_to_loss(self, y):
         if isinstance(self.loss, torch.nn.HuberLoss) and len(y.shape) == 1 or \
-                isinstance(self.loss, torch.nn.L1Loss) or \
-                isinstance(self.loss, torch.nn.MSELoss):
+                isinstance(self.loss, torch.nn.L1Loss):
             y = y.to(torch.int64)
         else:
             y = y.to(torch.float32)
