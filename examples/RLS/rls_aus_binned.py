@@ -90,7 +90,7 @@ class PresenceSystem(GenericPredictionSystem):
         loss_kwargs: Optional[Mapping] = {},
     ):
 
-        self.model = MultiModalModel(
+        model = MultiModalModel(
             submodels,
             num_species,
             num_bins,
@@ -100,8 +100,9 @@ class PresenceSystem(GenericPredictionSystem):
         metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
                    'macro_acc': get_custom_metric(num_bins, 'macro')}
 
-        super().__init__(self.model, loss, optimizer, loss_kwargs, metrics=metrics)
-    
+        super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)
+
+        self.model = model
 
 
     def remove_final_layers(self):
