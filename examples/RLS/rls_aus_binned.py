@@ -23,12 +23,13 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 import torchmetrics.functional as Fmetrics
 import os
 import numpy as np
 import pandas as pd
+import copy
 
 OmegaConf.register_new_resolver("eval", eval)
 
@@ -89,7 +90,7 @@ class PresenceSystem(GenericPredictionSystem):
         loss_kwargs: Optional[Mapping] = {},
     ):
 
-        model = MultiModalModel(
+        self.model = MultiModalModel(
             submodels,
             num_species,
             num_bins,
@@ -99,7 +100,15 @@ class PresenceSystem(GenericPredictionSystem):
         metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
                    'macro_acc': get_custom_metric(num_bins, 'macro')}
 
-        super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)
+        super().__init__(self.model, loss, optimizer, loss_kwargs, metrics=metrics)
+    
+
+
+    def remove_final_layers(self):
+        """Remove the final layers of the model to keep only the feature extractor."""
+
+        self.model.aggregator_model = nn.Identity()
+
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
@@ -154,21 +163,26 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
         model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
+        # Feature extractor only
+        model_loaded.remove_final_layers()
+
         predictions = model_loaded.predict(datamodule, trainer)
 
-        datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                      classif=True,
-                                      probabilities=True,
-                                      out_name='predictions-probs')
-        datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                      classif=True,
-                                      probabilities=False,
-                                      out_name='presences')
-        datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
-                                           predictions,
-                                           out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+        np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
+        
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+        #                               classif=True,
+        #                               probabilities=True,
+        #                               out_name='predictions-probs')
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+        #                               classif=True,
+        #                               probabilities=False,
+        #                               out_name='presences')
+        # datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
+        #                                    predictions,
+        #                                    out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
         if cfg.run.interpretable:
             output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'integrated_gradients'
