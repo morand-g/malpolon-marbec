@@ -105,10 +105,10 @@ class PresenceSystem(GenericPredictionSystem):
         self.model = model
 
 
-    def remove_final_layers(self):
+    def remove_final_layer(self):
         """Remove the final layers of the model to keep only the feature extractor."""
 
-        self.model.aggregator_model = nn.Identity()
+        self.model.aggregator_model[1] = nn.Identity()
 
 
 
@@ -165,9 +165,11 @@ def main(cfg: DictConfig) -> None:
         model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
         # Feature extractor only
-        model_loaded.remove_final_layers()
+        model_loaded.remove_final_layer()
+        model_loaded.model.classifying = False
 
         predictions = model_loaded.predict(datamodule, trainer)
+        test_dataset = datamodule.get_test_dataset()
 
         np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
         
