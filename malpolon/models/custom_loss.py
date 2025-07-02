@@ -60,6 +60,36 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         return loss
 
 
+class CeSrLoss(nn.modules.loss._Loss):
+
+    def __init__(self, num_bins, num_species, loss_weights=None):
+        super(ModifiedCELoss, self).__init__()
+
+        self.num_bins = num_bins
+        self.num_species = num_species
+        self.loss_weights = torch.tensor(loss_weights, dtype=torch.float32) if loss_weights is not None else None
+
+    def forward(self, predictions, targets):
+        """
+        predictions: (batch_size, num_species, num_classes) -> Raw logits
+        targets: (batch_size, num_species) -> Class indices (0 to num_classes - 1)
+        """
+
+        # Reshape for cross-entropy compatibility
+        predictions = predictions.view(-1, self.num_bins)  # (batch_size * num_species, num_classes)
+        targets = targets.view(-1).to(torch.int64)  # (batch_size * num_species,)
+
+        # Apply optional class weights
+        if self.loss_weights is not None:
+            loss = F.cross_entropy(predictions, targets, weight=self.loss_weights.to(predictions.device), reduction='mean')
+        else:
+            loss = F.cross_entropy(predictions, targets, reduction='mean')
+
+        sr_term = sum(
+
+        return loss
+
+
 
 class FilteredHuberLoss(nn.HuberLoss):
 

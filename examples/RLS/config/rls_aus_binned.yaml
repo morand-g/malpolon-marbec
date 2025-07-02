@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
-  exp_name: 23_humenv_dhw_best30_pa
+  exp_name: 18_humenv_dhw_cat_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/23_humenv_dhw_best30_pa-2025-05-20_18-06/last.ckpt
+  checkpoint_path: null #${data.root}outputs/23_humenv_dhw_best30_pa-2025-05-20_18-06/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -31,7 +31,7 @@ model:
     envhum:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
+      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -42,7 +42,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/21_dhw_pa-2025-05-15_16-55/last.ckpt
+      checkpoint: null #${data.root}outputs/21_dhw_pa-2025-05-15_16-55/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -50,13 +50,6 @@ model:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
           num_input_channels: 1
-    best30:
-      provider_name: malpolon
-      model_name: linear
-      checkpoint: null
-      model_kwargs:
-        in_features: 30
-        out_features: ${eval:'${model.num_species} * ${model.num_bins}'}
 optim:
   optimizer:
     adamw:
@@ -71,6 +64,6 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: modified_ce_loss
+  loss: ce_and_sr_loss
 loggers:
   log_dir_name: ${data.root}logs/
