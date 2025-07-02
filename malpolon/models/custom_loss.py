@@ -62,18 +62,23 @@ class ModifiedCELoss(nn.modules.loss._Loss):
 
 class CeSrLoss(nn.modules.loss._Loss):
 
-    def __init__(self, num_bins, num_species, loss_weights=None):
-        super(ModifiedCELoss, self).__init__()
+    def __init__(self, num_bins, num_species, loss_weights=None, alpha = 0.01):
+        super(CeSrLoss, self).__init__()
 
         self.num_bins = num_bins
         self.num_species = num_species
         self.loss_weights = torch.tensor(loss_weights, dtype=torch.float32) if loss_weights is not None else None
+        self.alpha = alpha  # Weight for the species richness term
 
     def forward(self, predictions, targets):
         """
         predictions: (batch_size, num_species, num_classes) -> Raw logits
         targets: (batch_size, num_species) -> Class indices (0 to num_classes - 1)
         """
+
+        predicted_sr =  torch.log(1+(predictions[...,1] > predictions[...,0]).sum(axis=1))
+        target_sr = torch.log(1+(targets > 0).sum(axis=1))
+        sr_term = F.mse_loss(predicted_sr, target_sr, reduction='mean')
 
         # Reshape for cross-entropy compatibility
         predictions = predictions.view(-1, self.num_bins)  # (batch_size * num_species, num_classes)
@@ -85,9 +90,7 @@ class CeSrLoss(nn.modules.loss._Loss):
         else:
             loss = F.cross_entropy(predictions, targets, reduction='mean')
 
-        sr_term = sum(
-
-        return loss
+        return loss + self.alpha * sr_term
 
 
 
