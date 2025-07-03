@@ -6,7 +6,7 @@ run:
   interpretable: false
   exp_name: 18_humenv_dhw_cat_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/23_humenv_dhw_best30_pa-2025-05-20_18-06/last.ckpt
+  checkpoint_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-02_15-14/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/

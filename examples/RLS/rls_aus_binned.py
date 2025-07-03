@@ -132,7 +132,8 @@ def main(cfg: DictConfig) -> None:
 
     loss_kwargs = {'num_bins': cfg.model.num_bins,
                    'num_species': cfg.model.num_species,
-                   'loss_weights': datamodule.get_class_weights()}
+                   'loss_weights': datamodule.get_class_weights(),
+                   'alpha': 0.1}
 
     reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
 
@@ -165,27 +166,27 @@ def main(cfg: DictConfig) -> None:
         model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
         # Feature extractor only
-        model_loaded.remove_final_layer()
-        model_loaded.model.classifying = False
+        # model_loaded.remove_final_layer()
+        # model_loaded.model.classifying = False
 
         predictions = model_loaded.predict(datamodule, trainer)
         test_dataset = datamodule.get_test_dataset()
 
-        np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
+        #np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
         
-        # datamodule.export_predictions(predictions,
-        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-        #                               classif=True,
-        #                               probabilities=True,
-        #                               out_name='predictions-probs')
-        # datamodule.export_predictions(predictions,
-        #                               out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-        #                               classif=True,
-        #                               probabilities=False,
-        #                               out_name='presences')
-        # datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
-        #                                    predictions,
-        #                                    out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+        datamodule.export_predictions(predictions,
+                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      classif=True,
+                                      probabilities=True,
+                                      out_name='predictions-probs')
+        datamodule.export_predictions(predictions,
+                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      classif=True,
+                                      probabilities=False,
+                                      out_name='presences')
+        datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
+                                           predictions,
+                                           out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
 
         if cfg.run.interpretable:
             output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'integrated_gradients'
