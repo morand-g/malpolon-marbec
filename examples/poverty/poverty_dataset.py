@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 from typing import Callable, Any, Union
 from pathlib import Path
@@ -7,67 +6,55 @@ from pathlib import Path
 import numpy as np
 import rasterio
 import pandas as pd
-from matplotlib import pyplot
+
+import matplotlib.pyplot as plt
+import math
 
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 import torchvision
-from torchvision import transforms
-
-from sklearn.preprocessing import StandardScaler
 
 from malpolon.data.data_module import BaseDataModule
-
-import datetime
 
 SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22', 'qa', 'drad', 'emis', 'emsd', 'trad', 'urad',
                 'atran', 'cdist', 'qa_pixel', 'qa_radsat']
 
 
-class PovertyDataModule(BaseDataModule):
+class MSDataModule(BaseDataModule):
     def __init__(
             self,
-            tif_dir: str = '',
             dataset_path: str = '',
-            labels_name: str = 'observation_2013+.csv',
+            labels_name: str = 'landsat7.csv',
             train_batch_size: int = 32,
             inference_batch_size: int = 16,
             num_workers: int = 8,
             fold: str = 'A',
             fold_path: str = 'folds.pkl',
             nature: str = 'composite',
-            nightlight: bool = False,
-            dict_normalize: str = 'mean_std_normalize_rgb.json',
+            dict_normalize: str = 'mean_std_normalize_all.json',
             **kwargs
     ):
 
         """DataModule for the Poverty dataset.
         Args:
-            tif_dir (str): directory containing the tif files
             dataset_path (str): path to the dataset
             labels_name (str): name of the csv file containing the labels
             train_batch_size (int): batch size for training
             inference_batch_size (int): batch size for inference
             num_workers (int): number of workers for the DataLoader
             fold (int): fold to use for training
-            transform (torchvision.transforms): transform to apply to the data"""
+            fold_path (str): path to the file containing the folds
+            nature (str): nature of the dataset, either 'composite' or 'seasonal'
+            dict_normalize (str): path to the json file containing the mean and std for normalization"""
 
-        super().__init__()
-        dataframe = pd.read_csv(dataset_path + labels_name, sep=";")
-        fold_dict = pd.read_pickle(fold_path)
-        self.dataframe = dataframe
-        self.dataframe_train = dataframe.iloc[fold_dict[fold]['train']]
-        self.dataframe_val = dataframe.iloc[fold_dict[fold]['val']]
-        self.dataframe_test = dataframe.iloc[fold_dict[fold]['test']]
+        super().__init__(train_batch_size, inference_batch_size, num_workers)
 
-        self.tif_dir = dataset_path + tif_dir
-        self.train_batch_size = train_batch_size
-        self.inference_batch_size = inference_batch_size
+        self.dataset_path = dataset_path
+        self.labels_name = labels_name
+        self.fold_dict = pd.read_pickle(fold_path)[fold]
         self.nature = nature
-        self.nightlight = nightlight
-        self.num_workers = num_workers
         self.dict_normalize = json.load(open(dict_normalize, 'r'))
 
     @property
@@ -87,22 +74,20 @@ class PovertyDataModule(BaseDataModule):
         ])
 
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        if split == 'train':
-            dataset = MSDataset(self.dataframe_train, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
-                                transform=transform)
-        elif split == 'val':
-            dataset = MSDataset(self.dataframe_val, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
-                                transform=transform)
-        elif split == 'test':
-            dataset = MSDataset(self.dataframe_test, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
-                                transform=transform)
-        elif split == 'all':
-            dataset = MSDataset(self.dataframe, self.tif_dir, nature=self.nature, nightlight=self.nightlight,
-                                transform=transform)
-        return dataset
+        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature, transform=transform)
 
     def get_all_dataset(self) -> Dataset:
-        dataset = MSDataset(self.dataframe, self.tif_dir, nature=self.nature, transform=self.train_transform)
+        """Call self.get_dataset to return the whole dataset.
+
+        Returns
+        -------
+        Dataset
+            whole dataset
+        """
+        dataset = self.get_dataset(
+            split="all",
+            transform=self.test_transform,
+        )
         return dataset
 
     def train_dataloader(self):
@@ -165,23 +150,28 @@ class PovertyDataModule(BaseDataModule):
 
 class MSDataset(Dataset):
     """ Dataset returning the LANDSAT tiles and wealth index corresponding to the DHS cluster.
-        Rasters were previously downloaded from Earth Engine and stored in the 'landsat_tiles' directory.
-        Images contain 8 bands, one of them being a nightlight image. Only the first 7 bands are selected."""
+        Rasters were previously downloaded from Microsoft Planetary Computer.
+        Images contain 16 bands, all consigned in the SPECTRUM_ALL variable."""
 
-    def __init__(self, dataframe, root_dir, nature="composite", nightlight=False, transform=None):
+    def __init__(self, root_dir, labels_name, fold, split,  nature="composite", transform=None):
         """
         Args:
-            dataframe (Pandas DataFrame): Pandas DataFrame containing image file names and labels.
-            root_dir (string): Directory with all the images.
+            root_dir (string): Directory with all the images
+            labels_name (string): Path to the csv file with labels
+            fold (str): Fold to use for training
+            split (str): Split to use for training, validation or testing
+            nature (str): Nature of the dataset, either 'composite' or 'seasonal'
+            transform (callable, optional): Optional transform to be applied
+                on a sample.
         """
-        self.dataframe = dataframe
+        obs_data_columns = {'x': 'lon',
+                            'y': 'lat',
+                            'IWI': 'iwi'}
+
+        self.dataframe = self._load_observation_data(root_dir, labels_name, split, obs_data_columns, fold)
         self.root_dir = root_dir
         self.nature = nature
-        self.nightlight = nightlight
         self.transform = transform
-        self.targets = dataframe['iwi'].values
-        self.observation_ids = dataframe[['country', 'year', 'cluster_id']].apply(lambda x: '_'.join(x.astype(str)),
-                                                                               axis=1).values
 
     def __len__(self):
         return len(self.dataframe)
@@ -250,63 +240,129 @@ class MSDataset(Dataset):
                 tile_t = np.nan_to_num(tile_t)
                 tile_t = self.transform(torch.tensor(tile_t, dtype=torch.float32))
                 tile = torch.concat((tile, tile_t), dim=0)
-
-        if self.nightlight:
-            tile_name = os.path.join(self.root_dir,
-                                     "../VIIRS",
-                                     str(row.country),
-                                     str(row.year),
-                                     str(row.cluster_id) + ".tif"
-                                     )
-
-            with rasterio.open(tile_name) as src:
-                layer = src.read(1)
-            tile_n = np.nan_to_num(layer)
-            transforms = torchvision.transforms.Compose([
-        torchvision.transforms.CenterCrop(224),
-        torchvision.transforms.RandomHorizontalFlip(),
-        torchvision.transforms.RandomVerticalFlip(),
-        torchvision.transforms.Normalize(mean=0.10995499789714813, std=6.345280647277832),
-    ])
-            tile_n = transforms(torch.from_numpy(tile_n).unsqueeze(0))
-            tile = torch.concat((tile, tile_n), dim=0)
-
-
-
         value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
 
         return tile, value
 
-    def plot(self, idx, rgb=False, save=False):
-        """Plot the tile at the given index.
-           Args:
-                idx (int): index of the tile to plot
-                rgb (bool): if True, plot the RGB image, otherwise plot the 19 bands
-                save (bool): if True, save the plot in the 'examples/poverty' directory"""
+    def _load_observation_data(
+        self,
+        root: str = None,
+        obs_fn: str = None,
+        subsets: str = ['train', 'test', 'val'],
+        keys: dict = {'x': 'lon',
+                      'y': 'lat',
+                      'IWI': 'iwi'},
+        folds: dict = {}
+    ) -> pd.DataFrame:
+        """Load observation data from a CSV file.
 
-        tile, value = self.__getitem__(idx)
+        Reads values from a CSV file containing lon/lat coordinates,
+        species id (labels) and dataset subset info (train/test/val).
+        The associated columns must have the following values:
+        ['longitude', 'latitude', 'speciesId', 'subset']
 
-        tile = tile.numpy()
+        If no value is given to root or obs_fn, the method returns an
+        empty labels DataFrame.
+
+        Parameters
+        ----------
+        root : Path
+            directory containing the observation (labels) file, by default None.
+        obs_fn : str
+            observations file name, by default None.
+        subsets : str
+            desired data subset amongst ["train", "test", "val"], by default
+            ["train", "test", "val"] (no restriction).
+
+        Returns
+        -------
+        pd.DataFrame
+            labels DataFrame
+        """
+        x_key, y_key = keys['x'], keys['y']
+        iwi_key = keys['IWI']
+
+        if any([root is None, obs_fn is None]):
+            df = pd.DataFrame(columns=[x_key, y_key, iwi_key])
+            df = df.iloc[folds[subsets]]
+            self.observation_ids = df.index
+            self.coordinates = df[["lon", "lat"]].values
+            self.targets = df["IWI"].values
+            return df
+        labels_fp = obs_fn if len(obs_fn.split('.csv')) >= 2 else f'{obs_fn}.csv'
+        labels_fp = root + labels_fp
+        labels_fp = Path(labels_fp)
+        df = pd.read_csv(
+            labels_fp,
+            sep=";",
+        )
+        self.unique_labels = np.sort(np.unique(df[iwi_key]))
+
+        df = df.iloc[folds[subsets]] if subsets!="all" else df
+
+        self.observation_ids = df.index
+        self.coordinates = df[[x_key, y_key]].values
+        self.targets = df[iwi_key].values
+
+        return df
+
+
+    def plot(self, idx, rgb=False):
+        """Plot all layers of a given patch.
+
+        A patch is selected based on a key matching the associated
+        provider's __get__() method.
+
+        Args:
+            item (dict): provider's get index.
+        """
+
+        patch, value = self.__getitem__(idx)
+
+        nb_layers = len(SPECTRUM_ALL)
 
         if rgb:
-            fig, ax = pyplot.subplots(1, 1)
-            img_rgb = tile[(0, 1, 2), ...].transpose(1, 2, 0)
+            patch_rgb = patch[[0, 1, 2], :, :]
+            img_rgb = patch_rgb.permute(1, 2, 0).numpy()
+            img_rgb = (img_rgb - img_rgb.min()) / (img_rgb.max() - img_rgb.min())
+
+            # Plot the image
+            fig, ax = plt.subplots()
             ax.imshow(img_rgb)
-            ax.set_title(f"Value: {value}, RGB")
+            ax.axis('off')
+
+            plt.suptitle('Tensor for sample: ' + str(idx), fontsize=16)
+            plt.show()
+
         else:
+            if nb_layers == 1:
+                plt.figure(figsize=(10, 10))
+                plt.imshow(patch[0])
+            else:
+                # calculate the number of rows and columns for the subplots grid
+                rows = int(math.ceil(math.sqrt(nb_layers)))
+                cols = int(math.ceil(nb_layers / rows))
 
-            fig, axs = pyplot.subplots(4, 5)
+                # create a figure with a grid of subplots
+                fig, axs = plt.subplots(rows, cols, figsize=(10, 10))
 
-            for i, ax in enumerate(axs.flat[:]):
-                if i == len(tile): break
-                ax.imshow(tile[i, ...], cmap='pink')
+                # flatten the subplots array to easily access the subplots
+                axs = axs.flatten()
 
-                ax.set_title(f"Band: {SPECTRUM_ALL[i%4]}")
+                # loop through the layers of patch data
+                for i, band_name in enumerate(SPECTRUM_ALL):
+                    # display the layer on the corresponding subplot
+                    axs[i].imshow(patch[i])
+                    axs[i].set_title(f'layer_{i}: {band_name}')
+                    axs[i].axis('off')
 
-        fig.suptitle(f"Value: {value}")
-        if save:
-            fig.savefig(f'plot_{idx}_{datetime.datetime.now().strftime("%Y%m%d-%H%M%S")}.png')
+                # remove empty subplots
+                for i in range(nb_layers, rows * cols):
+                    fig.delaxes(axs[i])
 
-        pyplot.tight_layout()
-        pyplot.show()
-        return tile
+            plt.suptitle('Tensor for sample: ' + str(idx), fontsize=16)
+
+            # show the plot
+            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            plt.show()
+

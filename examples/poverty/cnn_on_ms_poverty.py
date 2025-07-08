@@ -9,26 +9,22 @@ Author: Auguste Verdier <auguste.verdier@umontpellier.fr>
 from __future__ import annotations
 
 import os
-import sys
 import random
 
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from typing import Callable, Mapping, Optional, Union
-
 import hydra
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 from omegaconf import DictConfig
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
-import torch
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
-from poverty_dataset import PovertyDataModule
+
+from poverty_dataset import MSDataModule
 from malpolon.logging import Summary
-from malpolon.models.utils import check_metric, check_model, check_loss
 from malpolon.models.standard_prediction_systems import RegressionSystem
 
 import warnings
@@ -37,7 +33,7 @@ from rasterio.errors import NotGeoreferencedWarning
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
+@hydra.main(version_base="1.3", config_path="../../../Poverty/config", config_name="cnn_on_ms_torchgeo_config")
 def main(cfg: DictConfig) -> None:
     """Run main script used for either training or inference.
 
@@ -49,24 +45,26 @@ def main(cfg: DictConfig) -> None:
     """
 
     pl.seed_everything(cfg.seed)
-
     inference_data = pd.DataFrame([])
-
     i=0
-    for fold in 'ABCDE':
+
+    # Iteration on folds for cross-validation
+    for fold in 'ABC':
         print("Training fold ", fold)
 
+        # Loggers
         log_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
         log_dir_fold = os.path.join(log_dir, f"fold_{fold}")
-
         logger_csv = pl.loggers.CSVLogger(log_dir_fold, name="", version="")
         logger_csv.log_hyperparams(cfg)
-        logger_tb = pl.loggers.TensorBoardLogger(log_dir_fold, name="tensorboard_logs", version="")
+        logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=f"tensorboard_logs/fold_{fold}", version="")
         logger_tb.log_hyperparams(cfg)
 
-        datamodule = PovertyDataModule(**cfg.data, fold=fold)
+        # Datamodule & Model
+        datamodule = MSDataModule(**cfg.data, fold=fold)
         model = RegressionSystem(cfg.model, **cfg.optim)
 
+        # Lightning Trainer
         callbacks = [
             Summary(),
             ModelCheckpoint(
@@ -82,8 +80,9 @@ def main(cfg: DictConfig) -> None:
         ]
 
         trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=1, callbacks=callbacks,
-                             **cfg.trainer)  #
+                             **cfg.trainer)
 
+        # Run
         if cfg.run.predict:
             model = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path[i],
                                                           model=model.model,
@@ -92,35 +91,56 @@ def main(cfg: DictConfig) -> None:
                                                           loss=cfg.optim.loss,
                                                           metrics=cfg.optim.metrics)
 
+            # Save prediction points for each fold
+            predictions = model.predict(datamodule, trainer)
+            np_predictions = predictions.to('cpu').numpy()
+            df_predictions = datamodule.export_predict_csv_basic(np_predictions,
+                                                                 out_dir=log_dir_fold,
+                                                                 out_name=f'predictions_test_dataset_{fold}',
+                                                                 return_csv=True)
+
+            inference_data = pd.concat([inference_data, df_predictions])
+            i += 1
+
         else:
             if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path[i])
             else:trainer.fit(model, datamodule=datamodule)
-            trainer.validate(model, datamodule=datamodule)
-            trainer.test(model, datamodule=datamodule)
 
-        predictions = model.predict(datamodule, trainer)
-        np_predictions = predictions.to('cpu').numpy()
-        df_predictions = datamodule.export_predict_csv_basic(np_predictions,
-                                       out_dir=log_dir_fold,
-                                       out_name=f'predictions_test_dataset_{fold}',
-                                       return_csv=True)
-
-        inference_data = pd.concat([inference_data, df_predictions])
-        i+=1
-
-    inference_data.to_csv(f"{log_dir}/predictions.csv")
+    #Gather prediction points over the whole dataset
+    if cfg.run.predict:
+        inference_data.to_csv(f"{log_dir}/predictions.csv")
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
-def plot_test(cfg: DictConfig, rgb=False) -> None:
-    dataM = PovertyDataModule(**cfg.data, **cfg.task)
+@hydra.main(version_base="1.3", config_path="../../../Poverty/config", config_name="cnn_on_ms_torchgeo_config")
+def plot_dataset(cfg: DictConfig) -> None:
+    """
+    Plot a random element of the dataset both in rgb rendering and with whole spectrum.
 
-    dataset = dataM.get_train_dataset()
+    Parameters
+    ----------
+    cfg : DictConfig
+        hydra config dictionary created from the .yaml config file
+        associated with this script.
+
+    """
+    datamodule = MSDataModule(**cfg.data, **cfg.task)
+    dataset = datamodule.get_all_dataset()
     idx = random.randint(0, len(dataset)-1)
-    dataset.plot(idx, rgb=rgb)
+
+    dataset.plot(idx, True)
+    dataset.plot(idx, False)
 
 
 def plot_predict(data: pd.DataFrame):
+    """
+    Plot prediction points gathered in prediction.csv and compute the global r².
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+    Dataframe containing the prediction points.
+
+    """
 
     # Compute R² score
     r2 = Fmetrics.regression.r2_score(tensor(data['predictions']), tensor(data['targets']), multioutput='uniform_average')

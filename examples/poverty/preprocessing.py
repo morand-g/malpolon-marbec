@@ -1,8 +1,12 @@
+"""Adjacent code for calculating mean and standard deviation of a dataset,
+and creating folds for cross-validation.
+
+Author: Isabelle Mornard <isabelle.mornard@umontpellier.fr>"""
+
 from __future__ import annotations
 
 import os
 import pickle
-import sys
 
 from tqdm import tqdm
 import json
@@ -14,19 +18,25 @@ from omegaconf import DictConfig
 import torch
 
 torch.set_float32_matmul_precision('medium')
-from poverty_dataset import PovertyDataModule
+from poverty_dataset import MSDataModule
 
 import warnings
 from rasterio.errors import NotGeoreferencedWarning
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
-@hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
+@hydra.main(version_base="1.3", config_path="../../../Poverty/config", config_name="cnn_on_ms_torchgeo_config")
 def calcul_mean_std(cfg: DictConfig) -> None:
-    datamodule = PovertyDataModule(**cfg.data, **cfg.task)  #
+    """Calculate the mean and standard deviation of the dataset.
+    Parameters
+    ----------
+    cfg : DictConfig
+        hydra config dictionary created from the .yaml config file
+        associated with this script.
+    """
 
+    datamodule = MSDataModule(**cfg.data, **cfg.task)
     datamodule.setup()
-
     data_loader = datamodule.all_dataloader()
 
     mean = torch.zeros(16)
@@ -48,6 +58,21 @@ def calcul_mean_std(cfg: DictConfig) -> None:
 
 
 def add_rank_column(dataframe: pd.DataFrame, column_name: str = 'fold', seed: int = 42) -> pd.DataFrame:
+    """Add a column with ranks A, B, C, D, E to the dataframe.
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        The dataframe to which the rank column will be added.
+    column_name : str, optional
+        The name of the column to be added, by default 'fold'.
+    seed : int, optional
+        The seed for random number generation, by default 42.
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe with the added rank column.
+    """
+
     np.random.seed(seed)
     num_rows = len(dataframe)
     ranks = ['A', 'B', 'C', 'D', 'E']
@@ -58,6 +83,19 @@ def add_rank_column(dataframe: pd.DataFrame, column_name: str = 'fold', seed: in
 
 
 def create_folds(dataframe)->dict[str, dict]:
+    """Create folds for cross-validation from the dataframe.
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        The dataframe containing the data to be split into folds.
+    Returns
+    -------
+    dict[str, dict]
+        A dictionary containing the folds, where each key is a fold name (A, B, C, D, E)
+        and each value is another dictionary
+        with keys 'test', 'val', and 'train' containing the indices of the respective folds.
+    """
+
     dataframe = add_rank_column(dataframe)
     fold_names = 'ABCDE'
     test_folds = {i: dataframe[dataframe['fold'] == i].index for i in fold_names}
