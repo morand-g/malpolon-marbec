@@ -84,10 +84,11 @@ class PresenceSystem(GenericPredictionSystem):
         num_species: int,
         num_bins: int,
         freeze_submodels: bool,
-        loss: Union[torch.nn.modules.loss._Loss, str] = "modified_ce_loss",
+        loss: Union[torch.nn.modules.loss._Loss, str] = "ce_and_sr_loss",
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[dict[str, Callable]] = None,
         loss_kwargs: Optional[Mapping] = {},
+        alpha: Optional[float] = None
     ):
 
         model = MultiModalModel(
@@ -99,6 +100,9 @@ class PresenceSystem(GenericPredictionSystem):
 
         metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
                    'macro_acc': get_custom_metric(num_bins, 'macro')}
+
+        if alpha is not None:
+            loss_kwargs['alpha'] = alpha
 
         super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)
 
@@ -132,8 +136,7 @@ def main(cfg: DictConfig) -> None:
 
     loss_kwargs = {'num_bins': cfg.model.num_bins,
                    'num_species': cfg.model.num_species,
-                   'loss_weights': datamodule.get_class_weights(),
-                   'alpha': 0.1}
+                   'loss_weights': datamodule.get_class_weights()}
 
     reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
 
