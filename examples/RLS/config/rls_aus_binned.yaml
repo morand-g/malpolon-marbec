@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
   exp_name: 18_humenv_dhw_cat_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-08_15-33/last.ckpt
+  checkpoint_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-03/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -54,7 +54,7 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 0.01
+        lr: 1e-2
         weight_decay: 0.5
       scheduler: 
         reduce_lr_on_plateau:
@@ -65,6 +65,6 @@ optim:
           lr_scheduler_config:
             monitor: loss/val
   loss: ce_and_sr_loss
-  alpha: 0.08
+  alpha: 0
 loggers:
   log_dir_name: ${data.root}logs/

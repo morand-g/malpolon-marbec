@@ -76,7 +76,12 @@ class CeSrLoss(nn.modules.loss._Loss):
         targets: (batch_size, num_species) -> Class indices (0 to num_classes - 1)
         """
 
-        predicted_sr =  torch.log(1+(predictions[...,1] > predictions[...,0]).sum(axis=1))
+        # Baseline :  predicted_sr =  torch.log(1+(predictions[...,1] > predictions[...,0]).sum(axis=1))
+        # Test 1 :  predicted_sr =  torch.log(1+(predictions[...,1] < predictions[...,0]).sum(axis=1))
+        # Test 2 : 
+        probas = torch.softmax(predictions, dim=-1)
+        predicted_sr = torch.log(1+(probas[...,1]).sum(axis=1))
+
         target_sr = torch.log(1+(targets > 0).sum(axis=1))
         sr_term = F.mse_loss(predicted_sr, target_sr, reduction='mean')
 
