@@ -136,7 +136,7 @@ def main(cfg: DictConfig) -> None:
 
     loss_kwargs = {'num_bins': cfg.model.num_bins,
                    'num_species': cfg.model.num_species,
-                   'loss_weights': datamodule.get_class_weights()}
+                   'loss_weights': None} #datamodule.get_class_weights()}
 
     reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
 
