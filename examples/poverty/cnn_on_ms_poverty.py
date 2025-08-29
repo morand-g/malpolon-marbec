@@ -8,6 +8,8 @@ Author: Auguste Verdier <auguste.verdier@umontpellier.fr>
 
 from __future__ import annotations
 
+print("Imports beginning")
+
 import os
 import random
 
@@ -22,18 +24,24 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
+print("Imports malpolon beginning")
 
 from poverty_dataset import MSDataModule
+print('poverty dataset done')
 from malpolon.logging import Summary
+print('logging done')
 from malpolon.models.standard_prediction_systems import RegressionSystem
+print('malpolon completed')
 
 import warnings
 from rasterio.errors import NotGeoreferencedWarning
 
+print("Imports completed")
+
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
 
-@hydra.main(version_base="1.3", config_path="../../../Poverty/config", config_name="cnn_on_ms_torchgeo_config")
+@hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def main(cfg: DictConfig) -> None:
     """Run main script used for either training or inference.
 
@@ -49,7 +57,7 @@ def main(cfg: DictConfig) -> None:
     i=0
 
     # Iteration on folds for cross-validation
-    for fold in 'ABC':
+    for fold in 'ABCDE':
         print("Training fold ", fold)
 
         # Loggers
@@ -157,4 +165,5 @@ def plot_predict(data: pd.DataFrame):
 
 
 if __name__ == "__main__":
+    print("Script Beginning")
     main()

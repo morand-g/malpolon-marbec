@@ -118,37 +118,39 @@ if __name__ == '__main__':
     with open("folds.pkl", "rb") as f:
         folds_dict = pickle.load(f)
 
-    df_global = pd.read_csv("C:/Users/Isabelle/Documents/dhs/data/landsat7.csv", sep=";")
-    df_mada = pd.read_csv('C:/Users/Isabelle/Documents/dhs/data/madagascar_rural.csv', sep=";")
+    df_global = pd.read_csv("../../../images/landsat7.csv", sep=";")
 
-    folds_mada = {}
+    folds_season = {}
 
     for key1 in folds_dict.keys():
-        folds_mada[key1] = {}
+        folds_season[key1] = {}
+        print(key1)
         for key2 in folds_dict[key1].keys():
-            folds_mada[key1][key2] = []
+            folds_season[key1][key2] = []
+            print(key2)
             for i in folds_dict[key1][key2]:
                 row = df_global.iloc[i]
                 full_year = 1
 
+                print(i)
+
                 for trimester in range(1, 5):
-                    tile_name = os.path.join('C:/Users/Isabelle/Documents/dhs/data/images/seasonal_raw',
+                    tile_name = os.path.join('../../../images/seasonal_raw',
                                              str(row.country).lower(),
                                              str(row.year),
                                              str(row.cluster_id) + f"_{trimester}.tif")
 
-                    if not (os.path.exists(tile_name)) or str(row.country).lower() == 'tanzania' or row.urban_rural == 1:
+                    if not (os.path.exists(tile_name)):
                         full_year = 0
 
                 if full_year:
-                    folds_mada[key1][key2].append(i)
-            folds_mada[key1][key2] = np.array(folds_mada[key1][key2])
+                    folds_season[key1][key2].append(i)
+            folds_season[key1][key2] = np.array(folds_season[key1][key2])
 
-    print(len(folds_mada['A']['test']), len(folds_mada['A']['val']), len(folds_mada['A']['train']))
-    print(len(folds_mada['A']['test']) + len(folds_mada['A']['val']) + len(folds_mada['A']['train']))
+    print(len(folds_season['A']['test']), len(folds_season['A']['val']), len(folds_season['A']['train']))
+    print(len(folds_season['A']['test']) + len(folds_season['A']['val']) + len(folds_season['A']['train']))
 
 
 
-    with open("folds_mada_rural.pkl", "wb") as f:
-        pickle.dump(folds_mada, f)
-
+    with open("folds_seasonal.pkl", "wb") as f:
+        pickle.dump(folds_season, f)

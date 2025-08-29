@@ -9,16 +9,15 @@ run:
 
 
 data:
-  dataset_path: C:\Users\Isabelle\Documents\dhs\data\
-  tif_dir: images\cloudless_composite-2y_centered
-  labels_name: landsat7.csv
+  dataset_path: ../../../images/seasonal_raw
+  labels_name: /../landsat7.csv
   train_batch_size: 64
   inference_batch_size: 64
   num_workers: 8
   val_split: 0.2
   test_split: 0.2
   dhs_folds: False
-  nature: composite
+  nature: seasonal
   nightlight: True
   dict_normalize: mean_std_normalize_all.json
   fold_path: folds_mada.pkl
@@ -43,7 +42,7 @@ model:
     global_pool: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 17
+      num_input_channels: 64
     change_last_layer:
       num_outputs: 1
 
@@ -62,7 +61,8 @@ optim:
             monitor: loss/val  # ['loss/train', 'loss/val', '<metric>/train', '<metric>/val', ...]
 
   loss: mse_loss
-
+  loss_kwargs:
+    reduction: "mean"
 
 
   metrics:

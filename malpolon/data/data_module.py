@@ -8,6 +8,8 @@ Author: Gaetan Morand <gaetan.morand@umontpellier.fr> ;
 
 from __future__ import annotations
 
+print("BaseDataModule beginning")
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -29,9 +31,13 @@ from torch.utils.data import DataLoader, Dataset
 
 from torchvision.transforms import v2
 
-from torchgeo.datasets import RasterDataset, VectorDataset, random_bbox_assignment, concat_samples, stack_samples
-from torchgeo.datamodules import GeoDataModule
-from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler, RandomGeoSampler
+# print("BaseDataModule import torchgeo")
+
+# from torchgeo.datasets import RasterDataset, VectorDataset, random_bbox_assignment, concat_samples, stack_samples
+# from torchgeo.datamodules import GeoDataModule
+# from torchgeo.samplers import RandomBatchGeoSampler, GridGeoSampler, RandomGeoSampler
+
+# print("Import BaseDataModule torchgeo completed")
 
 
 if TYPE_CHECKING:
@@ -44,6 +50,8 @@ if TYPE_CHECKING:
 
     Patches = npt.NDArray
     Targets = npt.NDArray
+
+print("Import BaseDataModule completed")
 
 
 class BaseDataModule(pl.LightningDataModule, ABC):
@@ -659,232 +667,232 @@ class RLSDataModule(BaseDataModule):
         return weights
 
 
-class PopDensGeoDataModule(GeoDataModule):
-    def __init__(self, dataset_class, batch_size, patch_size, length, num_workers, pin_memory, dataset1_path, dataset2_path):
-        super().__init__(dataset_class)
-        self.dataset_class = dataset_class
-        self.batch_size = batch_size
-        self.patch_size = patch_size
-        self.length = length
-        self.num_workers = num_workers
-        self.pin_memory = pin_memory
-        self.dataset1_path = dataset1_path
-        self.dataset2_path = dataset2_path
+# class PopDensGeoDataModule(GeoDataModule):
+#     def __init__(self, dataset_class, batch_size, patch_size, length, num_workers, pin_memory, dataset1_path, dataset2_path):
+#         super().__init__(dataset_class)
+#         self.dataset_class = dataset_class
+#         self.batch_size = batch_size
+#         self.patch_size = patch_size
+#         self.length = length
+#         self.num_workers = num_workers
+#         self.pin_memory = pin_memory
+#         self.dataset1_path = dataset1_path
+#         self.dataset2_path = dataset2_path
 
-        # initialize raster datasets
-        self.raster_data = RasterDataset(paths=[self.dataset1_path])
-        self.label_data = VectorDataset(paths=[self.dataset2_path], label_name="POPCENSUS22")
-        self.intersect_dataset = self.raster_data & self.label_data  # creating an IntersectionDataset from TorchGeo
+#         # initialize raster datasets
+#         self.raster_data = RasterDataset(paths=[self.dataset1_path])
+#         self.label_data = VectorDataset(paths=[self.dataset2_path], label_name="POPCENSUS22")
+#         self.intersect_dataset = self.raster_data & self.label_data  # creating an IntersectionDataset from TorchGeo
 
-    @property
-    def train_transform(self):
-        transforms = v2.Compose([
-            v2.CenterCrop(512),
-        ])
-        return transforms
+#     @property
+#     def train_transform(self):
+#         transforms = v2.Compose([
+#             v2.CenterCrop(512),
+#         ])
+#         return transforms
 
-    @property
-    def test_transform(self):
-        transforms = v2.Compose([
-            v2.CenterCrop(512),
-        ])
-        return transforms
+#     @property
+#     def test_transform(self):
+#         transforms = v2.Compose([
+#             v2.CenterCrop(512),
+#         ])
+#         return transforms
 
-    def get_dataset(self, split, transform, **kwargs):
-        """Return the dataset corresponding to the split.
+#     def get_dataset(self, split, transform, **kwargs):
+#         """Return the dataset corresponding to the split.
 
-                Parameters
-                ----------
-                split : str
-                    Type of dataset. Values must be on of ["train", "val",
-                    "test"]
-                transform : Callable
-                    data transforms to apply when loading the dataset
+#                 Parameters
+#                 ----------
+#                 split : str
+#                     Type of dataset. Values must be on of ["train", "val",
+#                     "test"]
+#                 transform : Callable
+#                     data transforms to apply when loading the dataset
 
-                Returns
-                -------
-                Dataset
-                    dataset corresponding to the split
-        """
+#                 Returns
+#                 -------
+#                 Dataset
+#                     dataset corresponding to the split
+#         """
 
-        #define split of dataset
-        generator = torch.Generator().manual_seed(0)
-        (
-            self.train_dataset,
-            self.val_dataset,
-            self.test_dataset,
-        ) = random_bbox_assignment(self.intersect_dataset, [0.6, 0.2, 0.2], generator)
-        if split == "train":
-            dataset = self.train_dataset
-        elif split == "val":
-            dataset = self.val_dataset
-        elif split == "test":
-            dataset = self.test_dataset
-        elif split == "predict":
-            dataset = self.test_dataset
-        else:
-            print("Wrong split partition, valid ones : train, val, test, predict.")
+#         #define split of dataset
+#         generator = torch.Generator().manual_seed(0)
+#         (
+#             self.train_dataset,
+#             self.val_dataset,
+#             self.test_dataset,
+#         ) = random_bbox_assignment(self.intersect_dataset, [0.6, 0.2, 0.2], generator)
+#         if split == "train":
+#             dataset = self.train_dataset
+#         elif split == "val":
+#             dataset = self.val_dataset
+#         elif split == "test":
+#             dataset = self.test_dataset
+#         elif split == "predict":
+#             dataset = self.test_dataset
+#         else:
+#             print("Wrong split partition, valid ones : train, val, test, predict.")
 
-        return dataset
+#         return dataset
 
-    def get_train_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the train dataset.
+#     def get_train_dataset(self) -> Dataset:
+#         """Call self.get_dataset to return the train dataset.
 
-        Returns
-        -------
-        Dataset
-            train dataset
-        """
-        dataset = self.get_dataset(
-            split="train",
-            transform=self.train_transform,
-        )
+#         Returns
+#         -------
+#         Dataset
+#             train dataset
+#         """
+#         dataset = self.get_dataset(
+#             split="train",
+#             transform=self.train_transform,
+#         )
 
-        return dataset
+#         return dataset
 
-    def get_val_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the validation dataset.
+#     def get_val_dataset(self) -> Dataset:
+#         """Call self.get_dataset to return the validation dataset.
 
-        Returns
-        -------
-        Dataset
-            validation dataset
-        """
-        dataset = self.get_dataset(
-            split="val",
-            transform=self.test_transform,
-        )
+#         Returns
+#         -------
+#         Dataset
+#             validation dataset
+#         """
+#         dataset = self.get_dataset(
+#             split="val",
+#             transform=self.test_transform,
+#         )
 
-        return dataset
+#         return dataset
 
-    def get_test_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the test dataset.
+#     def get_test_dataset(self) -> Dataset:
+#         """Call self.get_dataset to return the test dataset.
 
-        Returns
-        -------
-        Dataset
-            test dataset
-        """
-        dataset = self.get_dataset(
-            split="test",
-            transform=self.test_transform,
-        )
-        return dataset
+#         Returns
+#         -------
+#         Dataset
+#             test dataset
+#         """
+#         dataset = self.get_dataset(
+#             split="test",
+#             transform=self.test_transform,
+#         )
+#         return dataset
 
-    def get_predict_dataset(self) -> Dataset:
-        """Call self.get_dataset to return the test dataset.
+#     def get_predict_dataset(self) -> Dataset:
+#         """Call self.get_dataset to return the test dataset.
 
-        Returns
-        -------
-        Dataset
-            test dataset
-        """
-        dataset = self.get_dataset(
-            split="predict",
-            transform=self.test_transform,
-        )
-        return dataset
+#         Returns
+#         -------
+#         Dataset
+#             test dataset
+#         """
+#         dataset = self.get_dataset(
+#             split="predict",
+#             transform=self.test_transform,
+#         )
+#         return dataset
 
-    def setup(self, stage: Optional[str] = None) -> None:
-        """Register the correct datasets to the class attributes.
+#     def setup(self, stage: Optional[str] = None) -> None:
+#         """Register the correct datasets to the class attributes.
 
-                Depending on the trainer's stage, this method will retrieve
-                the train, val or test dataset and register it as a class
-                attribute. The "predict" stage calls for the test dataset.
+#                 Depending on the trainer's stage, this method will retrieve
+#                 the train, val or test dataset and register it as a class
+#                 attribute. The "predict" stage calls for the test dataset.
 
-                Parameters
-                ----------
-                stage : Optional[str], optional
-                    trainer's stage, by default None (train)
-        """
+#                 Parameters
+#                 ----------
+#                 stage : Optional[str], optional
+#                     trainer's stage, by default None (train)
+#         """
 
-        if stage in (None, "fit"):
-            self.dataset_train = self.get_train_dataset()
-            self.train_sampler = RandomGeoSampler(self.dataset_train, size=self.patch_size, length=self.length)
+#         if stage in (None, "fit"):
+#             self.dataset_train = self.get_train_dataset()
+#             self.train_sampler = RandomGeoSampler(self.dataset_train, size=self.patch_size, length=self.length)
 
-            self.dataset_val = self.get_val_dataset()
-            self.val_sampler = RandomGeoSampler(self.dataset_val, size=self.patch_size, length=self.length)
-            #GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
+#             self.dataset_val = self.get_val_dataset()
+#             self.val_sampler = RandomGeoSampler(self.dataset_val, size=self.patch_size, length=self.length)
+#             #GridGeoSampler(self.dataset_val, size=self.patch_size, stride=self.patch_size)
 
-        if stage == "test":
-            self.dataset_test = self.get_test_dataset()
-            self.test_sampler = GridGeoSampler(self.dataset_test, size=self.patch_size, stride=self.patch_size)
+#         if stage == "test":
+#             self.dataset_test = self.get_test_dataset()
+#             self.test_sampler = GridGeoSampler(self.dataset_test, size=self.patch_size, stride=self.patch_size)
 
-        if stage == "predict":
-            self.dataset_predict = self.get_test_dataset()
-            self.predict_sampler = GridGeoSampler(self.dataset_predict, size=self.patch_size, stride=self.patch_size)
+#         if stage == "predict":
+#             self.dataset_predict = self.get_test_dataset()
+#             self.predict_sampler = GridGeoSampler(self.dataset_predict, size=self.patch_size, stride=self.patch_size)
 
-    def train_dataloader(self) -> DataLoader:
-        """Return train dataloader instantiated with class attributes.
+#     def train_dataloader(self) -> DataLoader:
+#         """Return train dataloader instantiated with class attributes.
 
-        Returns
-        -------
-        DataLoader
-            train dataloader
-        """
-        dataloader = DataLoader(
-            self.dataset_train,
-            sampler=self.train_sampler,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=stack_samples,
-            persistent_workers = True
-        )
-        return dataloader
+#         Returns
+#         -------
+#         DataLoader
+#             train dataloader
+#         """
+#         dataloader = DataLoader(
+#             self.dataset_train,
+#             sampler=self.train_sampler,
+#             batch_size=self.batch_size,
+#             num_workers=self.num_workers,
+#             pin_memory=self.pin_memory,
+#             collate_fn=stack_samples,
+#             persistent_workers = True
+#         )
+#         return dataloader
 
-    def val_dataloader(self) -> DataLoader:
-        """Return validation dataloader instantiated with class attributes.
+#     def val_dataloader(self) -> DataLoader:
+#         """Return validation dataloader instantiated with class attributes.
 
-        Returns
-        -------
-        DataLoader
-            Validation dataloader
-        """
-        dataloader = DataLoader(
-            self.dataset_val,
-            sampler=self.val_sampler,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=stack_samples,
-            persistent_workers = True
-        )
-        return dataloader
+#         Returns
+#         -------
+#         DataLoader
+#             Validation dataloader
+#         """
+#         dataloader = DataLoader(
+#             self.dataset_val,
+#             sampler=self.val_sampler,
+#             batch_size=self.batch_size,
+#             num_workers=self.num_workers,
+#             pin_memory=self.pin_memory,
+#             collate_fn=stack_samples,
+#             persistent_workers = True
+#         )
+#         return dataloader
 
-    def test_dataloader(self) -> DataLoader:
-        """Return test dataloader instantiated with class attributes.
+#     def test_dataloader(self) -> DataLoader:
+#         """Return test dataloader instantiated with class attributes.
 
-        Returns
-        -------
-        DataLoader
-            test dataloader
-        """
-        dataloader = DataLoader(
-            self.dataset_test,
-            sampler=self.test_sampler,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=stack_samples,
-            persistent_workers = True
-        )
-        return dataloader
+#         Returns
+#         -------
+#         DataLoader
+#             test dataloader
+#         """
+#         dataloader = DataLoader(
+#             self.dataset_test,
+#             sampler=self.test_sampler,
+#             batch_size=self.batch_size,
+#             num_workers=self.num_workers,
+#             pin_memory=self.pin_memory,
+#             collate_fn=stack_samples,
+#             persistent_workers = True
+#         )
+#         return dataloader
 
-    def predict_dataloader(self) -> DataLoader:
-        """Return predict dataloader instantiated with class attributes.
+#     def predict_dataloader(self) -> DataLoader:
+#         """Return predict dataloader instantiated with class attributes.
 
-        Returns
-        -------
-        DataLoader
-            predict dataloader
-        """
-        dataloader = DataLoader(
-            self.dataset_predict,
-            sampler=self.predict_sampler,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
-            collate_fn=stack_samples
-        )
-        return dataloader
+#         Returns
+#         -------
+#         DataLoader
+#             predict dataloader
+#         """
+#         dataloader = DataLoader(
+#             self.dataset_predict,
+#             sampler=self.predict_sampler,
+#             batch_size=self.batch_size,
+#             num_workers=self.num_workers,
+#             pin_memory=self.pin_memory,
+#             collate_fn=stack_samples
+#         )
+#         return dataloader
