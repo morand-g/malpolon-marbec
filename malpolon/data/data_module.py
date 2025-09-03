@@ -8,8 +8,6 @@ Author: Gaetan Morand <gaetan.morand@umontpellier.fr> ;
 
 from __future__ import annotations
 
-print("BaseDataModule beginning")
-
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -51,7 +49,6 @@ if TYPE_CHECKING:
     Patches = npt.NDArray
     Targets = npt.NDArray
 
-print("Import BaseDataModule completed")
 
 
 class BaseDataModule(pl.LightningDataModule, ABC):

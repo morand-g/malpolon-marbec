@@ -8,8 +8,6 @@ Author: Auguste Verdier <auguste.verdier@umontpellier.fr>
 
 from __future__ import annotations
 
-print("Imports beginning")
-
 import os
 import random
 
@@ -24,19 +22,13 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
-print("Imports malpolon beginning")
 
 from poverty_dataset import MSDataModule
-print('poverty dataset done')
 from malpolon.logging import Summary
-print('logging done')
 from malpolon.models.standard_prediction_systems import RegressionSystem
-print('malpolon completed')
 
 import warnings
 from rasterio.errors import NotGeoreferencedWarning
-
-print("Imports completed")
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
@@ -113,6 +105,8 @@ def main(cfg: DictConfig) -> None:
         else:
             if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path[i])
             else:trainer.fit(model, datamodule=datamodule)
+            trainer.validate(model, datamodule=datamodule)
+            trainer.test(model, datamodule=datamodule)
 
     #Gather prediction points over the whole dataset
     if cfg.run.predict:
@@ -165,5 +159,11 @@ def plot_predict(data: pd.DataFrame):
 
 
 if __name__ == "__main__":
-    print("Script Beginning")
+    import time
+    start_time = time.time()
     main()
+    end_time = time.time()
+    elapsed = end_time - start_time
+    minutes = int(elapsed // 60)
+    seconds = elapsed % 60
+    print(f"Execution time: {minutes} min {seconds:.2f} sec")

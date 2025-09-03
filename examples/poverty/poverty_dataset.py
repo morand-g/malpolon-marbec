@@ -1,4 +1,3 @@
-print("Poverty dataset starts")
 
 import os
 import json
@@ -18,10 +17,8 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torchvision
 
-print("Import BaseDataModule")
 from malpolon.data.data_module import BaseDataModule
 
-print("Import Dataset completed")
 
 SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22', 'qa', 'drad', 'emis', 'emsd', 'trad', 'urad',
                 'atran', 'cdist', 'qa_pixel', 'qa_radsat']
