@@ -4,26 +4,22 @@ hydra:
     dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
 
 run:
-  predict: true
-  checkpoint_path: ["outputs/cnn_on_ms_poverty/mada_rural_season_notrain/fold_A/epoch=35-step=360-r2/val=0.1586.ckpt",
-                    "outputs/cnn_on_ms_poverty/mada_rural_season_notrain/fold_B/epoch=36-step=370-r2/val=0.1076.ckpt",
-                    "outputs/cnn_on_ms_poverty/mada_rural_season_notrain/fold_C/epoch=38-step=390-r2/val=-0.0410.ckpt",
-                    "outputs/cnn_on_ms_poverty/mada_rural_season_notrain/fold_D/epoch=29-step=300-r2/val=-0.0532.ckpt",
-                    "outputs/cnn_on_ms_poverty/mada_rural_season_notrain/fold_E/epoch=44-step=450-r2/val=0.2036.ckpt"]
+  predict:
+  checkpoint_path:
 
 
 data:
-  dataset_path: ../../../images/seasonal_raw
-  labels_name: /../landsat7.csv
+  dataset_path: ../../../images/cloudless_composite-2y_centered
+  labels_name: /../madagascar_hrea.csv
   train_batch_size: 64
   inference_batch_size: 64
   num_workers: 8
   val_split: 0.2
   test_split: 0.2
-  nature: seasonal
-  nightlight: false
+  nature: composite
+  nightlight: lightscore
   dict_normalize: mean_std_normalize_all.json
-  fold_path: folds_mada_rural.pkl
+  fold_path: folds_mada_hrea.pkl
 
 task:
   task: regression
@@ -45,7 +41,7 @@ model:
     global_pool: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 64
+      num_input_channels: 17
     change_last_layer:
       num_outputs: 1
 

@@ -35,6 +35,7 @@ class MSDataModule(BaseDataModule):
             fold: str = 'A',
             fold_path: str = 'folds.pkl',
             nature: str = 'composite',
+            nightlight: str = None,
             dict_normalize: str = 'mean_std_normalize_all.json',
             **kwargs
     ):
@@ -57,6 +58,7 @@ class MSDataModule(BaseDataModule):
         self.labels_name = labels_name
         self.fold_dict = pd.read_pickle(fold_path)[fold]
         self.nature = nature
+        self.nightlight = nightlight
         self.dict_normalize = json.load(open(dict_normalize, 'r'))
 
     @property
@@ -76,7 +78,8 @@ class MSDataModule(BaseDataModule):
         ])
 
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature, transform=transform)
+        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
+                         nightlight= self.nightlight, transform=transform)
 
     def get_all_dataset(self) -> Dataset:
         """Call self.get_dataset to return the whole dataset.
@@ -89,6 +92,22 @@ class MSDataModule(BaseDataModule):
         dataset = self.get_dataset(
             split="all",
             transform=self.test_transform,
+        )
+        return dataset
+
+    def get_norm_dataset(self) -> Dataset:
+        """Call self.get_dataset to return the whole dataset.
+
+        Returns
+        -------
+        Dataset
+            whole dataset
+        """
+        dataset = self.get_dataset(
+            split="all",
+            transform=torchvision.transforms.Compose([
+                torchvision.transforms.CenterCrop(224),
+            ]),
         )
         return dataset
 
@@ -155,7 +174,7 @@ class MSDataset(Dataset):
         Rasters were previously downloaded from Microsoft Planetary Computer.
         Images contain 16 bands, all consigned in the SPECTRUM_ALL variable."""
 
-    def __init__(self, root_dir, labels_name, fold, split,  nature="composite", transform=None):
+    def __init__(self, root_dir, labels_name, fold, split,  nature="composite",  nightlight=None, transform=None):
         """
         Args:
             root_dir (string): Directory with all the images
@@ -173,6 +192,7 @@ class MSDataset(Dataset):
         self.dataframe = self._load_observation_data(root_dir, labels_name, split, obs_data_columns, fold)
         self.root_dir = root_dir
         self.nature = nature
+        self.nightlight = nightlight
         self.transform = transform
 
     def __len__(self):
@@ -242,9 +262,33 @@ class MSDataset(Dataset):
                 tile_t = np.nan_to_num(tile_t)
                 tile_t = self.transform(torch.tensor(tile_t, dtype=torch.float32))
                 tile = torch.concat((tile, tile_t), dim=0)
+
+
+        if self.nightlight:
+            tile_name = os.path.join(self.root_dir,
+                                     f"../HREA/{self.nightlight}",
+                                     str(row.country),
+                                     str(row.year),
+                                     str(row.cluster_id) + ".tif"
+                                     )
+
+            with rasterio.open(tile_name) as src:
+                layer = src.read(1)
+            tile_n = np.nan_to_num(layer)
+            transforms = torchvision.transforms.Compose([
+                torchvision.transforms.CenterCrop(224),
+                torchvision.transforms.RandomHorizontalFlip(),
+                torchvision.transforms.RandomVerticalFlip(),
+            ])
+            tile_n = transforms(torch.from_numpy(tile_n).unsqueeze(0))
+            tile = torch.concat((tile, tile_n), dim=0)
+            tile = torch.tensor(tile, dtype=torch.float32)
+
         value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
 
         return tile, value
+
+
 
     def _load_observation_data(
         self,
@@ -368,3 +412,7 @@ class MSDataset(Dataset):
             plt.tight_layout(rect=[0, 0.03, 1, 0.95])
             plt.show()
 
+if __name__ == '__main__':
+    folds = pd.read_pickle('folds_mada_hrea.pkl')
+
+    print(folds)
