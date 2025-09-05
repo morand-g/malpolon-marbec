@@ -113,7 +113,7 @@ def main(cfg: DictConfig) -> None:
         inference_data.to_csv(f"{log_dir}/predictions.csv")
 
 
-@hydra.main(version_base="1.3", config_path="../../../Poverty/config", config_name="cnn_on_ms_torchgeo_config")
+@hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def plot_dataset(cfg: DictConfig) -> None:
     """
     Plot a random element of the dataset both in rgb rendering and with whole spectrum.

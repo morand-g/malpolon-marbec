@@ -25,7 +25,7 @@ from rasterio.errors import NotGeoreferencedWarning
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
-@hydra.main(version_base="1.3", config_path="../../../Poverty/config", config_name="cnn_on_ms_torchgeo_config")
+@hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def calcul_mean_std(cfg: DictConfig) -> None:
     """Calculate the mean and standard deviation of the dataset.
     Parameters
@@ -36,11 +36,10 @@ def calcul_mean_std(cfg: DictConfig) -> None:
     """
 
     datamodule = MSDataModule(**cfg.data, **cfg.task)
-    datamodule.setup()
-    data_loader = datamodule.all_dataloader()
+    data_loader = datamodule.norm_dataloader()
 
-    mean = torch.zeros(16)
-    std = torch.zeros(16)
+    mean = torch.zeros(17)
+    std = torch.zeros(17)
 
     total_images_count = 0
     for images, _ in tqdm(data_loader):
@@ -114,43 +113,4 @@ def create_folds(dataframe)->dict[str, dict]:
     return folds
 
 if __name__ == '__main__':
-
-    with open("folds.pkl", "rb") as f:
-        folds_dict = pickle.load(f)
-
-    df_global = pd.read_csv("../../../images/landsat7.csv", sep=";")
-
-    folds_season = {}
-
-    for key1 in folds_dict.keys():
-        folds_season[key1] = {}
-        print(key1)
-        for key2 in folds_dict[key1].keys():
-            folds_season[key1][key2] = []
-            print(key2)
-            for i in folds_dict[key1][key2]:
-                row = df_global.iloc[i]
-                full_year = 1
-
-                print(i)
-
-                for trimester in range(1, 5):
-                    tile_name = os.path.join('../../../images/seasonal_raw',
-                                             str(row.country).lower(),
-                                             str(row.year),
-                                             str(row.cluster_id) + f"_{trimester}.tif")
-
-                    if not (os.path.exists(tile_name)):
-                        full_year = 0
-
-                if full_year:
-                    folds_season[key1][key2].append(i)
-            folds_season[key1][key2] = np.array(folds_season[key1][key2])
-
-    print(len(folds_season['A']['test']), len(folds_season['A']['val']), len(folds_season['A']['train']))
-    print(len(folds_season['A']['test']) + len(folds_season['A']['val']) + len(folds_season['A']['train']))
-
-
-
-    with open("folds_seasonal.pkl", "wb") as f:
-        pickle.dump(folds_season, f)
+    calcul_mean_std()

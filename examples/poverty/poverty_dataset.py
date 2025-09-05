@@ -17,6 +17,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torchvision
 
+
 from malpolon.data.data_module import BaseDataModule
 
 
@@ -122,6 +123,10 @@ class MSDataModule(BaseDataModule):
 
     def all_dataloader(self):
         return DataLoader(self.get_all_dataset(), batch_size=self.train_batch_size, shuffle=False,
+                          num_workers=self.num_workers, persistent_workers=True)
+
+    def norm_dataloader(self):
+        return DataLoader(self.get_norm_dataset(), batch_size=self.train_batch_size, shuffle=False,
                           num_workers=self.num_workers, persistent_workers=True)
 
 
@@ -280,9 +285,9 @@ class MSDataset(Dataset):
                 torchvision.transforms.RandomHorizontalFlip(),
                 torchvision.transforms.RandomVerticalFlip(),
             ])
-            tile_n = transforms(torch.from_numpy(tile_n).unsqueeze(0))
+            tile_n = transforms(torch.tensor(tile_n, dtype=torch.float32).unsqueeze(0))
             tile = torch.concat((tile, tile_n), dim=0)
-            tile = torch.tensor(tile, dtype=torch.float32)
+
 
         value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
 
@@ -367,6 +372,8 @@ class MSDataset(Dataset):
 
         nb_layers = len(SPECTRUM_ALL)
 
+        if self.nightlight: nb_layers += 1
+
         if rgb:
             patch_rgb = patch[[0, 1, 2], :, :]
             img_rgb = patch_rgb.permute(1, 2, 0).numpy()
@@ -394,6 +401,9 @@ class MSDataset(Dataset):
 
                 # flatten the subplots array to easily access the subplots
                 axs = axs.flatten()
+
+                if self.nightlight:
+                    SPECTRUM_ALL.append('nightlight')
 
                 # loop through the layers of patch data
                 for i, band_name in enumerate(SPECTRUM_ALL):
