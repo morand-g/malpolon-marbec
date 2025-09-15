@@ -6,7 +6,7 @@ run:
   predict: false
   exp_name: 24_humenv_cat_reg_top100
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: none #${data.root}outputs/17_humenv_cat_reg-2025-05-20_11-42/last.ckpt
+  checkpoint_path: null #${data.root}outputs/17_humenv_cat_reg-2025-05-20_11-42/last.ckpt
   pa_predictions_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
   top100_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/top100-f1.csv
 data:
