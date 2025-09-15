@@ -19,8 +19,11 @@ import lightning.pytorch as pl
 from omegaconf import DictConfig
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
+import torch
 from torch import tensor
 import torchmetrics.functional as Fmetrics
+
+torch.set_float32_matmul_precision('medium')
 
 
 from poverty_dataset import MSDataModule
@@ -45,68 +48,73 @@ def main(cfg: DictConfig) -> None:
     """
 
     pl.seed_everything(cfg.seed)
-    inference_data = pd.DataFrame([])
     i=0
 
     # Iteration on folds for cross-validation
-    for fold in 'ABCDE':
-        print("Training fold ", fold)
 
-        # Loggers
-        log_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
-        log_dir_fold = os.path.join(log_dir, f"fold_{fold}")
-        logger_csv = pl.loggers.CSVLogger(log_dir_fold, name="", version="")
-        logger_csv.log_hyperparams(cfg)
-        logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=f"tensorboard_logs/fold_{fold}", version="")
-        logger_tb.log_hyperparams(cfg)
+    fold = cfg.run.fold
 
-        # Datamodule & Model
-        datamodule = MSDataModule(**cfg.data, fold=fold)
-        model = RegressionSystem(cfg.model, **cfg.optim)
+    print("Training fold ", fold)
 
-        # Lightning Trainer
-        callbacks = [
-            Summary(),
-            ModelCheckpoint(
-                dirpath=log_dir_fold,
-                filename="{epoch:02d}-{step}-{" + f"{next(iter(model.metrics.keys()))}/val" + ":.4f}",
-                monitor=f"{next(iter(model.metrics.keys()))}/val",
-                mode="max",
-                save_on_train_epoch_end=True,
-                save_last=True,
-                every_n_train_steps=10,
-            ),
-            LearningRateMonitor()
-        ]
+    # Loggers
+    log_dir = hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
+    log_dir_fold = os.path.join(log_dir, f"fold_{fold}")
+    logger_csv = pl.loggers.CSVLogger(log_dir_fold, name="", version="")
+    logger_csv.log_hyperparams(cfg)
+    logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=f"tensorboard_logs/fold_{fold}", version="")
+    logger_tb.log_hyperparams(cfg)
 
-        trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=1, callbacks=callbacks,
-                             **cfg.trainer)
+    # Datamodule & Model
+    datamodule = MSDataModule(**cfg.data, fold=fold)
+    model = RegressionSystem(cfg.model, **cfg.optim)
 
-        # Run
-        if cfg.run.predict:
-            model = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path[i],
-                                                          model=model.model,
-                                                          hparams_preprocess=False,
-                                                          weights_dir=log_dir_fold,
-                                                          loss=cfg.optim.loss,
-                                                          metrics=cfg.optim.metrics)
+    # Lightning Trainer
+    callbacks = [
+        Summary(),
+        ModelCheckpoint(
+            dirpath=log_dir_fold,
+            filename="{epoch:02d}-{step}-{" + f"{next(iter(model.metrics.keys()))}_val" + ":.4f}",
+            monitor=f"{next(iter(model.metrics.keys()))}_val",
+            mode="max",
+            save_on_train_epoch_end=True,
+            save_last=True,
+            every_n_train_steps=10,
+        ),
+        LearningRateMonitor()
+    ]
 
-            # Save prediction points for each fold
-            predictions = model.predict(datamodule, trainer)
-            np_predictions = predictions.to('cpu').numpy()
-            df_predictions = datamodule.export_predict_csv_basic(np_predictions,
-                                                                 out_dir=log_dir_fold,
-                                                                 out_name=f'predictions_test_dataset_{fold}',
-                                                                 return_csv=True)
+    trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=1, callbacks=callbacks,
+                         **cfg.trainer)
 
-            inference_data = pd.concat([inference_data, df_predictions])
-            i += 1
+    if os.path.exists(f"{log_dir}/predictions.csv"):
+        inference_data = pd.read_csv(f"{log_dir}/predictions.csv", index_col=0)
+    else: inference_data = pd.DataFrame([])
 
-        else:
-            if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path[i])
-            else:trainer.fit(model, datamodule=datamodule)
-            trainer.validate(model, datamodule=datamodule)
-            trainer.test(model, datamodule=datamodule)
+    # Run
+    if cfg.run.predict:
+        model = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path[i],
+                                                      model=model.model,
+                                                      hparams_preprocess=False,
+                                                      weights_dir=log_dir_fold,
+                                                      loss=cfg.optim.loss,
+                                                      metrics=cfg.optim.metrics)
+
+        # Save prediction points for each fold
+        predictions = model.predict(datamodule, trainer)
+        np_predictions = predictions.to('cpu').numpy()
+        df_predictions = datamodule.export_predict_csv_basic(np_predictions,
+                                                             out_dir=log_dir_fold,
+                                                             out_name=f'predictions_test_dataset_{fold}',
+                                                             return_csv=True)
+
+        inference_data = pd.concat([inference_data, df_predictions])
+        i += 1
+
+    else:
+        if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path[i])
+        else:trainer.fit(model, datamodule=datamodule)
+        trainer.validate(model, datamodule=datamodule)
+        trainer.test(model, datamodule=datamodule)
 
     #Gather prediction points over the whole dataset
     if cfg.run.predict:

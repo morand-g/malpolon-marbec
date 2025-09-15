@@ -216,7 +216,7 @@ class MSDataset(Dataset):
 
             tile = []
             tile_name = os.path.join(self.root_dir,
-                                     str(row.country),
+                                     str(row.country.lower()),
                                      str(row.year),
                                      str(row.cluster_id) + ".tif"
                                      )
