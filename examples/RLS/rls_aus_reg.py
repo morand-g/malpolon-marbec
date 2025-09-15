@@ -68,7 +68,7 @@ def main(cfg: DictConfig) -> None:
     logger_tb.log_hyperparams(cfg)
 
     # Datamodule & Model
-    if 'top100path' in cfg.run and cfg.run.top100path is not None:
+    if 'top100_path' in cfg.run and cfg.run.top100_path is not None:
         best_species = pd.read_csv(cfg.run.top100_path, index_col=0).index.to_list()
     else: 
         best_species = None

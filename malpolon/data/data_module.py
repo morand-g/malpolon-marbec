@@ -436,7 +436,6 @@ class RLSDataset(Dataset):
         if species_subsample is not None:
             self.species = species_subsample
 
-        print(len(self.species), num_classes)
         assert len(self.species) == num_classes
 
         if self.training:
