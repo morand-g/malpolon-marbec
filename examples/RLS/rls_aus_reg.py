@@ -68,9 +68,15 @@ def main(cfg: DictConfig) -> None:
     logger_tb.log_hyperparams(cfg)
 
     # Datamodule & Model
+    if 'top100path' in cfg.run and cfg.run.top100path is not None:
+        best_species = pd.read_csv(cfg.run.top100_path, index_col=0).index.to_list()
+    else: 
+        best_species = None
+
     datamodule = RLSDataModule(**cfg.data,
                                modality_names= list(cfg.model.submodels.keys()),
-                               target_transform=lambda x: np.log(x+1))
+                               target_transform=lambda x: np.log(x+1),
+                               species_subsample=best_species)
     reg_system = AbundanceSystem(**cfg.model, **cfg.optim)
 
     # Copy current file to log folder
@@ -105,12 +111,8 @@ def main(cfg: DictConfig) -> None:
 
         # Load predicted_presence
         presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
-        if cfg.data.num_classes == 10:
-            best_species = ['Assiculus punctatus', 'Notolabrus parilus', 'Parma mccullochi', 
-                            'Coris auricularis', 'Notolabrus gymnogenis', 'Notolabrus tetricus',
-                            'Pomacentrus wardi', 'Chrysiptera rollandi', 'Pomacentrus moluccensis',
-                            'Halichoeres melanurus']
-            presence = presence[best_species]
+
+        presence = presence[best_species]
         predictions = predictions.numpy() * presence.to_numpy()
 
         datamodule.export_predictions(predictions,

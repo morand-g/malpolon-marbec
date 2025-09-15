@@ -405,6 +405,7 @@ class RLSDataset(Dataset):
         patch_data: str = "all",
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
+        species_subsample: Optional[list[str]] = None,
         **kwargs,
     ):
         root = Path(root)
@@ -432,11 +433,8 @@ class RLSDataset(Dataset):
 
         self.species = df.columns[first_species_index:]
 
-        if num_classes == 10:
-            self.species = ['Assiculus punctatus', 'Notolabrus parilus', 'Parma mccullochi', 
-                            'Coris auricularis', 'Notolabrus gymnogenis', 'Notolabrus tetricus',
-                            'Pomacentrus wardi', 'Chrysiptera rollandi', 'Pomacentrus moluccensis',
-                            'Halichoeres melanurus']
+        if species_subsample is not None:
+            self.species = species_subsample
         
         assert len(self.species) == num_classes
 
