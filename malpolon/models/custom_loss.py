@@ -111,3 +111,18 @@ class FilteredHuberLoss(nn.HuberLoss):
         huber_loss = super().forward(input, target)
         filtered_loss = (huber_loss * present).mean()
         return filtered_loss
+
+
+
+class FilteredMSELoss(nn.MSELoss):
+
+    def __init__(self) -> None:
+
+        super().__init__(reduction='none')
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+
+        present = (target != 0).to(int)
+        mse_loss = super().forward(input, target)
+        filtered_loss = (mse_loss * present).mean()
+        return filtered_loss
