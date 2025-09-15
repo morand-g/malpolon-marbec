@@ -523,6 +523,7 @@ class RLSDataModule(BaseDataModule):
         num_workers: int = 8,
         target_transform: Callable = None,
         modality_names: Optional[dict[str, str]] = ["env", "hum", "sat"],
+        species_subsample: Optional[list[str]] = None,
     ):
         super().__init__(train_batch_size, inference_batch_size, num_workers)
         self.dataset_name = dataset_name
@@ -531,6 +532,7 @@ class RLSDataModule(BaseDataModule):
         self.root = root
         self.target_transform = target_transform  # check_transform(target_transform)
         self.modality_names = modality_names
+        self.species_subsample = species_subsample
 
     @property
     def train_transform(self):
@@ -559,6 +561,7 @@ class RLSDataModule(BaseDataModule):
             patch_data=self.modality_names,
             transform=transform,
             target_transform=self.target_transform,
+            species_subsample=self.species_subsample,    
             **kwargs
         )
         return dataset
