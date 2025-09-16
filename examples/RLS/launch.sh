@@ -11,4 +11,4 @@
 
 
 source /home/gmorand/venvs/deepsdm2/bin/activate
-python rls_aus_reg.py 
+python rls_aus_binned.py 

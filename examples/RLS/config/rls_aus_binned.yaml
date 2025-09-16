@@ -2,16 +2,16 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
-  exp_name: 18_humenv_dhw_cat_pa
+  exp_name: 25_humenv_dhw_common_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-15_12-41/last.ckpt
+  checkpoint_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-15_12-41/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_split.csv
-  num_classes: 1796
+  dataset_name: database_common.csv
+  num_classes: 817
   train_batch_size: 64
   inference_batch_size: 16
   num_workers: 8
@@ -64,7 +64,6 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: ce_and_sr_loss
-  alpha: 0.1
+  loss: modified_ce_loss
 loggers:
   log_dir_name: ${data.root}logs/
