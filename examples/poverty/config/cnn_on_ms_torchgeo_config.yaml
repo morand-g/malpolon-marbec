@@ -1,12 +1,12 @@
 hydra:
 #  output_subdir: null
   run:
-    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d_%H}
+    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d}
 
 run:
-  fold: B
+  fold:
   predict: true
-  checkpoint_path: ["outputs/cnn_on_ms_poverty/2025-09-15_10/fold_B/last.ckpt"]
+  checkpoint_path: 
 
 
 data:
@@ -20,7 +20,7 @@ data:
   nature: composite
   nightlight:
   dict_normalize: mean_std_normalize_all.json
-  fold_path: folds_no-mada.pkl
+  fold_path: folds.pkl
 
 task:
   task: regression
@@ -28,7 +28,7 @@ task:
 trainer:
   accelerator: gpu
   devices: 1
-  max_epochs: 1
+  max_epochs: 160
   check_val_every_n_epoch: 1
 
 model:

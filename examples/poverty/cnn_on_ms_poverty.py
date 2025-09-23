@@ -48,9 +48,6 @@ def main(cfg: DictConfig) -> None:
     """
 
     pl.seed_everything(cfg.seed)
-    i=0
-
-    # Iteration on folds for cross-validation
 
     fold = cfg.run.fold
 
@@ -74,7 +71,6 @@ def main(cfg: DictConfig) -> None:
         ModelCheckpoint(
             dirpath=log_dir_fold,
             filename="{epoch:02d}-{step}-{" + f"{next(iter(model.metrics.keys()))}_val" + ":.4f}",
-            monitor=f"{next(iter(model.metrics.keys()))}_val",
             mode="max",
             save_on_train_epoch_end=True,
             save_last=True,
@@ -92,7 +88,7 @@ def main(cfg: DictConfig) -> None:
 
     # Run
     if cfg.run.predict:
-        model = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path[i],
+        model = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path,
                                                       model=model.model,
                                                       hparams_preprocess=False,
                                                       weights_dir=log_dir_fold,
@@ -108,10 +104,9 @@ def main(cfg: DictConfig) -> None:
                                                              return_csv=True)
 
         inference_data = pd.concat([inference_data, df_predictions])
-        i += 1
 
     else:
-        if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path[i])
+        if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path)
         else:trainer.fit(model, datamodule=datamodule)
         trainer.validate(model, datamodule=datamodule)
         trainer.test(model, datamodule=datamodule)
@@ -139,31 +134,6 @@ def plot_dataset(cfg: DictConfig) -> None:
 
     dataset.plot(idx, True)
     dataset.plot(idx, False)
-
-
-def plot_predict(data: pd.DataFrame):
-    """
-    Plot prediction points gathered in prediction.csv and compute the global r².
-
-    Parameters
-    ----------
-    data: pd.DataFrame
-    Dataframe containing the prediction points.
-
-    """
-
-    # Compute R² score
-    r2 = Fmetrics.regression.r2_score(tensor(data['predictions']), tensor(data['targets']), multioutput='uniform_average')
-
-    # Plot predictions vs targets
-    plt.figure(figsize=(10, 6))
-    plt.scatter(data['targets'], data['predictions'], alpha=0.5)
-    plt.plot([data['targets'].min(), data['targets'].max()], [data['targets'].min(), data['targets'].max()], 'r--')
-    plt.xlabel('Targets')
-    plt.ylabel('Predictions')
-    plt.title(f'Predictions vs Targets (R² score: {r2:.2f})')
-    plt.axis('equal')
-    plt.show()
 
 
 if __name__ == "__main__":
