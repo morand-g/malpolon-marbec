@@ -175,7 +175,7 @@ def main(cfg: DictConfig) -> None:
         predictions = model_loaded.predict(datamodule, trainer)
         test_dataset = datamodule.get_test_dataset()
 
-        #np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
+        # np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
         
         datamodule.export_predictions(predictions,
                                       out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
