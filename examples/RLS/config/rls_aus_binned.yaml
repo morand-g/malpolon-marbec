@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
-  interpretable: false
+  predict: true
+  interpretable: true
   exp_name: 25_humenv_dhw_common_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-15_12-41/last.ckpt
+  checkpoint_path: ${data.root}outputs/25_humenv_dhw_common_pa-2025-09-16_10-00/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -28,7 +28,7 @@ model:
   num_bins: 2
   freeze_submodels: false
   submodels:
-    envhum:
+    env:
       provider_name: torchvision
       model_name: resnet18
       checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
@@ -38,7 +38,29 @@ model:
         change_last_layer:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
-          num_input_channels: 19
+          num_input_channels: 17
+    humhd:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+        change_first_convolutional_layer:
+          num_input_channels: 4
+    bathy:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+        change_first_convolutional_layer:
+          num_input_channels: 1
     dhw:
       provider_name: torchvision
       model_name: resnet18

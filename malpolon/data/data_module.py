@@ -310,7 +310,7 @@ def load_modality(survey_id, inputs_path, modality):
         hum = load_modality(survey_id, inputs_path, "hum")
         return torch.from_numpy(np.concatenate([env, hum], axis=0))
         
-    elif modality in ('env', 'hum'):
+    elif modality in ('env', 'hum', 'bathy', 'humhd'):
         # 3D cubes
         filename = Path(inputs_path) / modality / (survey_id + '.npy')
         x = np.load(filename).astype(np.float32)
