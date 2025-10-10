@@ -10,7 +10,7 @@ run:
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_common_easy.csv
+  dataset_name: database_common_hard.csv
   num_classes: 766
   train_batch_size: 64
   inference_batch_size: 16
@@ -26,7 +26,7 @@ trainer:
 model:
   num_species: ${data.num_classes}
   num_bins: 2
-  freeze_submodels: true
+  freeze_submodels: false
   submodels:
     envhum:
       provider_name: torchvision
@@ -54,8 +54,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-2
-        weight_decay: 0.5
+        lr: 1e-4
+        weight_decay: 0.6
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
