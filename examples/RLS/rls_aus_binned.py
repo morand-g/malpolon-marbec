@@ -115,6 +115,12 @@ class PresenceSystem(GenericPredictionSystem):
         self.model.aggregator_model[1] = nn.Identity()
 
 
+    def edit_final_layer(self):
+        """Edit the final layer of the model to change the number of output classes."""
+
+        self.model.aggregator_model[1] = nn.Linear(self.model.aggregator_model[1].in_features, self.model.num_species * self.model.num_bins)
+
+
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
 def main(cfg: DictConfig) -> None:
@@ -206,6 +212,9 @@ def main(cfg: DictConfig) -> None:
         if cfg.run.checkpoint_path is not None:
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
             reg_system.load_state_dict(checkpoint['state_dict'])
+
+            if reg_system.model.num_species != cfg.model.num_species:
+                reg_system.edit_final_layer(cfg.model.num_species)
 
         trainer.fit(reg_system, datamodule=datamodule)
         trainer.validate(reg_system, datamodule=datamodule)
