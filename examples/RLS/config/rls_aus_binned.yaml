@@ -2,16 +2,16 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
-  interpretable: true
-  exp_name: 25_humenv_dhw_common_pa
+  predict: false
+  interpretable: false
+  exp_name: 28_humenv_dhw_common_hard_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/25_humenv_dhw_common_pa-2025-09-16_10-00/last.ckpt
+  checkpoint_path: ${data.root}outputs/27_humenv_dhw_common_easy_pa-2025-10-10_11-40/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_common.csv
-  num_classes: 817
+  dataset_name: database_common_easy.csv
+  num_classes: 766
   train_batch_size: 64
   inference_batch_size: 16
   num_workers: 8
@@ -26,9 +26,9 @@ trainer:
 model:
   num_species: ${data.num_classes}
   num_bins: 2
-  freeze_submodels: false
+  freeze_submodels: true
   submodels:
-    env:
+    envhum:
       provider_name: torchvision
       model_name: resnet18
       checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
@@ -38,29 +38,7 @@ model:
         change_last_layer:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
-          num_input_channels: 17
-    humhd:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
-        change_first_convolutional_layer:
-          num_input_channels: 4
-    bathy:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
-        change_first_convolutional_layer:
-          num_input_channels: 1
+          num_input_channels: 19
     dhw:
       provider_name: torchvision
       model_name: resnet18
