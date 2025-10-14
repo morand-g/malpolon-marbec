@@ -212,7 +212,7 @@ def main(cfg: DictConfig) -> None:
         if cfg.run.checkpoint_path is not None:
 
             # Change final_layer to be able to load CP
-            reg_system.edit_final_layer(51)
+            reg_system.edit_final_layer(59)
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
             reg_system.load_state_dict(checkpoint['state_dict'])
