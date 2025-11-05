@@ -203,7 +203,7 @@ def main(cfg: DictConfig) -> None:
             test_dataset = datamodule.get_test_dataset()
             species = list(test_dataset.species)
 
-            best_species = list(pd.read_csv(Path(cfg.run.checkpoint_path).parent / 'best_species.csv', index_col = 0).index)
+            best_species = species
             class_indices = [species.index(s) for s in best_species]
 
             atts = save_integrated_gradients(model_loaded, test_dataset, best_species, class_indices, output_dir)

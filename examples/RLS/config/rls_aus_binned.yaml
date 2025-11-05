@@ -4,13 +4,13 @@ hydra:
 run:
   predict: true
   interpretable: false
-  exp_name: 15_humenv_cat_pa
+  exp_name: 30_envhum_xgb_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}/outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
+  checkpoint_path: ${data.root}/outputs/30_envhum_xgb_pa-2025-11-05_14-37/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_split.csv
+  dataset_name: database_split_trainval.csv
   num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
@@ -31,7 +31,7 @@ model:
     envhum:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-02-28_17-17/last.ckpt
+      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -39,11 +39,18 @@ model:
           num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
         change_first_convolutional_layer:
           num_input_channels: 19
+    xgb:
+      provider_name: malpolon
+      model_name: linear
+      checkpoint: ${data.root}outputs/30_xgblin_pa-2025-11-05_13-26/last.ckpt
+      model_kwargs:
+        in_features: 1796
+        out_features: 3592
 optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-2
+        lr: 1e-3
         weight_decay: 0.5
       scheduler: 
         reduce_lr_on_plateau:
