@@ -501,6 +501,7 @@ class RLSDataset(Dataset):
         return patches, -1
 
 
+
 class RLSDataModule(BaseDataModule):
     r"""
     Data module for RLS-aus 2024.
@@ -524,6 +525,7 @@ class RLSDataModule(BaseDataModule):
         target_transform: Callable = None,
         modality_names: Optional[dict[str, str]] = ["env", "hum", "sat"],
         species_subsample: Optional[list[str]] = None,
+        mask_inputs: float = 0.0,
     ):
         super().__init__(train_batch_size, inference_batch_size, num_workers)
         self.dataset_name = dataset_name
@@ -533,6 +535,7 @@ class RLSDataModule(BaseDataModule):
         self.target_transform = target_transform  # check_transform(target_transform)
         self.modality_names = modality_names
         self.species_subsample = species_subsample
+        self.mask_inputs = mask_inputs
 
     @property
     def train_transform(self):
@@ -547,6 +550,13 @@ class RLSDataModule(BaseDataModule):
         if 'sat' in x:
             # x['sat'] = v2.functional.center_crop(x['sat'], output_size=384)
             x['sat'] = v2.functional.center_crop(x['sat'], output_size=500)
+
+        if self.mask_inputs > 0.0 and 'envhum' in x:
+            num_patches = 16
+            mask = torch.rand(num_patches) < self.mask_inputs
+            mask = mask.view(1, 1, 4, 4).repeat(1, 19, 1, 1)  # Expand mask to match image dimensions
+            masked_image = x['envhum'] * (1 - mask)
+            return masked_image, mask, x
 
         return x
 

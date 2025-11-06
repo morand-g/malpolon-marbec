@@ -18,6 +18,7 @@ import timm
 
 from torch import nn
 
+import torchvision
 from torchvision import models
 
 if TYPE_CHECKING:
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     Provider = Callable[..., nn.Module]
     Modifier = Callable[..., nn.Module]
 
-MALPOLON_MODELS = {'linear': nn.Linear}
+MALPOLON_MODELS = {'linear': nn.Linear, 'mlp': torchvision.ops.MLP}
 
 
 class _ModelBuilder:
