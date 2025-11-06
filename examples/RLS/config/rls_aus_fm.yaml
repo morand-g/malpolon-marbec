@@ -1,0 +1,59 @@
+hydra:
+  run:
+    dir: /marbec-data/RLS-Australia/malpolon/local/outputs/${run.run_name}
+run:
+  predict: true
+  interpretable: false
+  exp_name: 30_envhum_xgb_pa
+  run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
+  checkpoint_path: ${data.root}/outputs/30_envhum_xgb_pa-2025-11-05_14-37/last.ckpt
+data:
+  root: /marbec-data/RLS-Australia/malpolon/
+  inputs_path: ${data.root}inputs/australia/
+  dataset_name: database_split.csv
+  num_classes: 1796
+  train_batch_size: 64
+  inference_batch_size: 16
+  num_workers: 8
+  mask_inputs: 0.5
+trainer:
+  accelerator: "auto"
+  devices: "auto"
+  max_epochs: 80
+  val_check_interval: 100
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 100
+  detect_anomaly: false
+model:
+  num_species: ${data.num_classes}
+  num_bins: 2
+  freeze_submodels: false
+  submodels:
+    envhum:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+        change_first_convolutional_layer:
+          num_input_channels: 19
+optim:
+  optimizer:
+    adamw:
+      kwargs:
+        lr: 1e-3
+        weight_decay: 0.5
+      scheduler: 
+        reduce_lr_on_plateau:
+          kwargs:
+            patience: 6
+            eps: 1e-9
+            factor: 0.2
+          lr_scheduler_config:
+            monitor: loss/val
+  loss: modified_ce_loss
+loggers:
+  log_dir_name: /marbec-data/RLS-Australia/malpolon/local/logs/
