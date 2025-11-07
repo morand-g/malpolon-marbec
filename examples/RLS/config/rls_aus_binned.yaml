@@ -26,7 +26,7 @@ trainer:
 model:
   num_species: ${data.num_classes}
   num_bins: 2
-  aggregator: Linear
+  aggregator: MLP
   freeze_submodels: true
   submodels:
     envhum:
@@ -43,7 +43,7 @@ model:
     xgbbest:
       provider_name: malpolon
       model_name: mlp
-      checkpoint: ${data.root}outputs/30_envhum_xgb_pa-2025-11-07_12-15/last.ckpt
+      checkpoint: ${data.root}outputs/30_envhum_xgb_pa-2025-11-07_14-12/last.ckpt
       model_kwargs:
         in_channels: 97
         hidden_channels:
