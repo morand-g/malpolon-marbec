@@ -160,8 +160,9 @@ class MultiModalModel(nn.Module):
 
         # Remove linear and return it
 
-        _, layername = _find_module_of_type(self.modality_models['modality_name'], nn.Linear, 'last')
-        lin = getattr(self.modality_models[modality_name], layername)
-        setattr(self.modality_models[modality_name], layername, nn.Identity())
+        _, layername = _find_module_of_type(self.modality_models[modality_name], nn.Sequential, 'last')
+
+        lin = getattr(self.modality_models[modality_name], layername)[1]
+        getattr(self.modality_models[modality_name], layername)[1] = nn.Identity()
 
         return lin

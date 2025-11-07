@@ -27,23 +27,23 @@ model:
   num_species: ${data.num_classes}
   num_bins: 2
   aggregator: Linear
-  freeze_submodels: false
+  freeze_submodels: true
   submodels:
-    # envhum:
-    #   provider_name: torchvision
-    #   model_name: resnet18
-    #   checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
-    #   model_kwargs:
-    #     weights: IMAGENET1K_V1
-    #   modifiers:
-    #     change_last_layer:
-    #       num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
-    #     change_first_convolutional_layer:
-    #       num_input_channels: 19
+    envhum:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+        change_first_convolutional_layer:
+          num_input_channels: 19
     xgbbest:
       provider_name: malpolon
       model_name: mlp
-      checkpoint: null #${data.root}outputs/30_xgblin_pa-2025-11-05_13-26/last.ckpt
+      checkpoint: ${data.root}outputs/30_envhum_xgb_pa-2025-11-07_12-15/last.ckpt
       model_kwargs:
         in_channels: 97
         hidden_channels:
@@ -67,3 +67,4 @@ optim:
   loss: modified_ce_loss
 loggers:
   log_dir_name: ${data.root}logs/
+
