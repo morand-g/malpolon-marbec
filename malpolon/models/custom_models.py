@@ -5,6 +5,7 @@ from omegaconf import open_dict
 
 import torch
 from torch import nn
+import torchvision
 
 from .utils import check_model
 from .model_builder import _find_module_of_type
@@ -17,6 +18,7 @@ class MultiModalModel(nn.Module):
         modality_models: Union[nn.Module, Mapping],
         num_species,
         num_bins,
+        aggregator: str,
         freeze_submodels: bool = False,
     ):
 
@@ -24,6 +26,7 @@ class MultiModalModel(nn.Module):
         self.monomodal = (len(modality_models) == 1)
         self.num_species = num_species
         self.num_bins = num_bins
+        self.aggregator = aggregator
         self.classifying = True
 
         if num_bins == -1:
@@ -85,15 +88,23 @@ class MultiModalModel(nn.Module):
                     self.modality_models[modality_name].eval()
 
             # Initialize aggregator model with extracted weights
-            lin = nn.Linear(sum([x.in_features for x in linears]), linears[0].out_features)
 
-            with torch.no_grad():
-                lin.weight.data = torch.cat([li.weight.data for li in linears], dim=1) / len(linears)
-                lin.bias.data = torch.mean(torch.stack([li.bias.data for li in linears]), dim=0)
+            if aggregator == 'Linear':
+                
+                lin = nn.Linear(sum([x.in_features for x in linears]), linears[0].out_features)
 
-            # Aggregation model
+                with torch.no_grad():
+                    lin.weight.data = torch.cat([li.weight.data for li in linears], dim=1) / len(linears)
+                    lin.bias.data = torch.mean(torch.stack([li.bias.data for li in linears]), dim=0)
 
-            self.aggregator_model = nn.Sequential(nn.LayerNorm(lin.in_features), lin)
+                self.aggregator_model = nn.Sequential(nn.LayerNorm(lin.in_features), lin)
+            
+            elif aggregator == 'MLP':
+
+                self.aggregator_model =  torchvision.MLP(in_channels = sum([x.in_features for x in linears]),
+                                                        hidden_channels = [256, linears[0].out_features],
+                                                        dropout = 0.1)
+
 
     def forward(self, *arg) -> Any:
 

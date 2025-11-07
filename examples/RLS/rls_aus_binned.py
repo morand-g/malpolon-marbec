@@ -83,6 +83,7 @@ class PresenceSystem(GenericPredictionSystem):
         submodels: DictConfig,
         num_species: int,
         num_bins: int,
+        aggregator: str,
         freeze_submodels: bool,
         loss: Union[torch.nn.modules.loss._Loss, str] = "ce_and_sr_loss",
         optimizer: Union[torch.nn.Module, Mapping] = None,
@@ -95,6 +96,7 @@ class PresenceSystem(GenericPredictionSystem):
             submodels,
             num_species,
             num_bins,
+            aggregator,
             freeze_submodels
         )
 

@@ -26,19 +26,20 @@ trainer:
 model:
   num_species: ${data.num_classes}
   num_bins: 2
+  aggregator: Linear
   freeze_submodels: false
   submodels:
-    # envhum:
-    #   provider_name: torchvision
-    #   model_name: resnet18
-    #   checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
-    #   model_kwargs:
-    #     weights: IMAGENET1K_V1
-    #   modifiers:
-    #     change_last_layer:
-    #       num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
-    #     change_first_convolutional_layer:
-    #       num_input_channels: 19
+    envhum:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+        change_first_convolutional_layer:
+          num_input_channels: 19
     xgbbest:
       provider_name: malpolon
       model_name: mlp
@@ -48,6 +49,7 @@ model:
         hidden_channels:
           - 256
           - 3592
+        dropout: 0.3
 optim:
   optimizer:
     adamw:
