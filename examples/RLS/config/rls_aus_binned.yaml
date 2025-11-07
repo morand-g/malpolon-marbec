@@ -2,15 +2,15 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
   exp_name: 30_envhum_xgb_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}/outputs/30_envhum_xgb_pa-2025-11-06_13-51/last.ckpt
+  checkpoint_path: ${data.root}/outputs/30_envhum_xgb_pa-2025-11-07_15-32/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_split.csv
+  dataset_name: database_split_trainval.csv
   num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
