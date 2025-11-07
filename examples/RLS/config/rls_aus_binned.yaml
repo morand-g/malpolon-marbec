@@ -41,11 +41,13 @@ model:
     #       num_input_channels: 19
     xgbbest:
       provider_name: malpolon
-      model_name: linear
+      model_name: mlp
       checkpoint: null #${data.root}outputs/30_xgblin_pa-2025-11-05_13-26/last.ckpt
       model_kwargs:
-        in_features: 97
-        out_features: 3592
+        in_channels: 97
+        hidden_channels:
+          - 256
+          - 3592
 optim:
   optimizer:
     adamw:

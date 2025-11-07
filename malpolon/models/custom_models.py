@@ -7,6 +7,7 @@ import torch
 from torch import nn
 
 from .utils import check_model
+from .model_builder import _find_module_of_type
 
 
 class MultiModalModel(nn.Module):
@@ -52,7 +53,7 @@ class MultiModalModel(nn.Module):
                 # Instantiate model
                 submodels[modality_name] = check_model(model_copy)
             
-                # Add LayerNorm to fc layer to be able to load checkpoint
+                # Add LayerNorm to last linear layer to be able to load checkpoint
                 submodels[modality_name] = self.add_layer_norm(submodels[modality_name])
 
                 # Load data from checkpoint
@@ -131,36 +132,25 @@ class MultiModalModel(nn.Module):
         else:
             return out
 
+
     def add_layer_norm(self, modality: nn.Module) -> nn.Module:
 
-        # Add LayerNorm to fc/head layer
+        # Add LayerNorm to last linear layer
 
-        if modality.__class__.__name__ == 'SwinTransformer':
-            in_size = modality.head.in_features
-            modality.head = nn.Sequential(nn.LayerNorm(in_size), modality.head)
-        elif modality.__class__.__name__ == 'ResNet':
-            in_size = modality.fc.in_features
-            modality.fc = nn.Sequential(nn.LayerNorm(in_size), modality.fc)
-        elif modality.__class__.__name__ == 'Linear':
-            in_size = modality.in_features
-            modality = nn.Sequential(nn.LayerNorm(in_size), modality)
+        _, layername = _find_module_of_type(modality, nn.Linear, 'last')
+        in_size = getattr(modality, layername).in_features
+        new_layer = nn.Sequential(nn.LayerNorm(in_size), getattr(modality, layername))
+        setattr(modality, layername, new_layer)
 
         return modality
+
 
     def pop_linear(self, modality_name: str) -> nn.Module:
 
         # Remove linear and return it
 
-        if self.modality_models[modality_name].__class__.__name__ == 'SwinTransformer':
-            lin = self.modality_models[modality_name].head[1]
-            self.modality_models[modality_name].head[1] = nn.Identity()
-
-        elif self.modality_models[modality_name].__class__.__name__ == 'ResNet':
-            lin = self.modality_models[modality_name].fc[1]
-            self.modality_models[modality_name].fc[1] = nn.Identity()
-
-        elif self.modality_models[modality_name].__class__.__name__ == 'Sequential':
-            lin = self.modality_models[modality_name][1]
-            self.modality_models[modality_name] = nn.Identity()
+        _, layername = _find_module_of_type(self.modality_models['modality_name'], nn.Linear, 'last')
+        lin = getattr(self.modality_models[modality_name], layername)
+        setattr(self.modality_models[modality_name], layername, nn.Identity())
 
         return lin
