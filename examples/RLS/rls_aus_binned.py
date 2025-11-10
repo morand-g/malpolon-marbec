@@ -89,7 +89,8 @@ class PresenceSystem(GenericPredictionSystem):
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[dict[str, Callable]] = None,
         loss_kwargs: Optional[Mapping] = {},
-        alpha: Optional[float] = None
+        alpha: Optional[float] = None,
+        mae_decoder: bool = False,
     ):
 
         model = MultiModalModel(
@@ -97,7 +98,8 @@ class PresenceSystem(GenericPredictionSystem):
             num_species,
             num_bins,
             aggregator,
-            freeze_submodels
+            freeze_submodels,
+            mae_decoder
         )
 
         metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
@@ -105,6 +107,9 @@ class PresenceSystem(GenericPredictionSystem):
 
         if alpha is not None:
             loss_kwargs['alpha'] = alpha
+        
+        if mae_decoder:
+            loss_kwargs = {}
 
         super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)
 
@@ -124,7 +129,7 @@ class PresenceSystem(GenericPredictionSystem):
 
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
 def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')

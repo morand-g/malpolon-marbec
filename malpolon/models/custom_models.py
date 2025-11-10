@@ -77,7 +77,7 @@ class MultiModalModel(nn.Module):
         # NEW: Add MAE decoder if enabled
         if self.mae_decoder:
             self.decoder = nn.Sequential(
-                nn.Linear(self.embed_dim, 256),
+                nn.Linear(2048, 256),
                 nn.GELU(),
                 nn.Linear(256, self.patch_size**2 * 19),  # 19 layers, each patch is patch_size x patch_size
             )
@@ -114,7 +114,7 @@ class MultiModalModel(nn.Module):
 
                 self.aggregator_model =  torchvision.ops.MLP(in_channels = sum([x.in_features for x in linears]),
                                                         hidden_channels = [linears[0].out_features // 4, linears[0].out_features],
-                                                        dropout = 0.3)
+                                                        dropout = 0.5)
 
 
     def forward(self, *arg) -> Any:
@@ -128,6 +128,10 @@ class MultiModalModel(nn.Module):
                 raise ValueError(f"The number of inputs ({len(arg)}) does not match the number of submodels ({len(self.modality_models)}).")
         else:
             x = arg[0]
+
+
+        if self.mae_decoder:
+            x = x['masked_patches']
 
         if self.monomodal:
             modname = list(self.modality_models.keys())[0]

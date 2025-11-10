@@ -554,7 +554,7 @@ class RLSDataModule(BaseDataModule):
         if self.mask_inputs > 0.0 and 'envhum' in x:
             patch_size = 4
             patches = x['envhum'].unfold(1, patch_size, patch_size).unfold(2, patch_size, patch_size)
-            patches = patches.contiguous().view(patches.size(0), -1, self.patch_size * self.patch_size * patches.size(1))
+            patches = patches.contiguous().view(patches.size(0), -1, patch_size * patch_size * patches.size(1))
 
             # Randomly mask patches
             num_patches = patches.size(1)
@@ -564,7 +564,7 @@ class RLSDataModule(BaseDataModule):
 
             # Return masked patches, mask, and original patches
             return {
-                "masked_patches": masked_patches,
+                "masked_patches": {"envhum": masked_patches},
                 "mask": mask,
                 "original_patches": patches,
             }

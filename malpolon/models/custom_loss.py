@@ -60,6 +60,57 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         return loss
 
 
+class MAELoss(nn.modules.loss._Loss):
+    def __init__(self, patch_size: int = 4, num_layers: int = 19):
+        """
+        Loss function for Masked Autoencoding (MAE).
+
+        Parameters
+        ----------
+        patch_size : int
+            Size of each patch (e.g., 4 for 4x4 patches).
+        num_layers : int
+            Number of layers in the input (e.g., 19).
+        """
+        super(MAELoss, self).__init__()
+        self.patch_size = patch_size
+        self.num_layers = num_layers
+
+    def forward(self, predictions, targets) -> torch.Tensor:
+        """
+        Compute the MAE loss.
+
+        Parameters
+        ----------
+        reconstructed_patches : torch.Tensor
+            Reconstructed patches from the model. Shape: (batch_size, num_patches, num_layers, patch_size, patch_size).
+        original_patches : torch.Tensor
+            Original patches from the input. Shape: (batch_size, num_patches, num_layers, patch_size, patch_size).
+        mask : torch.Tensor
+            Binary mask indicating which patches were masked. Shape: (batch_size, num_patches).
+
+        Returns
+        -------
+        torch.Tensor
+            Computed MAE loss.
+        """
+        # Flatten the patches for MSE computation
+        reconstructed_patches, original_patches, mask = targets
+        batch_size, num_patches, num_layers, _, _ = reconstructed_patches.shape
+        reconstructed_patches = reconstructed_patches.view(batch_size, num_patches, -1)  # Flatten spatial and layer dims
+        original_patches = original_patches.view(batch_size, num_patches, -1)
+
+        # Compute MSE loss only on masked patches
+        mask = mask.bool()  # Ensure mask is boolean
+        loss = F.mse_loss(
+            reconstructed_patches[mask],
+            original_patches[mask],
+            reduction='mean'
+        )
+
+        return loss
+    
+
 class CeSrLoss(nn.modules.loss._Loss):
 
     def __init__(self, num_bins, num_species, loss_weights=None, alpha = 0.01):

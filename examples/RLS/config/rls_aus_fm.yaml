@@ -1,12 +1,12 @@
 hydra:
   run:
-    dir: /marbec-data/RLS-Australia/malpolon/local/outputs/${run.run_name}
+    dir: /data/data/malpolon/local/outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
-  exp_name: 30_envhum_xgb_pa
+  exp_name: 0_test_mae
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}/outputs/30_envhum_xgb_pa-2025-11-05_14-37/last.ckpt
+  checkpoint_path: null #${data.root}/outputs/30_envhum_xgb_pa-2025-11-05_14-37/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -27,12 +27,14 @@ trainer:
 model:
   num_species: ${data.num_classes}
   num_bins: 2
+  aggregator: Linear
   freeze_submodels: false
+  mae_decoder: true
   submodels:
     envhum:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
+      checkpoint: null #${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -44,7 +46,7 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-3
+        lr: 1e-2
         weight_decay: 0.5
       scheduler: 
         reduce_lr_on_plateau:
@@ -54,6 +56,6 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: modified_ce_loss
+  loss: mae_loss
 loggers:
-  log_dir_name: /marbec-data/RLS-Australia/malpolon/local/logs/
+  log_dir_name: /data/data/malpolon/local/logs/
