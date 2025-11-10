@@ -2,16 +2,16 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
-  exp_name: 30_envhum_xgb_pa
+  exp_name: 26_env_common_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}/outputs/30_envhum_xgb_pa-2025-11-07_15-32/last.ckpt
+  checkpoint_path: null #${data.root}/outputs/30_envhum_xgb_pa-2025-11-07_15-32/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_split_trainval.csv
-  num_classes: 1796
+  dataset_name: database_common.csv
+  num_classes: 817
   train_batch_size: 64
   inference_batch_size: 16
   num_workers: 8
@@ -29,27 +29,50 @@ model:
   aggregator: MLP
   freeze_submodels: true
   submodels:
-    envhum:
+    env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/15_humenv_cat_pa-2025-10-27_11-39/last.ckpt
+      checkpoint: null
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
         change_last_layer:
-          num_outputs: ${eval:'${model.num_species} * ${model.num_bins}'}
+          num_outputs: 1634
         change_first_convolutional_layer:
-          num_input_channels: 19
-    xgbbest:
-      provider_name: malpolon
-      model_name: mlp
-      checkpoint: ${data.root}outputs/30_envhum_xgb_pa-2025-11-07_14-12/last.ckpt
-      model_kwargs:
-        in_channels: 97
-        hidden_channels:
-          - 256
-          - 3592
-        dropout: 0.3
+          num_input_channels: 15
+    # humhd:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   checkpoint: null
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: 1634
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 4
+    # bathy:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   checkpoint: null
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: 1634
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
+    # dhw:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   checkpoint: null
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: 1634
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
 optim:
   optimizer:
     adamw:
