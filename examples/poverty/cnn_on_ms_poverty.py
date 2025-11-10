@@ -19,7 +19,11 @@ import lightning.pytorch as pl
 from omegaconf import DictConfig
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
+from terratorch.models import EncoderDecoderFactory
+
+
 import torch
+import torch.nn as nn
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
@@ -29,6 +33,7 @@ torch.set_float32_matmul_precision('medium')
 from poverty_dataset import MSDataModule
 from malpolon.logging import Summary
 from malpolon.models.standard_prediction_systems import RegressionSystem
+
 
 import warnings
 from rasterio.errors import NotGeoreferencedWarning
@@ -63,7 +68,25 @@ def main(cfg: DictConfig) -> None:
 
     # Datamodule & Model
     datamodule = MSDataModule(**cfg.data, fold=fold)
-    model = RegressionSystem(cfg.model, **cfg.optim)
+    factory = EncoderDecoderFactory()
+    base_model = factory.build_model(
+        task="classification",
+        backbone="prithvi_eo_v1_100",
+        backbone_freeze_backbone=True,
+        backbone_pretrained=True,
+        decoder="FCNDecoder",
+        num_classes=1,
+        backbone_in_channels=6,  # correspond aux 6 canaux des données
+    )
+    base_model = TerraTorchWrapper(base_model)
+    # print params number of the model trainable and non trainable
+    total_params = sum(p.numel() for p in base_model.parameters())
+    trainable_params = sum(p.numel() for p in base_model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params}")
+    print(f"Trainable parameters: {trainable_params}")
+    model = RegressionSystem(base_model, **cfg.optim)
+
+    # model = RegressionSystem(cfg.model, **cfg.optim)
 
     # Lightning Trainer
     callbacks = [
@@ -115,6 +138,19 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
         inference_data.to_csv(f"{log_dir}/predictions.csv")
 
+class TerraTorchWrapper(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x):
+        out = self.model(x)
+        # TerraTorch ModelOutput → dictionnaire ou objet avec attribut .output
+        if isinstance(out, dict):
+            return out["output"]
+        else:
+            return out.output
+
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def plot_dataset(cfg: DictConfig) -> None:
@@ -137,11 +173,4 @@ def plot_dataset(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    import time
-    start_time = time.time()
     main()
-    end_time = time.time()
-    elapsed = end_time - start_time
-    minutes = int(elapsed // 60)
-    seconds = elapsed % 60
-    print(f"Execution time: {minutes} min {seconds:.2f} sec")

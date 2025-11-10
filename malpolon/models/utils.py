@@ -264,6 +264,8 @@ def check_optimizer(optimizer: Union[Optimizer, OmegaConf],
               ' a non-empty dict-like value to your "optimizer" key in your'
               ' config file. Your optimizer dict might be empty (NoneType).')
         print(e, '\n')
+
+        print("optimizer content:", optimizer, "\n")
         raise e
     except KeyError as e:
         print('\n[ERROR]: Please make sure the name of your optimizer'

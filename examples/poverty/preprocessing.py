@@ -112,35 +112,35 @@ def create_folds(dataframe)->dict[str, dict]:
 
     return folds
 
+def load_pickle(path):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
 
 if __name__ == '__main__':
 
-    with open("folds.pkl", "rb") as f:
-        folds_dict = pickle.load(f)
+    fold = load_pickle("folds.pkl")
+    fold1 = load_pickle("folds_seasonal.pkl")
 
-    df_global = pd.read_csv("landsat7.csv", sep=";")
+    # Vérification
+    all_ok = True
+    for key in fold1:  # ex: "A", "B", ...
+        if key not in fold:
+            print(f"Clé {key} absente dans fold.pkl")
+            all_ok = False
+            continue
 
-    folds_no_mada = {}
+        for subset in fold1[key]:  # ex: "train", "val", "test"
+            if subset not in fold[key]:
+                print(f"Clé {subset} absente dans fold.pkl[{key}]")
+                all_ok = False
+                continue
 
-    for key1 in folds_dict.keys():
-        folds_no_mada[key1] = {}
-        for key2 in folds_dict[key1].keys():
-            filtered_indices = [
-                i for i in folds_dict[key1][key2]
-                if df_global.iloc[i]['country'].lower() != 'madagascar'
-            ]
-            folds_no_mada[key1][key2] = np.array(filtered_indices)
+            # Vérifier que chaque item est contenu
+            missing = set(fold1[key][subset]) - set(fold[key][subset])
+            if missing:
+                print(f"Éléments manquants dans fold.pkl[{key}][{subset}] : {missing}")
+                all_ok = False
 
-
-    print(df_global['country'].value_counts(), df_global.shape)
-
-    print(len(folds_no_mada['A']['test']), len(folds_no_mada['A']['val']), len(folds_no_mada['A']['train']))
-    print(len(folds_no_mada['A']['test']) + len(folds_no_mada['A']['val']) + len(folds_no_mada['A']['train']))
-
-    print(len(folds_dict['A']['test']), len(folds_dict['A']['val']), len(folds_dict['A']['train']))
-    print(len(folds_dict['A']['test']) + len(folds_dict['A']['val']) + len(folds_dict['A']['train']))
-
-
-
-    with open("folds_no-mada.pkl", "wb") as f:
-        pickle.dump(folds_no_mada, f)
+    if all_ok:
+        print("✅ Tous les items de fold_1.pkl sont bien présents dans fold.pkl")

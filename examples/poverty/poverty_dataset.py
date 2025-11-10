@@ -21,8 +21,7 @@ import torchvision
 from malpolon.data.data_module import BaseDataModule
 
 
-SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22', 'qa', 'drad', 'emis', 'emsd', 'trad', 'urad',
-                'atran', 'cdist', 'qa_pixel', 'qa_radsat']
+SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22']
 
 
 class MSDataModule(BaseDataModule):
