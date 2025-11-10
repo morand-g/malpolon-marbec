@@ -552,12 +552,23 @@ class RLSDataModule(BaseDataModule):
             x['sat'] = v2.functional.center_crop(x['sat'], output_size=500)
 
         if self.mask_inputs > 0.0 and 'envhum' in x:
-            num_patches = 16
-            mask = torch.rand(num_patches) < self.mask_inputs
-            mask = mask.view(1, 1, 4, 4).repeat(1, 19, 1, 1)  # Expand mask to match image dimensions
-            masked_image = x['envhum'] * (1 - mask)
-            return masked_image, mask, x
+            patch_size = 4
+            patches = x['envhum'].unfold(1, patch_size, patch_size).unfold(2, patch_size, patch_size)
+            patches = patches.contiguous().view(patches.size(0), -1, self.patch_size * self.patch_size * patches.size(1))
 
+            # Randomly mask patches
+            num_patches = patches.size(1)
+            mask = torch.rand(num_patches) < self.mask_inputs
+            masked_patches = patches.clone()
+            masked_patches[:, mask, :] = 0  # Mask patches by setting them to zero
+
+            # Return masked patches, mask, and original patches
+            return {
+                "masked_patches": masked_patches,
+                "mask": mask,
+                "original_patches": patches,
+            }
+        
         return x
 
     def get_dataset(self, split, transform, **kwargs):

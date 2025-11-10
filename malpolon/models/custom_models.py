@@ -20,6 +20,8 @@ class MultiModalModel(nn.Module):
         num_bins,
         aggregator: str,
         freeze_submodels: bool = False,
+        mae_decoder: bool = False,
+        patch_size: int = 4, 
     ):
 
         super().__init__()
@@ -27,10 +29,9 @@ class MultiModalModel(nn.Module):
         self.num_species = num_species
         self.num_bins = num_bins
         self.aggregator = aggregator
-        self.classifying = True
-
-        if num_bins == -1:
-            self.classifying = False
+        self.classifying = num_bins != -1
+        self.mae_decoder = mae_decoder
+        self.patch_size = patch_size
 
         # Load submodels from checkpoint or from scratch
 
@@ -72,6 +73,16 @@ class MultiModalModel(nn.Module):
                 
 
         self.modality_models = nn.ModuleDict(submodels)
+
+        # NEW: Add MAE decoder if enabled
+        if self.mae_decoder:
+            self.decoder = nn.Sequential(
+                nn.Linear(self.embed_dim, 256),
+                nn.GELU(),
+                nn.Linear(256, self.patch_size**2 * 19),  # 19 layers, each patch is patch_size x patch_size
+            )
+            self.modality_models["envhum"].avgpool = nn.Identity()  # Bypass avgpool for envhum model
+            self.modality_models["envhum"].fc = nn.Identity()  # Bypass fc for envhum model
 
         # Prepare aggregation
         if not self.monomodal:
@@ -134,6 +145,14 @@ class MultiModalModel(nn.Module):
 
             features = torch.concat(features, dim=-1)
             out = self.aggregator_model(features)
+
+
+        # NEW: Handle MAE task
+        if self.mae_decoder:
+            # Reshape features for MAE decoder
+            out = self.decoder(out)
+            return out.view(out.shape[:-1] + (19, self.patch_size, self.patch_size))  # Reshape to (batch, num_patches, 19, patch_size, patch_size)
+
 
         if self.classifying:
             # out_probs = torch.softmax(out, dim=-1)
