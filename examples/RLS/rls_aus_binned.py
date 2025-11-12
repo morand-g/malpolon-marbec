@@ -15,7 +15,6 @@ from malpolon.data.data_module import RLSDataModule
 from malpolon.logging import Summary
 from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
-from captum.attr import IntegratedGradients, Saliency
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -23,15 +22,19 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
-from torch import Tensor, nn
+from torch import nn
 
 import torchmetrics.functional as Fmetrics
-import os
 import numpy as np
-import pandas as pd
 import copy
 
+from .exports_utils import *
+
+
+
 OmegaConf.register_new_resolver("eval", eval)
+
+
 
 def get_custom_metric(nbins, average_type):
 
@@ -41,40 +44,6 @@ def get_custom_metric(nbins, average_type):
         return Fmetrics.classification.multiclass_accuracy(predictions, target, num_classes=nbins, average=average_type)
 
     return custom_metric
-
-
-def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
-
-    model.eval()
-    integrated_gradients = Saliency(model)
-    os.makedirs(output_dir, exist_ok=True)
-
-    #df = dataset._load_observation_data()
-    #alltargets = df[dataset.species]
-
-    for i in range(len(dataset)):
-        # Get the i-th sample from the dataset
-
-        ind = dataset.survey_ids[i]
-        inputs, _ = dataset[i]
-        #targets = torch.from_numpy(alltargets.loc[ind].values)
-
-        inputs = {k:v.to(model.device).unsqueeze(0).requires_grad_() for k, v in inputs.items()}
-        #targets = targets.to(model.device).float().requires_grad_()
-
-        for i in range(len(best_species)):
-            class_idx = class_indices[i]
-
-            os.makedirs(output_dir / str(best_species[i]), exist_ok=True)
-
-            target = torch.nn.functional.one_hot(torch.tensor(class_idx), num_classes=len(dataset.species)).to(model.device).float().requires_grad_()
-            negativetarget = 1 - target
-            fulltarget = torch.stack([negativetarget, target], dim=-1).unsqueeze(0)
-            attributions = integrated_gradients.attribute(tuple(inputs.values()), target=(class_idx,1))
-            attributions_np = attributions[0].cpu().detach().numpy()
-            np.save(output_dir / str(best_species[i]) / f'ig_{ind}.npy', attributions_np)
-
-
 
 
 class PresenceSystem(GenericPredictionSystem):
@@ -146,6 +115,8 @@ def main(cfg: DictConfig) -> None:
     datamodule = RLSDataModule(**cfg.data,
                                modality_names= list(cfg.model.submodels.keys()),
                                target_transform=lambda x: (x != 0).astype(float))
+    
+    
 
     loss_kwargs = {'num_bins': cfg.model.num_bins,
                    'num_species': cfg.model.num_species,
@@ -186,7 +157,6 @@ def main(cfg: DictConfig) -> None:
         # model_loaded.model.classifying = False
 
         predictions = model_loaded.predict(datamodule, trainer)
-        test_dataset = datamodule.get_test_dataset()
 
         # np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
         
@@ -203,6 +173,26 @@ def main(cfg: DictConfig) -> None:
         datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
                                            predictions,
                                            out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+        
+
+        # Predictions on train+val
+
+        cfgtrainval = copy.deepcopy(cfg)
+        cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '-trainval' + '.csv'
+
+        tv_datamodule = RLSDataModule(**cfgtrainval.data,
+                               modality_names= list(cfg.model.submodels.keys()),
+                               target_transform=lambda x: (x != 0).astype(float))
+        
+        tv_predictions = model_loaded.predict(tv_datamodule, trainer)
+
+        tv_datamodule.export_predictions(tv_predictions,
+                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      classif=True,
+                                      probabilities=True,
+                                      out_name='predictions-probs-trainval')
+        
+        export_f1_scores(cfg)
 
         if cfg.run.interpretable:
             output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'integrated_gradients'
@@ -218,7 +208,7 @@ def main(cfg: DictConfig) -> None:
     else:
         if cfg.run.checkpoint_path is not None:
 
-            # Change final_layer to be able to load CP
+            # Change final_layer to be able to load CP for finetuning on different species
             #reg_system.edit_final_layer(59)
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
