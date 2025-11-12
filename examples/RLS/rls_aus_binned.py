@@ -28,7 +28,7 @@ import torchmetrics.functional as Fmetrics
 import numpy as np
 import copy
 
-from .exports_utils import *
+from exports_utils import *
 
 
 
@@ -98,7 +98,7 @@ class PresenceSystem(GenericPredictionSystem):
 
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
 def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')
@@ -161,24 +161,24 @@ def main(cfg: DictConfig) -> None:
         # np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
         
         datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
                                       classif=True,
                                       probabilities=True,
                                       out_name='predictions-probs')
         datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
                                       classif=True,
                                       probabilities=False,
                                       out_name='presences')
         datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
                                            predictions,
-                                           out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+                                           out_dir=Path(cfg.run.checkpoint_path).parent)
         
 
         # Predictions on train+val
 
         cfgtrainval = copy.deepcopy(cfg)
-        cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '-trainval' + '.csv'
+        cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
 
         tv_datamodule = RLSDataModule(**cfgtrainval.data,
                                modality_names= list(cfg.model.submodels.keys()),
@@ -187,7 +187,7 @@ def main(cfg: DictConfig) -> None:
         tv_predictions = model_loaded.predict(tv_datamodule, trainer)
 
         tv_datamodule.export_predictions(tv_predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
                                       classif=True,
                                       probabilities=True,
                                       out_name='predictions-probs-trainval')
@@ -195,7 +195,7 @@ def main(cfg: DictConfig) -> None:
         export_f1_scores(cfg)
 
         if cfg.run.interpretable:
-            output_dir = Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'integrated_gradients'
+            output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients'
 
             test_dataset = datamodule.get_test_dataset()
             species = list(test_dataset.species)

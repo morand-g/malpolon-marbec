@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import torch
+from pathlib import Path
 
 from sklearn.metrics import f1_score
 from scipy.optimize import minimize_scalar
@@ -53,12 +54,12 @@ def export_f1_scores(cfg):
 
     ######### Calculate THRESHOLD ##########
 
-    output_path = cfg.run.checkpoint_path.parent
+    output_path = Path(cfg.run.checkpoint_path).parent
     tv_predictions = pd.read_csv(output_path / 'predictions-probs-trainval.csv', index_col='survey_id')
 
     # Load targets
 
-    p = cfg.data.inputs_path / cfg.data.dataset_name
+    p = Path(cfg.data.inputs_path) / cfg.data.dataset_name
 
     fulldf = pd.read_csv(p, index_col='survey_id',
                         dtype = {22:str, 24:str, 25:str})
@@ -87,5 +88,5 @@ def export_f1_scores(cfg):
 
 
     scores.sort_values(ascending=False, by='f1', inplace = True)
-    scores.to_csv(output_path.parent / f'testF1-TH={THRESHOLD}-.4rank={len(scores[scores['f1']>=0.4])}.csv')
+    scores.to_csv(output_path / f'testF1--TH={THRESHOLD:.3f}--.4rank={len(scores[scores['f1']>=0.4])}.csv')
 
