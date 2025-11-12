@@ -406,6 +406,7 @@ class RLSDataset(Dataset):
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
         species_subsample: Optional[list[str]] = None,
+        mae_decoder: bool = False,
         **kwargs,
     ):
         root = Path(root)
@@ -424,6 +425,7 @@ class RLSDataset(Dataset):
         self.target_transform = target_transform
         self.training = subset != "test"
         self.num_classes = num_classes
+        self.mae_decoder = mae_decoder
 
         df = self._load_observation_data()
 
@@ -496,6 +498,9 @@ class RLSDataset(Dataset):
 
             # if self.target_transform:
             #     target = self.target_transform(target)
+
+            if self.mae_decoder:
+                target = patches['original_patches'][:,patches['mask'],:]
 
             return patches, target
         return patches, -1
@@ -582,7 +587,8 @@ class RLSDataModule(BaseDataModule):
             patch_data=self.modality_names,
             transform=transform,
             target_transform=self.target_transform,
-            species_subsample=self.species_subsample,    
+            species_subsample=self.species_subsample,
+            mae_decoder=self.mask_inputs > 0.0,    
             **kwargs
         )
         return dataset

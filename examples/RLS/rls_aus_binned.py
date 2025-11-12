@@ -98,7 +98,7 @@ class PresenceSystem(GenericPredictionSystem):
 
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
 def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')

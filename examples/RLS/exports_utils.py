@@ -88,5 +88,5 @@ def export_f1_scores(cfg):
 
 
     scores.sort_values(ascending=False, by='f1', inplace = True)
-    scores.to_csv(output_path / f'testF1--TH={THRESHOLD:.3f}--.4rank={len(scores[scores['f1']>=0.4])}.csv')
+    scores.to_csv(output_path / f"testF1--TH={THRESHOLD:.3f}--.4rank={len(scores[scores['f1']>=0.4])}.csv")
 
