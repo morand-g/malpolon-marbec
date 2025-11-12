@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
   exp_name: 26_hum_env_dhw_bathy_common_pa
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}/outputs/26_hum_env_dhw_bathy_common_pa-2025-11-10_13-40/last.ckpt
+  checkpoint_path: ${data.root}/outputs/26_hum_env_dhw_bathy_common_pa-2025-11-10_17-05/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
