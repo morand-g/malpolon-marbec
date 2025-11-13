@@ -52,8 +52,8 @@ class PresenceSystem(GenericPredictionSystem):
         submodels: DictConfig,
         num_species: int,
         num_bins: int,
-        aggregator: str,
-        freeze_submodels: bool,
+        aggregator: str = 'MLP',
+        freeze_submodels: bool = False,
         loss: Union[torch.nn.modules.loss._Loss, str] = "ce_and_sr_loss",
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[dict[str, Callable]] = None,
@@ -101,8 +101,25 @@ class PresenceSystem(GenericPredictionSystem):
         self.model.aggregator_model[1] = nn.Linear(self.model.aggregator_model[1].in_features, new_species_num * self.model.num_bins)
 
 
+    def pop_last_layers(self):
 
-@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
+        
+        avgpool = self.model.modality_models["envhum"].avgpool
+        fc = self.model.modality_models["envhum"].fc
+
+        self.model.modality_models["envhum"].avgpool = nn.Identity()
+        self.model.modality_models["envhum"].fc = nn.Identity()
+        self.model.decoder = nn.Sequential(
+            nn.Linear(1024, 2048),
+            nn.GELU(),
+            nn.Linear(2048, 32 * 32 * 19),  # 19 layers, each patch is patch_size x patch_size
+        )
+
+        return avgpool, fc
+
+
+
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
 def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')
@@ -127,12 +144,6 @@ def main(cfg: DictConfig) -> None:
                    'loss_weights': None} #datamodule.get_class_weights()}
 
     reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
-
-    # Copy current file to log folder
-    try:
-        copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
-    except Exception as e:
-        print(f"Could not copy config file to log folder. Please check your permissions. Error: {e}")
 
     # Lightning Trainer
     callbacks = [
@@ -163,17 +174,14 @@ def main(cfg: DictConfig) -> None:
         predictions = model_loaded.predict(datamodule, trainer)
 
         # np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
+
+        # Predictions on test subset
         
         datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
                                       classif=True,
                                       probabilities=True,
                                       out_name='predictions-probs')
-        datamodule.export_predictions(predictions,
-                                      out_dir=Path(cfg.run.checkpoint_path).parent,
-                                      classif=True,
-                                      probabilities=False,
-                                      out_name='presences')
         datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
                                            predictions,
                                            out_dir=Path(cfg.run.checkpoint_path).parent)
@@ -212,17 +220,21 @@ def main(cfg: DictConfig) -> None:
     else:
         if cfg.run.checkpoint_path is not None:
 
-            # Change final_layer to be able to load CP for finetuning on different species
+            ##### Change final_layer to be able to load CP for finetuning on different species
             #reg_system.edit_final_layer(59)
+            #avgpool, fc = reg_system.pop_last_layers()
+            
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
             reg_system.load_state_dict(checkpoint['state_dict'])
-
-            # Rechange final_layer to be able to train
-            #reg_system.edit_final_layer(cfg.model.num_species)
+            
+            ##### Rechange final_layer to be able to train
+            # reg_system.edit_final_layer(cfg.model.num_species)
+            # reg_system.model.modality_models["envhum"].avgpool = avgpool
+            # reg_system.model.modality_models["envhum"].fc = fc
+            # del(reg_system.model.decoder)
 
             
-
         trainer.fit(reg_system, datamodule=datamodule)
         trainer.validate(reg_system, datamodule=datamodule)
 

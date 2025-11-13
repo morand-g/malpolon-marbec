@@ -2,16 +2,16 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
-  exp_name: 31_hum_env_dhw_bathy_common_pa
+  exp_name: 32_envhum_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}/outputs/26_hum_env_dhw_bathy_common_pa-2025-11-10_16-03/last.ckpt
+  checkpoint_path: ${data.root}/outputs/32_envhum_transductif-2025-11-13_16-15/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_common.csv
-  num_classes: 817
+  dataset_name: database_split.csv
+  num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
   num_workers: 8
@@ -26,63 +26,19 @@ trainer:
 model:
   num_species: ${data.num_classes}
   num_bins: 2
-  aggregator: MLP
   freeze_submodels: true
   submodels:
-    env:
+    envhum:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}/outputs/26_env_common_pa-2025-11-10_11-48/last.ckpt
+      checkpoint: null #${data.root}/outputs/26_env_common_pa-2025-11-10_11-48/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
         change_last_layer:
-          num_outputs: 1634
+          num_outputs: 3592
         change_first_convolutional_layer:
-          num_input_channels: 15
-    humhd:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: ${data.root}/outputs/26_humhd_common_pa-2025-11-10_11-54/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: 1634
-        change_first_convolutional_layer:
-          num_input_channels: 4
-    bathy:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: ${data.root}/outputs/26_bathy_common_pa-2025-11-10_12-16/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: 1634
-        change_first_convolutional_layer:
-          num_input_channels: 1
-    dhw:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: ${data.root}/outputs/26_dhw_common_pa-2025-11-10_12-34/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: 1634
-        change_first_convolutional_layer:
-          num_input_channels: 1
-    xgbbest:
-      provider_name: malpolon
-      model_name: mlp
-      checkpoint: ${data.root}/outputs/31_hum_env_dhw_bathy_common_pa-2025-11-12_14-53/last.ckpt
-      model_kwargs:
-        in_channels: 97
-        hidden_channels:
-        - 256
-        - 1634
-        dropout: 0.3
+          num_input_channels: 19
 optim:
   optimizer:
     adamw:

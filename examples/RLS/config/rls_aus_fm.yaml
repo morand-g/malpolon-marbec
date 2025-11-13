@@ -1,16 +1,16 @@
 hydra:
   run:
-    dir: /data/data/malpolon/local/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 0_test_mae
+  exp_name: 32_envhum_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null #${data.root}/outputs/30_envhum_xgb_pa-2025-11-05_14-37/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_split.csv
+  dataset_name: database_transductif.csv
   num_classes: 1796
   train_batch_size: 64
   inference_batch_size: 16
@@ -58,4 +58,4 @@ optim:
             monitor: loss/val
   loss: mae_loss
 loggers:
-  log_dir_name: /data/data/malpolon/local/logs/
+  log_dir_name: ${data.root}logs/
