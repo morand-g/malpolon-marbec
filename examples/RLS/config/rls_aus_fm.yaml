@@ -47,7 +47,7 @@ optim:
     adamw:
       kwargs:
         lr: 1e-2
-        weight_decay: 0.5
+        weight_decay: 0.01
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:

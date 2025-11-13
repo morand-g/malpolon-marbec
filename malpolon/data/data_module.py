@@ -499,8 +499,12 @@ class RLSDataset(Dataset):
             # if self.target_transform:
             #     target = self.target_transform(target)
 
+
+            ##### MAE DECODER #####
             if self.mae_decoder:
-                target = patches['original_patches'][:,patches['mask'],:]
+                target = patches['original_patches']
+            ##### MAE DECODER #####
+
 
             return patches, target
         return patches, -1
@@ -542,6 +546,12 @@ class RLSDataModule(BaseDataModule):
         self.species_subsample = species_subsample
         self.mask_inputs = mask_inputs
 
+        ##### MAE DECODER #####
+        if self.mask_inputs > 0.0:
+            print(f"RLSDataModule: MAE decoder enabled with masking ratio {self.mask_inputs}")
+            self.collate_fn = self.mae_collate_fn
+        ##### MAE DECODER #####
+
     @property
     def train_transform(self):
         return self.general_transform
@@ -556,10 +566,12 @@ class RLSDataModule(BaseDataModule):
             # x['sat'] = v2.functional.center_crop(x['sat'], output_size=384)
             x['sat'] = v2.functional.center_crop(x['sat'], output_size=500)
 
+
+        ##### MAE DECODER #####
         if self.mask_inputs > 0.0 and 'envhum' in x:
             patch_size = 4
             patches = x['envhum'].unfold(1, patch_size, patch_size).unfold(2, patch_size, patch_size)
-            patches = patches.contiguous().view(patches.size(0), -1, patch_size * patch_size * patches.size(1))
+            patches = patches.contiguous().view(patches.size(0), -1, patch_size * patch_size)
 
             # Randomly mask patches
             num_patches = patches.size(1)
@@ -573,8 +585,18 @@ class RLSDataModule(BaseDataModule):
                 "mask": mask,
                 "original_patches": patches,
             }
+        ##### MAE DECODER #####
         
         return x
+    
+    def mae_collate_fn(batch):
+
+        return {
+                "masked_patches": {"envhum": torch.stack([x["masked_patches"]["envhum"] for x in batch])},
+                "mask": torch.stack([x["mask"] for x in batch]),
+                "original_patches": torch.stack([x["original_patches"] for x in batch]),
+            }
+
 
     def get_dataset(self, split, transform, **kwargs):
 
@@ -600,10 +622,7 @@ class RLSDataModule(BaseDataModule):
                            classif: bool = False,
                            probabilities: bool = False,
                            **kwargs: Any):
-
-        #p = Path(out_dir) / Path(out_name + '.csv')
-        #print(f"Saving output files to {p}")
-        
+    
         test_ds = self.get_test_dataset()
 
         if classif:
@@ -617,10 +636,9 @@ class RLSDataModule(BaseDataModule):
                           data=predictions)
 
         df.to_csv(Path(out_dir) / Path(out_name + ".csv"), sep=',', **kwargs)
-        #print(df)
-        #print("Saved")
 
         return None
+
 
     def export_confusion_matrix(self,
                                 dataset_path,
@@ -660,6 +678,7 @@ class RLSDataModule(BaseDataModule):
 
         plt.savefig(Path(out_dir) / f"{out_name}.png")
 
+
     def get_species_weights(self):
 
         """ get weights (= number of observations per species) """
@@ -669,6 +688,7 @@ class RLSDataModule(BaseDataModule):
         sp_occ = np.log(1+(ds.targets > 0).sum(axis=0)).tolist()
 
         return sp_occ
+
 
     def get_class_weights(self):
 

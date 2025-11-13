@@ -73,11 +73,15 @@ class PresenceSystem(GenericPredictionSystem):
 
         metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
                    'macro_acc': get_custom_metric(num_bins, 'macro')}
+        
+        if mae_decoder:
+            metrics = {'mae_loss': torch.nn.L1Loss()}
 
         if alpha is not None:
             loss_kwargs['alpha'] = alpha
         
         if mae_decoder:
+            metrics = {'mse': Fmetrics.mean_squared_error}
             loss_kwargs = {}
 
         super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)

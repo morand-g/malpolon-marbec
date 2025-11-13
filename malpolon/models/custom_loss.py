@@ -96,7 +96,7 @@ class MAELoss(nn.modules.loss._Loss):
         """
         # Flatten the patches for MSE computation
         batch_size, num_patches, num_layers, _ = predictions.shape
-        reconstructed_patches = predictions.view(batch_size, num_patches, -1)
+        reconstructed_patches = predictions.view(batch_size, num_patches, targets.shape[-2], targets.shape[-1])
 
         # Compute MSE loss only on masked patches
 
