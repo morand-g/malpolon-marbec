@@ -152,7 +152,7 @@ class PresenceSystem(GenericPredictionSystem):
 
     def _cast_type_to_loss(self, y):
 
-        return y
+        return {x:y[x].to(torch.float32) for x in y}
 
 
 
@@ -160,6 +160,7 @@ class PresenceSystem(GenericPredictionSystem):
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
 def main(cfg: DictConfig) -> None:
 
+    torch.set_float32_matmul_precision('high')
 
     # Loggers
     log_dir = cfg.loggers.log_dir_name

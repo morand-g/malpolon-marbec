@@ -86,7 +86,7 @@ class MultiModalModel(nn.Module):
             
 
         # Prepare aggregation
-        if not self.monomodal:
+        if not self.monomodal and not self.mae_decoder:
 
             # Extract fc layers from submodels
             linears = []

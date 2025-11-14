@@ -28,14 +28,38 @@ model:
   freeze_submodels: false
   mae_decoder: true
   submodels:
-    envhum:
+    env:
       provider_name: torchvision
       model_name: resnet18
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
         change_first_convolutional_layer:
-          num_input_channels: 19
+          num_input_channels: 15
+    humhd:
+      provider_name: torchvision
+      model_name: resnet18
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 4
+    bathy:
+      provider_name: torchvision
+      model_name: resnet18
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 1
+    dhw:
+      provider_name: torchvision
+      model_name: resnet18
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 1
 optim:
   optimizer:
     adamw:

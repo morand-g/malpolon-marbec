@@ -11,4 +11,4 @@
 
 
 source /home/gmorand/venvs/deepsdm2/bin/activate
-python rls_aus_binned.py 
+python rls_aus_binned.py -cn "rls_aus_fm"
