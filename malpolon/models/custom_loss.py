@@ -18,6 +18,7 @@ class LogSpacingLoss(nn.modules.loss._Loss):
         distances = torch.exp(distances)
         self.register_buffer("distances", distances)  # Store as a non-trainable tensor
 
+
     def forward(self, predictions, target):
 
         target_indices = target.to(torch.int64)
@@ -61,7 +62,7 @@ class ModifiedCELoss(nn.modules.loss._Loss):
 
 
 class MAELoss(nn.modules.loss._Loss):
-    def __init__(self, patch_size: int = 4, num_layers: int = 19):
+    def __init__(self):
         """
         Loss function for Masked Autoencoding (MAE).
 
@@ -73,8 +74,6 @@ class MAELoss(nn.modules.loss._Loss):
             Number of layers in the input (e.g., 19).
         """
         super(MAELoss, self).__init__()
-        self.patch_size = patch_size
-        self.num_layers = num_layers
 
     def forward(self, predictions, targets) -> torch.Tensor:
         """
@@ -94,18 +93,16 @@ class MAELoss(nn.modules.loss._Loss):
         torch.Tensor
             Computed MAE loss.
         """
-        # Flatten the patches for MSE computation
-        batch_size, num_patches, num_layers, _ = predictions.shape
-        reconstructed_patches = predictions.view(batch_size, num_patches, targets.shape[-2], targets.shape[-1])
 
-        # Compute MSE loss only on masked patches
-
-        loss = F.mse_loss(
-            reconstructed_patches,
-            targets,
-            reduction='mean'
-        )
-
+        loss = 0
+        
+        for mod in targets:
+            batch_size, num_patches, _, _ = predictions[mod].shape
+            reconstructed_patches = predictions[mod].view(batch_size, num_patches, targets[mod].shape[-2], targets[mod].shape[-1])
+            loss += F.mse_loss( reconstructed_patches,
+                                targets[mod],
+                                reduction='mean')
+        
         return loss
     
 

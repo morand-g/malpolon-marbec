@@ -67,16 +67,11 @@ def main(cfg: DictConfig) -> None:
                                              default_hp_metric=False)
     logger_tb.log_hyperparams(cfg)
 
-    # Datamodule & Model
-    if 'top100_path' in cfg.run and cfg.run.top100_path is not None:
-        best_species = pd.read_csv(cfg.run.top100_path, index_col=0).index.to_list()
-    else: 
-        best_species = None
+
 
     datamodule = RLSDataModule(**cfg.data,
                                modality_names= list(cfg.model.submodels.keys()),
-                               target_transform=lambda x: np.log(x+1),
-                               species_subsample=best_species)
+                               target_transform=lambda x: np.log(x+1))
     reg_system = AbundanceSystem(**cfg.model, **cfg.optim)
 
     # Copy current file to log folder

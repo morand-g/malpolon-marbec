@@ -46,20 +46,34 @@ def get_custom_metric(nbins, average_type):
     return custom_metric
 
 
+
+def dictMSE(predictions, targets):
+
+        loss = 0
+        
+        for mod in targets:
+            batch_size, num_patches, _, _ = predictions[mod].shape
+            reconstructed_patches = predictions[mod].view(batch_size, num_patches, targets[mod].shape[-2], targets[mod].shape[-1])
+            loss += Fmetrics.mean_squared_error( reconstructed_patches,
+                                targets[mod])
+        
+        return loss / len(targets)
+
+
 class PresenceSystem(GenericPredictionSystem):
     def __init__(
         self,
         submodels: DictConfig,
-        num_species: int,
-        num_bins: int,
+        num_species: int = None,
+        num_bins: int = None,
         aggregator: str = 'MLP',
         freeze_submodels: bool = False,
         loss: Union[torch.nn.modules.loss._Loss, str] = "ce_and_sr_loss",
         optimizer: Union[torch.nn.Module, Mapping] = None,
-        metrics: Optional[dict[str, Callable]] = None,
-        loss_kwargs: Optional[Mapping] = {},
         alpha: Optional[float] = None,
         mae_decoder: bool = False,
+        patch_size: int = 4,
+        data_sizes: Optional[Mapping] = None,
     ):
 
         model = MultiModalModel(
@@ -68,23 +82,27 @@ class PresenceSystem(GenericPredictionSystem):
             num_bins,
             aggregator,
             freeze_submodels,
-            mae_decoder
+            mae_decoder,
+            patch_size,
+            data_sizes
         )
 
-        metrics = {'micro_acc': get_custom_metric(num_bins, 'micro'),
-                   'macro_acc': get_custom_metric(num_bins, 'macro')}
+        # Loss and metrics
         
         if mae_decoder:
-            metrics = {'mae_loss': torch.nn.L1Loss()}
-
-        if alpha is not None:
-            loss_kwargs['alpha'] = alpha
-        
-        if mae_decoder:
-            metrics = {'mse': Fmetrics.mean_squared_error}
+            self.metrics = {'mse': dictMSE}
             loss_kwargs = {}
+        else:
+            self.metrics = {'macro_acc': get_custom_metric(num_bins, 'macro')}
+            loss_kwargs = {'num_bins': num_bins,
+                   'num_species': num_species,
+                   'loss_weights': None}
+            
+        if loss == "ce_and_sr_loss" and alpha is not None:
+            loss_kwargs['alpha'] = alpha
 
-        super().__init__(model, loss, optimizer, loss_kwargs, metrics=metrics)
+
+        super().__init__(model, loss, optimizer, loss_kwargs, metrics=self.metrics)
 
         self.model = model
 
@@ -103,26 +121,45 @@ class PresenceSystem(GenericPredictionSystem):
 
     def pop_last_layers(self):
 
-        
-        avgpool = self.model.modality_models["envhum"].avgpool
-        fc = self.model.modality_models["envhum"].fc
+        avgpool, fc = {}, {}
 
-        self.model.modality_models["envhum"].avgpool = nn.Identity()
-        self.model.modality_models["envhum"].fc = nn.Identity()
-        self.model.decoder = nn.Sequential(
-            nn.Linear(1024, 2048),
-            nn.GELU(),
-            nn.Linear(2048, 32 * 32 * 19),  # 19 layers, each patch is patch_size x patch_size
-        )
+        for mod in self.model.modality_models:
+            avgpool[mod] = self.model.modality_models[mod].avgpool
+            fc[mod] = self.model.modality_models[mod].fc
 
+            self.model.modality_models[mod].avgpool = nn.Identity()
+            self.model.modality_models[mod].fc = nn.Identity()
+
+
+            outsize = np.prod(self.model.data_sizes[mod])
+            self.decoders[mod] = nn.Sequential(
+                nn.Linear(1024, outsize // 4),
+                nn.GELU(),
+                nn.Linear(outsize // 4, outsize)
+            )
+            
         return avgpool, fc
+    
+
+    def set_last_layers(self, avgpool, fc):
+
+        for mod in self.model.modality_models:
+
+            self.model.modality_models[mod].avgpool = avgpool[mod]
+            self.model.modality_models[mod].fc = fc[mod]
+            del(self.model.decoder)
+
+
+    def _cast_type_to_loss(self, y):
+
+        return y
 
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
+
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
 def main(cfg: DictConfig) -> None:
 
-    torch.set_float32_matmul_precision('high')
 
     # Loggers
     log_dir = cfg.loggers.log_dir_name
@@ -137,21 +174,15 @@ def main(cfg: DictConfig) -> None:
                                modality_names= list(cfg.model.submodels.keys()),
                                target_transform=lambda x: (x != 0).astype(float))
     
-    
-
-    loss_kwargs = {'num_bins': cfg.model.num_bins,
-                   'num_species': cfg.model.num_species,
-                   'loss_weights': None} #datamodule.get_class_weights()}
-
-    reg_system = PresenceSystem(**cfg.model, **cfg.optim, loss_kwargs=loss_kwargs)
+    reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
 
     # Lightning Trainer
     callbacks = [
         Summary(),
         ModelCheckpoint(
             dirpath=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-            filename="checkpoint-{epoch:02d}-{step}-{macro_acc/val:.4f}",
-            monitor="macro_acc/val",
+            filename="checkpoint-{epoch:02d}-{step}-{" + next(iter(reg_system.metrics)) + "/val:.4f}",
+            monitor=next(iter(reg_system.metrics)) + "/val",
             mode="max",
             save_on_train_epoch_end=True,
             save_last=True,
@@ -182,12 +213,9 @@ def main(cfg: DictConfig) -> None:
                                       classif=True,
                                       probabilities=True,
                                       out_name='predictions-probs')
-        datamodule.export_confusion_matrix(Path(cfg.data.inputs_path) / cfg.data.dataset_name,
-                                           predictions,
-                                           out_dir=Path(cfg.run.checkpoint_path).parent)
         
 
-        # Predictions on train+val
+        # Predictions on train+val subset
 
         cfgtrainval = copy.deepcopy(cfg)
         cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
@@ -206,33 +234,32 @@ def main(cfg: DictConfig) -> None:
         
         export_f1_scores(cfg)
 
+
+
         if cfg.run.interpretable:
-            output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients'
 
             test_dataset = datamodule.get_test_dataset()
-            species = list(test_dataset.species)
-
-            best_species = species
-            class_indices = [species.index(s) for s in best_species]
-
-            atts = save_integrated_gradients(model_loaded, test_dataset, best_species, class_indices, output_dir)
+            best_species = list(test_dataset.species)
+            save_integrated_gradients(  model_loaded,
+                                        test_dataset,
+                                        best_species,
+                                        class_indices = [list(test_dataset.species).index(s) for s in best_species],
+                                        output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients')
 
     else:
         if cfg.run.checkpoint_path is not None:
 
-            ##### Change final_layer to be able to load CP for finetuning on different species
-            #reg_system.edit_final_layer(59)
-            #avgpool, fc = reg_system.pop_last_layers()
+            ##### Change final_layer to be able to load pretrained CP
+            #reg_system.edit_final_layer(59)                        # If different number of species
+            #avgpool, fc = reg_system.pop_last_layers()             # If using transductive learning
             
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
             reg_system.load_state_dict(checkpoint['state_dict'])
             
             ##### Rechange final_layer to be able to train
-            # reg_system.edit_final_layer(cfg.model.num_species)
-            # reg_system.model.modality_models["envhum"].avgpool = avgpool
-            # reg_system.model.modality_models["envhum"].fc = fc
-            # del(reg_system.model.decoder)
+            #reg_system.edit_final_layer(cfg.model.num_species)     # If different number of species
+            #reg_system.set_last_layers(avgpool, fc)                # If using transductive learning    
 
             
         trainer.fit(reg_system, datamodule=datamodule)

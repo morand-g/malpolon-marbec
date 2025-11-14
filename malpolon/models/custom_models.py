@@ -3,6 +3,8 @@ from typing import Any, Mapping, Union
 
 from omegaconf import open_dict
 
+import numpy as np
+
 import torch
 from torch import nn
 import torchvision
@@ -22,6 +24,7 @@ class MultiModalModel(nn.Module):
         freeze_submodels: bool = False,
         mae_decoder: bool = False,
         patch_size: int = 4, 
+        data_sizes = None,
     ):
 
         super().__init__()
@@ -32,6 +35,7 @@ class MultiModalModel(nn.Module):
         self.classifying = num_bins != -1
         self.mae_decoder = mae_decoder
         self.patch_size = patch_size
+        self.data_sizes = data_sizes
 
         # Load submodels from checkpoint or from scratch
 
@@ -75,19 +79,11 @@ class MultiModalModel(nn.Module):
         self.modality_models = nn.ModuleDict(submodels)
 
 
-
-        ##### MAE DECODER #####
+        # Add decoders if running in MAE mode
         if self.mae_decoder:
-            self.decoder = nn.Sequential(
-                nn.Linear(1024, 2048),
-                nn.GELU(),
-                nn.Linear(2048, 32 * 32 * 19),  # 19 layers, each patch is patch_size x patch_size
-            )
-            self.modality_models["envhum"].avgpool = nn.Identity()  # Bypass avgpool for envhum model
-            self.modality_models["envhum"].fc = nn.Identity()  # Bypass fc for envhum model
-        ##### MAE DECODER #####
-
-
+            self.decoders = nn.ModuleDict()
+            self.create_decoders()
+            
 
         # Prepare aggregation
         if not self.monomodal:
@@ -103,9 +99,10 @@ class MultiModalModel(nn.Module):
                 if freeze_submodels:
                     self.modality_models[modality_name].eval()
 
-            # Initialize aggregator model with extracted weights
-
+            # Initialize aggregator model
             if aggregator == 'Linear':
+
+                # Use weights from submodels' linear layers stacked together
                 
                 lin = nn.Linear(sum([x.in_features for x in linears]), linears[0].out_features)
 
@@ -137,6 +134,15 @@ class MultiModalModel(nn.Module):
 
         if self.mae_decoder:
             x = x['masked_patches']
+            outputdict = {}
+
+            for modality_name, model in self.modality_models.items():
+                out = model(x[modality_name])
+                out = out.to(next(self.decoders[modality_name].parameters()).device)
+                outputdict[modality_name] = self.decoders[modality_name](out)
+
+            return {modality_name: outputdict[modality_name].view(outputdict[modality_name].shape[:-1] + self.data_sizes[modality_name]) for modality_name in outputdict}
+
 
         if self.monomodal:
             modname = list(self.modality_models.keys())[0]
@@ -155,19 +161,11 @@ class MultiModalModel(nn.Module):
             features = torch.concat(features, dim=-1)
             out = self.aggregator_model(features)
 
+            
 
-        ##### MAE DECODER #####
-        if self.mae_decoder:
-            out = self.decoder(out)
-            return out.view(out.shape[:-1] + x["envhum"].shape[-3:])  # Reshape to (batch, num_patches, 19, im_size, im_size)
-        ##### MAE DECODER #####
 
         if self.classifying:
-            ################ Vérifier ce truc !! ################
                 return out.view(out.shape[:-1] + (self.num_species, self.num_bins))
-
-                # out_probs = torch.softmax(out, dim=-1)
-                # return out_probs.view(out_probs.shape[:-2] + (self.num_species * self.num_bins,))
 
         else:
             return out
@@ -195,3 +193,18 @@ class MultiModalModel(nn.Module):
         getattr(self.modality_models[modality_name], layername)[1] = nn.Identity()
 
         return lin
+
+
+    def create_decoders(self):
+
+        # Create decoders for MAE model
+
+        for mod in self.modality_models:
+            outsize = np.prod(self.data_sizes[mod])
+            self.decoders[mod] = nn.Sequential(
+                nn.Linear(1024, outsize // 4),
+                nn.GELU(),
+                nn.Linear(outsize // 4, outsize)
+            )
+            self.modality_models[mod].avgpool = nn.Identity()
+            self.modality_models[mod].fc = nn.Identity()

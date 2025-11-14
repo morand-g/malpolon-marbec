@@ -400,12 +400,11 @@ class RLSDataset(Dataset):
         dataset_name: str,
         inputs_path: Union[str, Path],
         subset: str,
-        num_classes: int,
+        num_classes: int = None,
         *,
         patch_data: str = "all",
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
-        species_subsample: Optional[list[str]] = None,
         mae_decoder: bool = False,
         **kwargs,
     ):
@@ -428,36 +427,36 @@ class RLSDataset(Dataset):
         self.mae_decoder = mae_decoder
 
         df = self._load_observation_data()
-
         self.survey_ids = df.index
+        
+        if not self.mae_decoder:
+            
+            first_species_index = list(df.columns).index('eventDate') + 1
+            self.species = df.columns[first_species_index:]
 
-        first_species_index = list(df.columns).index('eventDate') + 1
+            assert len(self.species) == num_classes
 
-        self.species = df.columns[first_species_index:]
+            if self.training:
+                self.targets = df[self.species].values.astype(np.float32)
 
-        if species_subsample is not None:
-            self.species = species_subsample
+                if self.target_transform:
+                    self.targets = self.target_transform(self.targets)
 
-        assert len(self.species) == num_classes
-
-        if self.training:
-            self.targets = df[self.species].values.astype(np.float32)
-
-            if self.target_transform:
-                self.targets = self.target_transform(self.targets)
-
-            # self.targets = (self.species.values.astype(np.float32) > 0).sum(axis=0)
-            assert not (np.isnan(self.targets).any())
-        else:
-            self.targets = None
+                assert not (np.isnan(self.targets).any())
+            else:
+                self.targets = None
 
     def _load_observation_data(
         self
     ) -> pd.DataFrame:
 
-        df = pd.read_csv(self.inputs_path / self.dataset_name,
-                         index_col='survey_id',
-                         dtype={22: str, 24: str, 25: str})
+        try:
+            df = pd.read_csv(self.inputs_path / self.dataset_name,
+                            index_col='survey_id',
+                            dtype={22: str, 24: str, 25: str})
+        except IndexError:
+            df = pd.read_csv(self.inputs_path / self.dataset_name,
+                            index_col='survey_id')
 
         if self.subset == "train+val":
             ind = df.index[df["subset"] == 'train'].union(df.index[df["subset"] == 'val'])
@@ -494,17 +493,13 @@ class RLSDataset(Dataset):
             patches = self.transform(patches)
 
         if self.training:
-            target = self.targets[index]
 
-            # if self.target_transform:
-            #     target = self.target_transform(target)
-
-
-            ##### MAE DECODER #####
+            # MAE Decoder
             if self.mae_decoder:
                 target = patches['original_patches']
-            ##### MAE DECODER #####
 
+            else:
+                target = self.targets[index]
 
             return patches, target
         return patches, -1
@@ -527,14 +522,14 @@ class RLSDataModule(BaseDataModule):
         root: str,
         dataset_name: str,
         inputs_path: Union[str, Path],
-        num_classes: int,
+        num_classes: int = None,
         train_batch_size: int = 32,
         inference_batch_size: int = 256,
         num_workers: int = 8,
         target_transform: Callable = None,
         modality_names: Optional[dict[str, str]] = ["env", "hum", "sat"],
-        species_subsample: Optional[list[str]] = None,
         mask_inputs: float = 0.0,
+        patch_size: int = 4,
     ):
         super().__init__(train_batch_size, inference_batch_size, num_workers)
         self.dataset_name = dataset_name
@@ -543,58 +538,69 @@ class RLSDataModule(BaseDataModule):
         self.root = root
         self.target_transform = target_transform  # check_transform(target_transform)
         self.modality_names = modality_names
-        self.species_subsample = species_subsample
         self.mask_inputs = mask_inputs
+        self.patch_size = patch_size
 
-        ##### MAE DECODER #####
+        # MAE Decoder
         if self.mask_inputs > 0.0:
             print(f"RLSDataModule: MAE decoder enabled with masking ratio {self.mask_inputs}")
             self.collate_fn = self.mae_collate_fn
-        ##### MAE DECODER #####
+            self.general_transform = self.mae_transform
+
 
     @property
     def train_transform(self):
         return self.general_transform
 
+
     @property
     def test_transform(self):
         return self.general_transform
 
+
     def general_transform(self, x):
 
         if 'sat' in x:
-            # x['sat'] = v2.functional.center_crop(x['sat'], output_size=384)
             x['sat'] = v2.functional.center_crop(x['sat'], output_size=500)
-
-
-        ##### MAE DECODER #####
-        if self.mask_inputs > 0.0 and 'envhum' in x:
-            patch_size = 4
-            patches = x['envhum'].unfold(1, patch_size, patch_size).unfold(2, patch_size, patch_size)
-            patches = patches.contiguous().view(patches.size(0), -1, patch_size * patch_size)
-
-            # Randomly mask patches
-            num_patches = patches.size(1)
-            mask = torch.rand(num_patches) < self.mask_inputs
-            masked_patches = patches.clone()
-            masked_patches[:, mask, :] = 0  # Mask patches by setting them to zero
-
-            # Return masked patches, mask, and original patches
-            return {
-                "masked_patches": {"envhum": masked_patches},
-                "mask": mask,
-                "original_patches": patches,
-            }
-        ##### MAE DECODER #####
         
         return x
     
-    def mae_collate_fn(batch):
+
+    def mae_transform(self,x ):
+
+        if self.mask_inputs > 0.0 and 'envhum' in x:
+
+            masked_patches, masks, original_patches = {}, {}, {}
+
+            for mod in self.modality_names:
+
+                patches = x[mod].unfold(1, self.patch_size, self.patch_size).unfold(2, self.patch_size, self.patch_size)
+                patches = patches.contiguous().view(patches.size(0), -1, self.patch_size * self.patch_size)
+
+                # Randomly mask patches
+                num_patches = patches.size(1)
+                mask = torch.rand(num_patches) < self.mask_inputs
+                masked = patches.clone()
+                masked[:, mask, :] = 0  # Mask patches by setting them to zero
+
+                masked_patches[mod] = masked
+                masks[mod] = mask
+                original_patches[mod] = patches
+
+            # Return masked patches, mask, and original patches
+            return {
+                "masked_patches": masked_patches,
+                "mask": masks,
+                "original_patches": original_patches,
+            }
+        
+    
+    def mae_collate_fn(self, batch):
 
         return {
-                "masked_patches": {"envhum": torch.stack([x["masked_patches"]["envhum"] for x in batch])},
-                "mask": torch.stack([x["mask"] for x in batch]),
-                "original_patches": torch.stack([x["original_patches"] for x in batch]),
+                "masked_patches": {mod: torch.stack([x["masked_patches"][mod] for x in batch]) for mod in self.modality_names},
+                "mask": {mod: torch.stack([x["mask"] for x in batch]) for mod in self.modality_names},
+                "original_patches": {mod: torch.stack([x["original_patches"] for x in batch]) for mod in self.modality_names},
             }
 
 
@@ -609,11 +615,45 @@ class RLSDataModule(BaseDataModule):
             patch_data=self.modality_names,
             transform=transform,
             target_transform=self.target_transform,
-            species_subsample=self.species_subsample,
             mae_decoder=self.mask_inputs > 0.0,    
             **kwargs
         )
         return dataset
+
+
+    def get_class_weights(self):
+
+        """ get weights (= number of observations per class) """
+
+        ds = self.get_dataset("train+val", transform=self.train_transform)
+
+        class_counts = np.bincount(ds.targets.flatten().astype(int))
+
+        alpha = 1
+        weights = 1.0 / (class_counts ** alpha + 1e-6)
+
+        # Normalize to stabilize loss scale
+        weights /= weights.sum()
+
+        return weights
+    
+
+    def get_data_sizes(self):
+
+        """ get input data sizes per modality """
+
+        ds = self.get_dataset("train", transform=self.train_transform)
+
+        data_sizes = {}
+
+        sample = ds[0][0]  # get first sample's data dict
+
+        for mod in self.modality_names:
+            data_sizes[mod] = sample["original_patches"][mod].shape
+
+        return data_sizes
+    
+
 
     def export_predictions(self,
                            predictions: Union[Tensor, np.ndarray],
@@ -679,32 +719,8 @@ class RLSDataModule(BaseDataModule):
         plt.savefig(Path(out_dir) / f"{out_name}.png")
 
 
-    def get_species_weights(self):
-
-        """ get weights (= number of observations per species) """
-
-        ds = self.get_dataset("train+val", transform=self.train_transform)
-
-        sp_occ = np.log(1+(ds.targets > 0).sum(axis=0)).tolist()
-
-        return sp_occ
 
 
-    def get_class_weights(self):
-
-        """ get weights (= number of observations per class) """
-
-        ds = self.get_dataset("train+val", transform=self.train_transform)
-
-        class_counts = np.bincount(ds.targets.flatten().astype(int))
-
-        alpha = 1
-        weights = 1.0 / (class_counts ** alpha + 1e-6)
-
-        # Normalize to stabilize loss scale
-        weights /= weights.sum()
-
-        return weights
 
 
 class PopDensGeoDataModule(GeoDataModule):
