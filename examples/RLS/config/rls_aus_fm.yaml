@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: /data/data/malpolon/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
@@ -11,11 +11,11 @@ data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
   dataset_name: database_transductif.csv
-  train_batch_size: 64
+  train_batch_size: 1
   inference_batch_size: 16
-  num_workers: 8
+  num_workers: 2
   mask_inputs: 0.5
-  patch_size: 4
+  patch_size: 8
 trainer:
   accelerator: "auto"
   devices: "auto"
@@ -52,14 +52,6 @@ model:
       modifiers:
         change_first_convolutional_layer:
           num_input_channels: 1
-    dhw:
-      provider_name: torchvision
-      model_name: resnet18
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_first_convolutional_layer:
-          num_input_channels: 1
 optim:
   optimizer:
     adamw:
@@ -76,4 +68,4 @@ optim:
             monitor: loss/val
   loss: mae_loss
 loggers:
-  log_dir_name: /data/data/malpolon/logs/
+  log_dir_name: ${data.root}logs/

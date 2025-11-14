@@ -132,8 +132,10 @@ class PresenceSystem(GenericPredictionSystem):
 
 
             outsize = np.prod(self.model.data_sizes[mod])
+            layerinput = self.model.data_sizes[mod][-2] * self.model.data_sizes[mod][-1]
+            
             self.decoders[mod] = nn.Sequential(
-                nn.Linear(1024, outsize // 4),
+                nn.Linear(layerinput, outsize // 4),
                 nn.GELU(),
                 nn.Linear(outsize // 4, outsize)
             )

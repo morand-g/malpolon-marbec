@@ -139,7 +139,11 @@ class MultiModalModel(nn.Module):
             for modality_name, model in self.modality_models.items():
                 out = model(x[modality_name])
                 out = out.to(next(self.decoders[modality_name].parameters()).device)
+                imsize = 5*(self.data_sizes[modality_name][-1] //5)
+                # try:
                 outputdict[modality_name] = self.decoders[modality_name](out)
+                # except RuntimeError:
+                #     print(modality_name, imsize, out.shape, self.data_sizes[modality_name])
 
             return {modality_name: outputdict[modality_name].view(outputdict[modality_name].shape[:-1] + self.data_sizes[modality_name]) for modality_name in outputdict}
 
@@ -201,6 +205,8 @@ class MultiModalModel(nn.Module):
 
         for mod in self.modality_models:
             outsize = np.prod(self.data_sizes[mod])
+            layerinput = 5*(int(np.sqrt(self.data_sizes[mod][-1])) //5)*1024
+            
             self.decoders[mod] = nn.Sequential(
                 nn.Linear(1024, outsize // 4),
                 nn.GELU(),
@@ -208,3 +214,15 @@ class MultiModalModel(nn.Module):
             )
             self.modality_models[mod].avgpool = nn.Identity()
             self.modality_models[mod].fc = nn.Identity()
+
+
+        # outsize = sum([np.prod(self.data_sizes[mod]) for mod in self.modality_models])
+        # layerinput = sum([self.data_sizes[mod][-2] * self.data_sizes[mod][-1] for mod in self.modality_models])
+            
+        # self.decoders = nn.Sequential(
+        #     nn.Linear(layerinput, outsize // 4),
+        #     nn.GELU(),
+        #     nn.Linear(outsize // 4, outsize)
+        # )
+        # self.modality_models[mod].avgpool = nn.Identity()
+        # self.modality_models[mod].fc = nn.Identity()
