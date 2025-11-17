@@ -11,11 +11,11 @@ data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
   dataset_name: database_transductif.csv
-  train_batch_size: 1
-  inference_batch_size: 16
+  train_batch_size: 16
+  inference_batch_size: 64
   num_workers: 2
   mask_inputs: 0.5
-  patch_size: 8
+  mae_patch_size: 8
 trainer:
   accelerator: "auto"
   devices: "auto"
@@ -26,7 +26,8 @@ trainer:
   detect_anomaly: false
 model:
   freeze_submodels: false
-  mae_decoder: true
+  mae_decoder: ${eval:'${data.mask_inputs} > 0'}
+  mae_patch_size: ${data.mae_patch_size}
   submodels:
     env:
       provider_name: torchvision
@@ -36,22 +37,30 @@ model:
       modifiers:
         change_first_convolutional_layer:
           num_input_channels: 15
-    humhd:
-      provider_name: torchvision
-      model_name: resnet18
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_first_convolutional_layer:
-          num_input_channels: 4
-    bathy:
-      provider_name: torchvision
-      model_name: resnet18
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_first_convolutional_layer:
-          num_input_channels: 1
+    # humhd:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 4
+    # bathy:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
+    # dhw:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
 optim:
   optimizer:
     adamw:

@@ -529,7 +529,7 @@ class RLSDataModule(BaseDataModule):
         target_transform: Callable = None,
         modality_names: Optional[dict[str, str]] = ["env", "hum", "sat"],
         mask_inputs: float = 0.0,
-        patch_size: int = 4,
+        mae_patch_size: int = 4,
     ):
         super().__init__(train_batch_size, inference_batch_size, num_workers)
         self.dataset_name = dataset_name
@@ -539,7 +539,7 @@ class RLSDataModule(BaseDataModule):
         self.target_transform = target_transform  # check_transform(target_transform)
         self.modality_names = modality_names
         self.mask_inputs = mask_inputs
-        self.patch_size = patch_size
+        self.patch_size = mae_patch_size
 
         # MAE Decoder
         if self.mask_inputs > 0.0:

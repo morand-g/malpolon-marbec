@@ -72,7 +72,7 @@ class PresenceSystem(GenericPredictionSystem):
         optimizer: Union[torch.nn.Module, Mapping] = None,
         alpha: Optional[float] = None,
         mae_decoder: bool = False,
-        patch_size: int = 4,
+        mae_patch_size: int = 4,
         data_sizes: Optional[Mapping] = None,
     ):
 
@@ -83,13 +83,13 @@ class PresenceSystem(GenericPredictionSystem):
             aggregator,
             freeze_submodels,
             mae_decoder,
-            patch_size,
+            mae_patch_size,
             data_sizes
         )
 
         # Loss and metrics
         
-        if mae_decoder:
+        if mae_decoder > 0:
             self.metrics = {'mse': dictMSE}
             loss_kwargs = {}
         else:
