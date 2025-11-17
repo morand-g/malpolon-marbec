@@ -213,13 +213,3 @@ class MultiModalModel(nn.Module):
             self.modality_models[mod].fc = nn.Identity()
 
 
-        # outsize = sum([np.prod(self.data_sizes[mod]) for mod in self.modality_models])
-        # layerinput = sum([self.data_sizes[mod][-2] * self.data_sizes[mod][-1] for mod in self.modality_models])
-            
-        # self.decoders = nn.Sequential(
-        #     nn.Linear(layerinput, outsize // 4),
-        #     nn.GELU(),
-        #     nn.Linear(outsize // 4, outsize)
-        # )
-        # self.modality_models[mod].avgpool = nn.Identity()
-        # self.modality_models[mod].fc = nn.Identity()
