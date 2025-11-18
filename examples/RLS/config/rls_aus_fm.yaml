@@ -1,18 +1,18 @@
 hydra:
   run:
-    dir: ${data.root}outputs/${run.run_name}
+    dir: /data/data/malpolon/local/outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 32_envhum_transductif
+  exp_name: 0_envhum_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
   dataset_name: database_transductif.csv
-  train_batch_size: 16
-  inference_batch_size: 64
+  train_batch_size: 8
+  inference_batch_size: 16
   num_workers: 2
   mask_inputs: 0.5
   mae_patch_size: 8
@@ -77,4 +77,4 @@ optim:
             monitor: loss/val
   loss: mae_loss
 loggers:
-  log_dir_name: ${data.root}logs/
+  log_dir_name: /data/data/malpolon/local/logs/

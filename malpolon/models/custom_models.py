@@ -81,8 +81,7 @@ class MultiModalModel(nn.Module):
 
         # Add decoders if running in MAE mode
         if self.mae_decoder:
-            self.decoders = nn.ModuleDict()
-            self.create_decoders()
+            self.create_decoder()
             
 
         # Prepare aggregation
@@ -135,14 +134,20 @@ class MultiModalModel(nn.Module):
         if self.mae_decoder:
             x = x['masked_patches']
             outputdict = {}
+            inputs = []
 
             for modality_name, model in self.modality_models.items():
                 out = model(x[modality_name])
-                out = out.to(next(self.decoders[modality_name].parameters()).device)
-                imsize = 5*(self.data_sizes[modality_name][-1] //5)
-                outputdict[modality_name] = self.decoders[modality_name](out)
+                out = out.to(next(self.decoder.parameters()).device)
+                inputs.append(out.view(out.shape[0], -1))
+                
+            output = self.decoder(torch.concat(inputs, dim=1))
 
-            return {modality_name: outputdict[modality_name].view(outputdict[modality_name].shape[:-1] + self.data_sizes[modality_name]) for modality_name in outputdict}
+            for mod in self.modality_models:
+                ix = np.prod(self.data_sizes[mod])
+                outputdict[mod], output = output[...,:ix], output[...,ix:]
+
+            return {mod: outputdict[mod].view(-1, *self.data_sizes[mod]) for mod in outputdict}
 
 
         if self.monomodal:
@@ -196,20 +201,23 @@ class MultiModalModel(nn.Module):
         return lin
 
 
-    def create_decoders(self):
+    def create_decoder(self):
 
         # Create decoders for MAE model
+        layerinput = 0
+        outsize = 0
 
         for mod in self.modality_models:
-            outsize = np.prod(self.data_sizes[mod])
-            layerinput = 1024 * int(np.ceil(self.data_sizes[mod][-2] / 32))
-            
-            self.decoders[mod] = nn.Sequential(
-                nn.Linear(layerinput, outsize // 4),
-                nn.GELU(),
-                nn.Linear(outsize // 4, outsize)
-            )
+
+            layerinput += self.data_sizes[mod][-2] * self.data_sizes[mod][-1]
+            outsize += np.prod(self.data_sizes[mod])
+
             self.modality_models[mod].avgpool = nn.Identity()
             self.modality_models[mod].fc = nn.Identity()
 
+        self.decoder = nn.Sequential(
+                nn.Linear(layerinput // 2, outsize // 4),
+                nn.GELU(),
+                nn.Linear(outsize // 4, outsize)
+            )
 

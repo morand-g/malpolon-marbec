@@ -26,6 +26,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch import nn
 
 from torchvision.transforms import v2
 
@@ -295,79 +296,7 @@ class BaseDataModule(pl.LightningDataModule, ABC):
         return class_preds.to('cpu').numpy().astype(int), probas.to('cpu').numpy()
 
 
-def load_modality(survey_id, inputs_path, modality):
-
-    if modality == 'sat':
-        filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
-        if filename.exists():
-            with Image.open(filename) as rgb_patch:
-                return v2.functional.pil_to_tensor(rgb_patch).float() / 255
-        else:
-            return torch.zeros([3, 995, 995]) 
-                
-    elif modality == 'envhum':
-        env = load_modality(survey_id, inputs_path, "env")
-        hum = load_modality(survey_id, inputs_path, "hum")
-        return torch.from_numpy(np.concatenate([env, hum], axis=0))
-        
-    elif modality in ('env', 'hum', 'bathy', 'humhd'):
-        # 3D cubes
-        filename = Path(inputs_path) / modality / (survey_id + '.npy')
-        x = np.load(filename).astype(np.float32)
-        return torch.from_numpy(np.transpose(x, (2, 0, 1)))
-
-    elif modality == 'dhw':
-        # 2D data
-        filename = Path(inputs_path) / "dhw" / (survey_id + '.npy')
-        x = np.load(filename).astype(np.float32)
-        return torch.unsqueeze(torch.from_numpy(x),0)
-        
-    else:
-        # 1D data
-        filename = Path(inputs_path) / modality / (survey_id + '.npy')
-        x = np.load(filename).astype(np.float32)
-        return torch.from_numpy(x)
-
-            
-
-
-def load_patch(
-    survey_id: Union[int, str],
-    inputs_path: Path,
-    *,
-    data: Union[str, list[str]] = "all",
-    return_arrays: bool = True,
-) -> dict[str, Patches]:
-    
-    """Load the patch data associated to an observation id.
-
-    Parameters
-    ----------
-    survey_id : integer / string
-        Identifier of the observation.
-    patches_path : string / pathlib.Path
-        Path to the folder containing all the patches.
-    data : string or list of string
-        Specifies what data to load, possible values: 'all', 'env', 'sat', 'timeseries'.
-    return_arrays : boolean
-        If True, returns all the patches as Numpy arrays (no PIL.Image returned).
-
-    Returns
-    -------
-    patches : dict containing 3d array-like objects
-        Returns a dict containing the requested patches.
-    """
-    survey_id = str(survey_id)
-
-    patches = {}
-
-    if data == "all":
-        data = ['env', 'hum', 'sat', 'timeseries', 'best10']
-
-    for n in data:
-        patches[n] = load_modality(survey_id, inputs_path, n)
-
-    return patches
+           
 
 
 class RLSDataset(Dataset):
@@ -471,6 +400,80 @@ class RLSDataset(Dataset):
         """Return the number of observations in the dataset."""
         return len(self.survey_ids)
 
+
+    def load_modality(self, survey_id, inputs_path, modality):
+
+        if modality == 'sat':
+            filename = Path(inputs_path) / "sat" / (survey_id + '.jpg')
+            if filename.exists():
+                with Image.open(filename) as rgb_patch:
+                    return v2.functional.pil_to_tensor(rgb_patch).float() / 255
+            else:
+                return torch.zeros([3, 995, 995]) 
+                    
+        elif modality == 'envhum':
+            env = self.load_modality(survey_id, inputs_path, "env")
+            hum = self.load_modality(survey_id, inputs_path, "hum")
+            return torch.from_numpy(np.concatenate([env, hum], axis=0))
+            
+        elif modality in ('env', 'hum', 'bathy', 'humhd'):
+            # 3D cubes
+            filename = Path(inputs_path) / modality / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.from_numpy(np.transpose(x, (2, 0, 1)))
+
+        elif modality == 'dhw':
+            # 2D data
+            filename = Path(inputs_path) / "dhw" / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.unsqueeze(torch.from_numpy(x),0)
+            
+        else:
+            # 1D data
+            filename = Path(inputs_path) / modality / (survey_id + '.npy')
+            x = np.load(filename).astype(np.float32)
+            return torch.from_numpy(x)
+        
+    
+    def load_patch(self,
+        survey_id: Union[int, str],
+        inputs_path: Path,
+        *,
+        data: Union[str, list[str]] = "all",
+        return_arrays: bool = True,
+    ) -> dict[str, Patches]:
+        
+        """Load the patch data associated to an observation id.
+
+        Parameters
+        ----------
+        survey_id : integer / string
+            Identifier of the observation.
+        patches_path : string / pathlib.Path
+            Path to the folder containing all the patches.
+        data : string or list of string
+            Specifies what data to load, possible values: 'all', 'env', 'sat', 'timeseries'.
+        return_arrays : boolean
+            If True, returns all the patches as Numpy arrays (no PIL.Image returned).
+
+        Returns
+        -------
+        patches : dict containing 3d array-like objects
+            Returns a dict containing the requested patches.
+        """
+        survey_id = str(survey_id)
+
+        patches = {}
+
+        if data == "all":
+            data = ['env', 'hum', 'sat', 'timeseries', 'best10']
+
+        for n in data:
+            patches[n] = self.load_modality(survey_id, inputs_path, n)
+
+        return patches
+
+
     def __getitem__(
         self,
         index: int,
@@ -487,7 +490,7 @@ class RLSDataset(Dataset):
 
         survey_id = self.survey_ids[index]
 
-        patches = load_patch(survey_id, self.inputs_path, data=self.patch_data)
+        patches = self.load_patch(survey_id, self.inputs_path, data=self.patch_data)
 
         if self.transform:
             patches = self.transform(patches)
@@ -503,7 +506,6 @@ class RLSDataset(Dataset):
 
             return patches, target
         return patches, -1
-
 
 
 class RLSDataModule(BaseDataModule):
@@ -574,18 +576,20 @@ class RLSDataModule(BaseDataModule):
 
             for mod in self.modality_names:
 
-                patches = x[mod].unfold(1, self.patch_size, self.patch_size).unfold(2, self.patch_size, self.patch_size)
-                patches = patches.contiguous().view(patches.size(0), -1, self.patch_size * self.patch_size)
 
-                # Randomly mask patches
-                num_patches = patches.size(1)
-                mask = torch.rand(num_patches) < self.mask_inputs
-                masked = patches.clone()
-                masked[:, mask, :] = 0  # Mask patches by setting them to zero
+                num_patches = x[mod].shape[-1] // self.patch_size
+                
+                # Create random mask
+                mask = torch.rand(num_patches*num_patches) < self.mask_inputs
+                m = torch.repeat_interleave(torch.repeat_interleave(mask.view(num_patches, num_patches), self.patch_size, dim = 0), self.patch_size, dim = 1)
+                dmask = m.repeat(x[mod].shape[0], 1, 1)
+
+                masked = x[mod].clone()
+                masked[dmask] = 0  # Mask patches by setting them to zero
 
                 masked_patches[mod] = masked
-                masks[mod] = mask
-                original_patches[mod] = patches
+                masks[mod] = dmask
+                original_patches[mod] = x[mod]
 
             # Return masked patches, mask, and original patches
             return {

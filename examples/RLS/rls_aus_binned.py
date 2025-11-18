@@ -52,10 +52,8 @@ def dictMSE(predictions, targets):
         loss = 0
         
         for mod in targets:
-            batch_size, num_patches, _, _ = predictions[mod].shape
-            reconstructed_patches = predictions[mod].view(batch_size, num_patches, targets[mod].shape[-2], targets[mod].shape[-1])
-            loss += Fmetrics.mean_squared_error( reconstructed_patches,
-                                targets[mod])
+            loss += Fmetrics.mean_squared_error(predictions[mod].flatten(),
+                                                targets[mod].flatten())
         
         return loss / len(targets)
 
