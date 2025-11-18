@@ -218,6 +218,6 @@ class MultiModalModel(nn.Module):
         self.decoder = nn.Sequential(
                 nn.Linear(layerinput // 2, outsize // 8),
                 nn.GELU(),
-                nn.Linear(outsize // 4, outsize)
+                nn.Linear(outsize // 8, outsize)
             )
 
