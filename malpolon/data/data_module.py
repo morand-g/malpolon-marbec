@@ -543,6 +543,8 @@ class RLSDataModule(BaseDataModule):
         self.mask_inputs = mask_inputs
         self.patch_size = mae_patch_size
 
+        self.general_transform = self.basic_transform
+        
         # MAE Decoder
         if self.mask_inputs > 0.0:
             print(f"RLSDataModule: MAE decoder enabled with masking ratio {self.mask_inputs} and patch size {self.patch_size}")
@@ -560,15 +562,21 @@ class RLSDataModule(BaseDataModule):
         return self.general_transform
 
 
-    def general_transform(self, x):
+    def basic_transform(self, x):
 
-        if 'sat' in x:
-            x['sat'] = v2.functional.center_crop(x['sat'], output_size=500)
+        if 'humhd' in x:
+            x['humhd'] = v2.functional.center_crop(x['humhd'], output_size=128)
+        if 'bathy' in x:
+            x['bathy'] = v2.functional.center_crop(x['bathy'], output_size=128)
+        if 'dhw' in x:
+            x['dhw'] = v2.functional.resize(x['dhw'], size=128)
         
         return x
     
 
     def mae_transform(self,x ):
+
+        x = self.basic_transform(x)
 
         if self.mask_inputs > 0.0:
 

@@ -1,10 +1,10 @@
 hydra:
   run:
-    dir: /data/data/malpolon/local/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 0_envhum_transductif
+  exp_name: 33_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null
 data:
@@ -29,14 +29,14 @@ model:
   mae_decoder: ${eval:'${data.mask_inputs} > 0'}
   mae_patch_size: ${data.mae_patch_size}
   submodels:
-    # env:
-    #   provider_name: torchvision
-    #   model_name: resnet18
-    #   model_kwargs:
-    #     weights: IMAGENET1K_V1
-    #   modifiers:
-    #     change_first_convolutional_layer:
-    #       num_input_channels: 15
+    env:
+      provider_name: torchvision
+      model_name: resnet18
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 15
     humhd:
       provider_name: torchvision
       model_name: resnet18
@@ -45,22 +45,22 @@ model:
       modifiers:
         change_first_convolutional_layer:
           num_input_channels: 4
-    # bathy:
-    #   provider_name: torchvision
-    #   model_name: resnet18
-    #   model_kwargs:
-    #     weights: IMAGENET1K_V1
-    #   modifiers:
-    #     change_first_convolutional_layer:
-    #       num_input_channels: 1
-    # dhw:
-    #   provider_name: torchvision
-    #   model_name: resnet18
-    #   model_kwargs:
-    #     weights: IMAGENET1K_V1
-    #   modifiers:
-    #     change_first_convolutional_layer:
-    #       num_input_channels: 1
+    bathy:
+      provider_name: torchvision
+      model_name: resnet18
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 1
+    dhw:
+      provider_name: torchvision
+      model_name: resnet18
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 1
 optim:
   optimizer:
     adamw:
@@ -77,4 +77,4 @@ optim:
             monitor: loss/val
   loss: mae_loss
 loggers:
-  log_dir_name: /data/data/malpolon/local/logs/
+  log_dir_name: ${data.root}logs/

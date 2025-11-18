@@ -140,8 +140,11 @@ class MultiModalModel(nn.Module):
                 out = model(x[modality_name])
                 out = out.to(next(self.decoder.parameters()).device)
                 inputs.append(out.view(out.shape[0], -1))
-                
-            output = self.decoder(torch.concat(inputs, dim=1))
+
+            try:
+                output = self.decoder(torch.concat(inputs, dim=1))
+            except:
+                print(self.decoder, inputs[0].shape, inputs[1].shape)
 
             for mod in self.modality_models:
                 ix = np.prod(self.data_sizes[mod])
