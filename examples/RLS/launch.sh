@@ -6,9 +6,9 @@
 #SBATCH --gres=gpu:1
 ###SBATCH --begin=now+1hour
 #SBATCH --dependency=afterany:13098
-#SBATCH -o malpolon_rls.out
-#SBATCH -e malpolon_rls.err
+#SBATCH -o malpolon_rls2.out
+#SBATCH -e malpolon_rls2.err
 
 
 source /home/gmorand/venvs/deepsdm2/bin/activate
-python rls_aus_binned.py -cn "rls_aus_fm"
+python rls_aus_binned.py -cn "rls_aus_binned"

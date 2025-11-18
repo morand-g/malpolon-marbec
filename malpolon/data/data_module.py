@@ -661,7 +661,10 @@ class RLSDataModule(BaseDataModule):
         sample = ds[0][0]  # get first sample's data dict
 
         for mod in self.modality_names:
-            data_sizes[mod] = sample["original_patches"][mod].shape
+            if mod in sample:
+                data_sizes[mod] = sample[mod].shape
+            else:
+                data_sizes[mod] = sample["original_patches"][mod].shape
 
         return data_sizes
     

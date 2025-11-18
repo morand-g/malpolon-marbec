@@ -11,15 +11,15 @@ data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
   dataset_name: database_transductif.csv
-  train_batch_size: 8
-  inference_batch_size: 16
+  train_batch_size: 16
+  inference_batch_size: 64
   num_workers: 2
   mask_inputs: 0.5
   mae_patch_size: 8
 trainer:
   accelerator: "auto"
   devices: "auto"
-  max_epochs: 80
+  max_epochs: 8
   val_check_interval: 100
   check_val_every_n_epoch: 1
   log_every_n_steps: 100

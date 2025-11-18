@@ -129,13 +129,13 @@ class PresenceSystem(GenericPredictionSystem):
             self.model.modality_models[mod].fc = nn.Identity()
 
 
-            outsize = np.prod(self.data_sizes[mod])
-            layerinput = 1024 * int(np.ceil(self.data_sizes[mod][-2] / 32))
+            layerinput += self.data_sizes[mod][-2] * self.data_sizes[mod][-1]
+            outsize += np.prod(self.data_sizes[mod])
             
-            self.decoders[mod] = nn.Sequential(
-                nn.Linear(layerinput, outsize // 4),
+            self.decoder = nn.Sequential(
+                nn.Linear(layerinput // 2, outsize // 8),
                 nn.GELU(),
-                nn.Linear(outsize // 4, outsize)
+                nn.Linear(outsize // 8, outsize)
             )
             
         return avgpool, fc
