@@ -216,7 +216,7 @@ class MultiModalModel(nn.Module):
             self.modality_models[mod].fc = nn.Identity()
 
         self.decoder = nn.Sequential(
-                nn.Linear(layerinput // 2, outsize // 4),
+                nn.Linear(layerinput // 2, outsize // 8),
                 nn.GELU(),
                 nn.Linear(outsize // 4, outsize)
             )

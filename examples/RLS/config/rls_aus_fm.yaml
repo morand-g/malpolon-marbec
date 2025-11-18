@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: /data/data/malpolon/local/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
@@ -77,4 +77,4 @@ optim:
             monitor: loss/val
   loss: mae_loss
 loggers:
-  log_dir_name: /data/data/malpolon/local/logs/
+  log_dir_name: ${data.root}logs/
