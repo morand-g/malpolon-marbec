@@ -103,6 +103,8 @@ class PresenceSystem(GenericPredictionSystem):
         super().__init__(model, loss, optimizer, loss_kwargs, metrics=self.metrics)
 
         self.model = model
+        self.mae_decoder = mae_decoder
+        self.data_sizes = data_sizes
 
 
     def remove_final_layer(self):
@@ -119,8 +121,12 @@ class PresenceSystem(GenericPredictionSystem):
 
     def pop_last_layers(self):
 
+        aggregator = self.model.aggregator_model
+        self.model.aggregator_model = nn.Identity()
+        
         avgpool, fc = {}, {}
-
+        layerinput, outsize = 0, 0
+        
         for mod in self.model.modality_models:
             avgpool[mod] = self.model.modality_models[mod].avgpool
             fc[mod] = self.model.modality_models[mod].fc
@@ -132,27 +138,33 @@ class PresenceSystem(GenericPredictionSystem):
             layerinput += self.data_sizes[mod][-2] * self.data_sizes[mod][-1]
             outsize += np.prod(self.data_sizes[mod])
             
-            self.decoder = nn.Sequential(
+        self.model.decoder = nn.Sequential(
                 nn.Linear(layerinput // 2, outsize // 8),
                 nn.GELU(),
                 nn.Linear(outsize // 8, outsize)
             )
             
-        return avgpool, fc
+        return aggregator, avgpool, fc
     
 
-    def set_last_layers(self, avgpool, fc):
+    def set_last_layers(self, aggregator, avgpool, fc):
+        
+        self.model.aggregator_model = aggregator
+        del(self.model.decoder)
 
         for mod in self.model.modality_models:
 
             self.model.modality_models[mod].avgpool = avgpool[mod]
             self.model.modality_models[mod].fc = fc[mod]
-            del(self.model.decoder)
+            
 
 
     def _cast_type_to_loss(self, y):
-
-        return {x:y[x].to(torch.float32) for x in y}
+        
+        if self.mae_decoder:
+            return {x:y[x].to(torch.float32) for x in y}
+        else:
+            return super()._cast_type_to_loss(y)
 
 
 
@@ -252,15 +264,16 @@ def main(cfg: DictConfig) -> None:
 
             ##### Change final_layer to be able to load pretrained CP
             #reg_system.edit_final_layer(59)                        # If different number of species
-            #avgpool, fc = reg_system.pop_last_layers()             # If using transductive learning
+            aggregator, avgpool, fc = reg_system.pop_last_layers()             # If using transductive learning
             
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
+            #state_dict = reg_system.state_dict_replace_key(checkpoint['state_dict'], ['model.decoder', 'model.aggregator_model.'])
             reg_system.load_state_dict(checkpoint['state_dict'])
             
             ##### Rechange final_layer to be able to train
             #reg_system.edit_final_layer(cfg.model.num_species)     # If different number of species
-            #reg_system.set_last_layers(avgpool, fc)                # If using transductive learning    
+            reg_system.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
 
             
         trainer.fit(reg_system, datamodule=datamodule)
