@@ -62,18 +62,35 @@ class MultiModalModel(nn.Module):
                 submodels[modality_name] = check_model(model_copy)
             
                 # Add LayerNorm to last linear layer to be able to load checkpoint
-                submodels[modality_name] = self.add_layer_norm(submodels[modality_name])
+                submodels[modality_name] = self.add_layer_norm_to_fc(submodels[modality_name])
 
                 # Load data from checkpoint
                 checkpoint = torch.load(modality_checkpoint, weights_only=False)
                 state_dict = {}
-                for key, value in checkpoint['state_dict'].items():
-                    state_dict[key.replace(f"model.modality_models.{modality_name}.", '')] = value
-                submodels[modality_name].load_state_dict(state_dict)
+                
+                try:
+                    for key, value in checkpoint['state_dict'].items():
+                        state_dict[key.replace(f"model.modality_models.{modality_name}.", '')] = value
+                    submodels[modality_name].load_state_dict(state_dict)
+
+                except:
+                    # Load from transductive checkpoint
+                    submodels[modality_name], avgpool, fc = self.prepare_transductive_submodel(modality_name, submodels[modality_name])
+
+                    new_state_dict = {}
+                    for key, value in state_dict.items():
+                        new_state_dict[key.replace("model.decoder", 'decoder')] = value
+                    submodels[modality_name].load_state_dict(new_state_dict)
+
+                    del(submodels[modality_name].decoder)
+                    submodels[modality_name].avgpool = avgpool
+                    submodels[modality_name].fc = fc
+
+
 
             else:
                 submodels[modality_name] = check_model(model)
-                submodels[modality_name] = self.add_layer_norm(submodels[modality_name])
+                submodels[modality_name] = self.add_layer_norm_to_fc(submodels[modality_name])
                 
 
         self.modality_models = nn.ModuleDict(submodels)
@@ -92,7 +109,7 @@ class MultiModalModel(nn.Module):
 
             for modality_name in self.modality_models:
 
-                linears.append(self.pop_linear(modality_name))
+                linears.append(self.pop_last_linear(modality_name))
 
                 # Freeze submodels
                 if freeze_submodels:
@@ -141,10 +158,7 @@ class MultiModalModel(nn.Module):
                 out = out.to(next(self.decoder.parameters()).device)
                 inputs.append(out.view(out.shape[0], -1))
 
-            try:
-                output = self.decoder(torch.concat(inputs, dim=1))
-            except:
-                print(self.decoder, inputs[0].shape, inputs[1].shape)
+            output = self.decoder(torch.concat(inputs, dim=1))
 
             for mod in self.modality_models:
                 ix = np.prod(self.data_sizes[mod])
@@ -180,7 +194,7 @@ class MultiModalModel(nn.Module):
             return out
 
 
-    def add_layer_norm(self, modality: nn.Module) -> nn.Module:
+    def add_layer_norm_to_fc(self, modality: nn.Module) -> nn.Module:
 
         # Add LayerNorm to last linear layer
 
@@ -192,9 +206,9 @@ class MultiModalModel(nn.Module):
         return modality
 
 
-    def pop_linear(self, modality_name: str) -> nn.Module:
+    def pop_last_linear(self, modality_name: str) -> nn.Module:
 
-        # Remove linear and return it
+        # Remove linear and return it, in order to concatenate multiple fc layers
 
         _, layername = _find_module_of_type(self.modality_models[modality_name], nn.Sequential, 'last')
 
@@ -207,6 +221,7 @@ class MultiModalModel(nn.Module):
     def create_decoder(self):
 
         # Create decoders for MAE model
+
         layerinput = 0
         outsize = 0
 
@@ -224,3 +239,74 @@ class MultiModalModel(nn.Module):
                 nn.Linear(outsize // 8, outsize)
             )
 
+
+    def remove_final_layer(self):
+        """Remove the final layers of the model to keep only the feature extractor."""
+
+        self.aggregator_model[1] = nn.Identity()
+
+
+    def edit_final_layer(self, new_species_num):
+        """Edit the final layer of the model to change the number of output classes."""
+
+        self.aggregator_model[1] = nn.Linear(self.model.aggregator_model[1].in_features, new_species_num * self.model.num_bins)
+
+
+    def pop_last_layers(self):
+        """Remove last layers to be able to load transductive checkpoint"""
+
+        aggregator = self.aggregator_model
+        self.aggregator_model = nn.Identity()
+        
+        avgpool, fc = {}, {}
+        layerinput, outsize = 0, 0
+        
+        for mod in self.modality_models:
+            avgpool[mod] = self.modality_models[mod].avgpool
+            fc[mod] = self.modality_models[mod].fc
+
+            self.modality_models[mod].avgpool = nn.Identity()
+            self.modality_models[mod].fc = nn.Identity()
+
+
+            layerinput += self.data_sizes[mod][-2] * self.data_sizes[mod][-1]
+            outsize += np.prod(self.data_sizes[mod])
+            
+        self.decoder = nn.Sequential(
+                nn.Linear(layerinput // 2, outsize // 8),
+                nn.GELU(),
+                nn.Linear(outsize // 8, outsize)
+            )
+            
+        return aggregator, avgpool, fc
+    
+
+    def set_last_layers(self, aggregator, avgpool, fc):
+        """Set back the last layers after loading transductive checkpoint."""
+        
+        self.aggregator_model = aggregator
+        del(self.decoder)
+
+        for mod in self.modality_models:
+
+            self.modality_models[mod].avgpool = avgpool[mod]
+            self.modality_models[mod].fc = fc[mod]
+
+
+    def prepare_transductive_submodel(self, modality, submodel):
+        """Edit submodel structure to be able to load transductive checkpoint."""
+        
+        layerinput = self.data_sizes[modality][-2] * self.data_sizes[modality][-1]
+        outsize = np.prod(self.data_sizes[modality])
+        
+        avgpool, fc = submodel.avgpool, submodel.fc
+
+        submodel.avgpool = nn.Identity()
+        submodel.fc = nn.Identity()
+        submodel.decoder = nn.Sequential(
+                nn.Linear(layerinput // 2, outsize // 8),
+                nn.GELU(),
+                nn.Linear(outsize // 8, outsize)
+            )
+        
+        return submodel, avgpool, fc

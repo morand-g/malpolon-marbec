@@ -1,12 +1,12 @@
 hydra:
   run:
-    dir: ${data.root}outputs/${run.run_name}
+    dir: /data/data/malpolon/local/outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 33_mm4_transductif
+  exp_name: 0_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/33_mm4_transductif-2025-11-19_16-33/last.ckpt
+  checkpoint_path: null
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -32,6 +32,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
+      checkpoint: ${data.root}outputs/32_mm4_transductif-2025-11-20_10-51/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -39,36 +40,36 @@ model:
           num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
         change_first_convolutional_layer:
           num_input_channels: 15
-    humhd:
-      provider_name: torchvision
-      model_name: resnet18
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
-        change_first_convolutional_layer:
-          num_input_channels: 4
-    bathy:
-      provider_name: torchvision
-      model_name: resnet18
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
-        change_first_convolutional_layer:
-          num_input_channels: 1
-    dhw:
-      provider_name: torchvision
-      model_name: resnet18
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
-        change_first_convolutional_layer:
-          num_input_channels: 1
+    # humhd:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 4
+    # bathy:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
+    # dhw:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
 optim:
   optimizer:
     adamw:
@@ -85,5 +86,5 @@ optim:
             monitor: loss/val
   loss: modified_ce_loss
 loggers:
-  log_dir_name: ${data.root}logs/
+  log_dir_name: /data/data/malpolon/local/logs/
 
