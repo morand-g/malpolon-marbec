@@ -264,16 +264,15 @@ def main(cfg: DictConfig) -> None:
 
             ##### Change final_layer to be able to load pretrained CP
             #reg_system.edit_final_layer(59)                        # If different number of species
-            aggregator, avgpool, fc = reg_system.pop_last_layers()             # If using transductive learning
+            #aggregator, avgpool, fc = reg_system.pop_last_layers()             # If using transductive learning
             
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
-            #state_dict = reg_system.state_dict_replace_key(checkpoint['state_dict'], ['model.decoder', 'model.aggregator_model.'])
             reg_system.load_state_dict(checkpoint['state_dict'])
             
             ##### Rechange final_layer to be able to train
             #reg_system.edit_final_layer(cfg.model.num_species)     # If different number of species
-            reg_system.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
+            #reg_system.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
 
             
         trainer.fit(reg_system, datamodule=datamodule)
