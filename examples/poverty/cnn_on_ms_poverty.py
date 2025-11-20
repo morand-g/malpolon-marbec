@@ -20,6 +20,7 @@ from omegaconf import DictConfig
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
 from terratorch.models import EncoderDecoderFactory
+from terratorch.datasets import HLSBands
 
 
 import torch
@@ -72,6 +73,14 @@ def main(cfg: DictConfig) -> None:
     base_model = factory.build_model(
         task="classification",
         backbone="prithvi_eo_v1_100",
+        backbone_bands=[
+            HLSBands.RED,
+            HLSBands.GREEN,
+            HLSBands.BLUE,
+            HLSBands.NIR_NARROW,
+            HLSBands.SWIR_1,
+            HLSBands.SWIR_2,
+        ],
         backbone_freeze_backbone=True,
         backbone_pretrained=True,
         decoder="FCNDecoder",
