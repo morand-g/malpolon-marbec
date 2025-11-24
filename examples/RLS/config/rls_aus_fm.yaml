@@ -74,7 +74,7 @@ optim:
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
-            patience: 6
+            patience: 3
             eps: 1e-9
             factor: 0.2
           lr_scheduler_config:
