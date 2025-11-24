@@ -6,7 +6,7 @@ run:
   interpretable: false
   exp_name: 33_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/33_mm4_transductif-2025-11-24_14-02/last.ckpt
+  checkpoint_path: ${data.root}outputs/33_mm4_transductif-2025-11-24_14-02/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -16,8 +16,8 @@ data:
   inference_batch_size: 64
   num_workers: 2
 trainer:
-  accelerator: "auto"
-  devices: "auto"
+  accelerator: auto
+  devices: auto
   max_epochs: 80
   val_check_interval: 100
   check_val_every_n_epoch: 1
@@ -32,7 +32,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-20_10-51/last.ckpt
+      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-20_10-51/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -43,7 +43,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-20_16-37/last.ckpt
+      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-20_16-37/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -54,7 +54,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-20_21-57/last.ckpt
+      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-20_21-57/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -65,7 +65,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-21_09-16/last.ckpt
+      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-21_09-16/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -77,7 +77,7 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-4
+        lr: 1e-6
         weight_decay: 0.5
       scheduler: 
         reduce_lr_on_plateau:

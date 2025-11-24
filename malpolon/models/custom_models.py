@@ -97,7 +97,7 @@ class MultiModalModel(nn.Module):
 
 
         # Add decoders if running in MAE mode
-        if self.mae_decoder:
+        if self.mae_decoder and not(hasattr(self, 'decoder')):
             self.create_decoder()
             
 
