@@ -132,7 +132,7 @@ class MultiModalModel(nn.Module):
 
                 self.aggregator_model =  torchvision.ops.MLP(in_channels = sum([x.in_features for x in linears]),
                                                         hidden_channels = [linears[0].out_features // 4, linears[0].out_features],
-                                                        dropout = 0.5)
+                                                        dropout = 0.3)
 
 
     def forward(self, *arg) -> Any:

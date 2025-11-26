@@ -6,7 +6,7 @@ run:
   interpretable: false
   exp_name: 33_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/33_mm4_transductif-2025-11-25_15-54/last.ckpt
+  checkpoint_path: ${data.root}outputs/32_fm_transductif-2025-11-26_11-50/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -27,7 +27,7 @@ model:
   num_species: ${data.num_classes}
   num_bins: 2
   aggregator: MLP
-  freeze_submodels: true
+  freeze_submodels: false
   submodels:
     env:
       provider_name: torchvision
@@ -77,8 +77,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-5
-        weight_decay: 0.5
+        lr: 1e-4
+        weight_decay: 1e-5
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:

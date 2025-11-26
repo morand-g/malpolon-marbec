@@ -6,7 +6,7 @@ run:
   interpretable: false
   exp_name: 32_fm_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/32_fm_transductif-2025-11-21_09-16/last.ckpt
+  checkpoint_path: null #${data.root}outputs/32_fm_transductif-2025-11-21_09-16/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -14,7 +14,7 @@ data:
   train_batch_size: 16
   inference_batch_size: 64
   num_workers: 2
-  mask_inputs: 0.5
+  mask_inputs: 0.75
   mae_patch_size: 8
 trainer:
   accelerator: "auto"
@@ -29,9 +29,37 @@ model:
   mae_decoder: ${eval:'${data.mask_inputs} > 0'}
   mae_patch_size: ${data.mae_patch_size}
   submodels:
+    env:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_18-42/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 15
+    humhd:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_19-24/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 4
+    bathy:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_20-30/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_first_convolutional_layer:
+          num_input_channels: 1
     dhw:
       provider_name: torchvision
       model_name: resnet18
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_21-31/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -41,8 +69,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-3
-        weight_decay: 0.3
+        lr: 1e-5
+        weight_decay: 1e-5
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:

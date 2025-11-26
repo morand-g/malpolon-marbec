@@ -212,7 +212,7 @@ def main(cfg: DictConfig) -> None:
 
             ##### Change final_layer to be able to load pretrained CP
             #reg_system.edit_final_layer(59)                        # If different number of species
-            #aggregator, avgpool, fc = reg_system.model.pop_last_layers()             # If using transductive learning
+            aggregator, avgpool, fc = reg_system.model.pop_last_layers()             # If using transductive learning
             
                 
             checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
@@ -220,7 +220,7 @@ def main(cfg: DictConfig) -> None:
             
             ##### Rechange final_layer to be able to train
             #reg_system.edit_final_layer(cfg.model.num_species)     # If different number of species
-            #reg_system.model.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
+            reg_system.model.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
 
             
         trainer.fit(reg_system, datamodule=datamodule)
