@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
   exp_name: 33_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/32_fm_transductif-2025-11-26_11-50/last.ckpt
+  checkpoint_path: ${data.root}outputs/33_mm4_transductif-2025-11-26_22-51/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -32,7 +32,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_18-42/last.ckpt
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_18-42/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -43,7 +43,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_19-24/last.ckpt
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_19-24/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -54,7 +54,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_20-30/last.ckpt
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_20-30/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -65,7 +65,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_21-31/last.ckpt
+      checkpoint: ${data.root}outputs/32_fm_transductif-2025-11-24_21-31/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -77,12 +77,12 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-4
-        weight_decay: 1e-5
+        lr: 1e-5
+        weight_decay: 1e-6
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
-            patience: 6
+            patience: 3
             eps: 1e-9
             factor: 0.2
           lr_scheduler_config:
