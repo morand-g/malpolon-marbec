@@ -549,7 +549,7 @@ class RLSDataModule(BaseDataModule):
         if self.mask_inputs > 0.0:
             print(f"RLSDataModule: MAE decoder enabled with masking ratio {self.mask_inputs} and patch size {self.patch_size}")
             self.collate_fn = self.mae_collate_fn
-            self.general_transform = self.mae_transform
+            self.general_transform = self.mae_layer_transform
 
 
     @property
@@ -606,6 +606,35 @@ class RLSDataModule(BaseDataModule):
                 "original_patches": original_patches,
             }
         
+    def mae_layer_transform(self, x ):
+
+        x = self.basic_transform(x)
+
+        if self.mask_inputs > 0.0:
+
+            masked_patches, masks, original_patches = {}, {}, {}
+
+            for mod in self.modality_names:
+
+                num_layers = x[mod].shape[-3]
+                
+                # Create random mask
+                mask = torch.rand(num_layers) < self.mask_inputs
+
+                masked = x[mod].clone()
+                masked[...,mask,:,:] = 0  # Mask patches by setting them to zero
+
+                masked_patches[mod] = masked
+                masks[mod] = mask
+                original_patches[mod] = x[mod]
+
+            # Return masked patches, mask, and original patches
+            return {
+                "masked_patches": masked_patches,
+                "mask": masks,
+                "original_patches": original_patches,
+            }
+
     
     def mae_collate_fn(self, batch):
 
