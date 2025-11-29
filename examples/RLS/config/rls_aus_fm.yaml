@@ -1,10 +1,10 @@
 hydra:
   run:
-    dir: ${data.root}local/outputs/${run.run_name}
+    dir: ${data.root}parsec/outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 0_fm_transductif
+  exp_name: 36_fm_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null #${data.root}outputs/32_fm_transductif-2025-11-21_09-16/last.ckpt
 data:
@@ -29,7 +29,7 @@ model:
   mae_decoder: ${eval:'${data.mask_inputs} > 0'}
   mae_patch_size: ${data.mae_patch_size}
   submodels:
-    envhum:
+    humhd:
       provider_name: torchvision
       model_name: resnet18
       checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_18-42/last.ckpt
@@ -37,7 +37,7 @@ model:
         weights: IMAGENET1K_V1
       modifiers:
         change_first_convolutional_layer:
-          num_input_channels: 19
+          num_input_channels: 4
 optim:
   optimizer:
     adamw:
@@ -54,4 +54,4 @@ optim:
             monitor: loss/val
   loss: mae_loss
 loggers:
-  log_dir_name: ${data.root}local/logs/
+  log_dir_name: ${data.root}parsec/logs/
