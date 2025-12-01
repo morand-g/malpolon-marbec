@@ -4,10 +4,10 @@
 #SBATCH --job-name=malpolon_rls
 #SBATCH --mem=128G
 #SBATCH --gres=gpu:1
-#SBATCH --dependency=afterany:13809
+#SBATCH --dependency=afterany:13996
 #SBATCH -o malpolon_rls.out
 #SBATCH -e malpolon_rls.err
 
 
 source /home/gmorand/venvs/deepsdm2/bin/activate
-python rls_aus_binned.py -cn "rls_aus_binned"
+python rls_aus_binned.py -cn "rls_aus_fm"

@@ -549,7 +549,7 @@ class RLSDataModule(BaseDataModule):
         if self.mask_inputs > 0.0:
             print(f"RLSDataModule: MAE decoder enabled with masking ratio {self.mask_inputs} and patch size {self.patch_size}")
             self.collate_fn = self.mae_collate_fn
-            self.general_transform = self.mae_layer_transform
+            self.general_transform = self.mae_transform
 
 
     @property
