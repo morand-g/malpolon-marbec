@@ -29,7 +29,7 @@ model:
   mae_decoder: ${eval:'${data.mask_inputs} > 0'}
   mae_patch_size: ${data.mae_patch_size}
   submodels:
-    bathy:
+    dhw:
       provider_name: torchvision
       model_name: resnet18
       checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_18-42/last.ckpt
@@ -43,11 +43,11 @@ optim:
     adamw:
       kwargs:
         lr: 1e-2
-        weight_decay: 1e-5
+        weight_decay: 1e-2
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
-            patience: 3
+            patience: 6
             eps: 1e-9
             factor: 0.2
           lr_scheduler_config:
