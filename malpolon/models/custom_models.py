@@ -249,7 +249,7 @@ class MultiModalModel(nn.Module):
     def edit_final_layer(self, new_species_num):
         """Edit the final layer of the model to change the number of output classes."""
 
-        self.aggregator_model[1] = nn.Linear(self.model.aggregator_model[1].in_features, new_species_num * self.model.num_bins)
+        self.aggregator_model[1] = nn.Linear(self.aggregator_model[1].in_features, new_species_num * self.num_bins)
 
 
     def pop_last_layers(self):

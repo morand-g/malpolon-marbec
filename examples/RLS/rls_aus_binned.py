@@ -211,7 +211,7 @@ def main(cfg: DictConfig) -> None:
         if cfg.run.checkpoint_path is not None:
 
             ##### Change final_layer to be able to load pretrained CP
-            #reg_system.edit_final_layer(59)                        # If different number of species
+            #reg_system.model.edit_final_layer(59)                        # If different number of species
             #aggregator, avgpool, fc = reg_system.model.pop_last_layers()             # If using transductive learning
             
                 
@@ -219,10 +219,9 @@ def main(cfg: DictConfig) -> None:
             reg_system.load_state_dict(checkpoint['state_dict'])
             
             ##### Rechange final_layer to be able to train
-            #reg_system.edit_final_layer(cfg.model.num_species)     # If different number of species
+            #reg_system.model.edit_final_layer(cfg.model.num_species)     # If different number of species
             #reg_system.model.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
-            #reg_system.model.aggregator_model[2] = nn.Dropout(0.6)
-            #reg_system.model.aggregator_model[4] = nn.Dropout(0.6)
+
 
             
         trainer.fit(reg_system, datamodule=datamodule)
