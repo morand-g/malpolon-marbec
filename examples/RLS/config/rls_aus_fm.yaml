@@ -29,7 +29,7 @@ model:
   mae_decoder: ${eval:'${data.mask_inputs} > 0'}
   mae_patch_size: ${data.mae_patch_size}
   submodels:
-    dhw:
+    env:
       provider_name: torchvision
       model_name: resnet18
       checkpoint: null #${data.root}outputs/32_fm_transductif-2025-11-24_18-42/last.ckpt
@@ -37,7 +37,7 @@ model:
         weights: IMAGENET1K_V1
       modifiers:
         change_first_convolutional_layer:
-          num_input_channels: 1
+          num_input_channels: 15
 optim:
   optimizer:
     adamw:
