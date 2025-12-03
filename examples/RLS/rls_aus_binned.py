@@ -163,7 +163,7 @@ def main(cfg: DictConfig) -> None:
             reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes(), model = cp.model)
         
     else:
-        reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes()
+        reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
     
                                     
     # Lightning Trainer
