@@ -66,24 +66,26 @@ class PresenceSystem(GenericPredictionSystem):
         num_bins: int = None,
         aggregator: str = 'MLP',
         freeze_submodels: bool = False,
-        loss: Union[torch.nn.modules.loss._Loss, str] = "ce_and_sr_loss",
+        loss: Union[torch.nn.modules.loss._Loss, str] = "mae_loss",
         optimizer: Union[torch.nn.Module, Mapping] = None,
         alpha: Optional[float] = None,
         mae_decoder: bool = False,
-        mae_patch_size: int = 4,
+        mae_patch_size: int = 8,
         data_sizes: Optional[Mapping] = None,
+        model = None
     ):
-
-        model = MultiModalModel(
-            submodels,
-            num_species,
-            num_bins,
-            aggregator,
-            freeze_submodels,
-            mae_decoder,
-            mae_patch_size,
-            data_sizes
-        )
+        
+        if model is None:
+            model = MultiModalModel(
+                submodels,
+                num_species,
+                num_bins,
+                aggregator,
+                freeze_submodels,
+                mae_decoder,
+                mae_patch_size,
+                data_sizes
+            )
 
         # Loss and metrics
         
@@ -122,7 +124,7 @@ def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')
 
-    # Loggers
+
     log_dir = cfg.loggers.log_dir_name
     logger_csv = pl.loggers.CSVLogger(log_dir, name=cfg.run.run_name, version="")
     logger_csv.log_hyperparams(cfg)
@@ -135,9 +137,37 @@ def main(cfg: DictConfig) -> None:
                                modality_names= list(cfg.model.submodels.keys()),
                                target_transform=lambda x: (x != 0).astype(float))
     
-    reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
-
+    if cfg.run.checkpoint_path is not None:
+        
+        # Load checkpoint and adapt it if needed
+        
+        if cfg.run.finetuning_mode == 'transductive':
+            # If finetuning from transductive
+            reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
+            aggregator, avgpool, fc = reg_system.model.pop_last_layers()
+            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
+            reg_system.load_state_dict(checkpoint['state_dict'])
+            reg_system.model.set_last_layers(aggregator, avgpool, fc) 
+        
+        elif cfg.run.finetuning_mode == 'species':
+            # If finetuning from different number of species
+            reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
+            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
+            reg_system.model.edit_final_layer(cp = checkpoint)
+            reg_system.load_state_dict(checkpoint['state_dict'])
+            reg_system.model.edit_final_layer(new_species_num = cfg.model.num_species)
+        
+        else:
+            # If no change in head (continuing training or inference):
+            cp = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
+            reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes(), model = cp.model)
+        
+    else:
+        reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes()
+    
+                                    
     # Lightning Trainer
+                                    
     callbacks = [
         Summary(),
         ModelCheckpoint(
@@ -157,27 +187,22 @@ def main(cfg: DictConfig) -> None:
     # Training / Inference
 
     if cfg.run.predict:
-        model_loaded = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
         # Feature extractor only
-        # model_loaded.remove_final_layer()
-        # model_loaded.model.classifying = False
+        # reg_system.remove_final_layer()
+        # reg_system.model.classifying = False
 
-        predictions = model_loaded.predict(datamodule, trainer)
+        predictions = reg_system.predict(datamodule, trainer)
 
         # np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
 
         # Predictions on test subset
-        
         datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
-                                      classif=True,
-                                      probabilities=True,
+                                      classif=True, probabilities=True,
                                       out_name='predictions-probs')
-        
 
         # Predictions on train+val subset
-
         cfgtrainval = copy.deepcopy(cfg)
         cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
 
@@ -186,44 +211,24 @@ def main(cfg: DictConfig) -> None:
                                target_transform=lambda x: (x != 0).astype(float))
         
         tv_predictions = model_loaded.predict(tv_datamodule, trainer)
-
         tv_datamodule.export_predictions(tv_predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
-                                      classif=True,
-                                      probabilities=True,
+                                      classif=True, probabilities=True,
                                       out_name='predictions-probs-trainval')
         
         export_f1_scores(cfg)
-
 
 
         if cfg.run.interpretable:
 
             test_dataset = datamodule.get_test_dataset()
             best_species = list(test_dataset.species)
-            save_integrated_gradients(  model_loaded,
-                                        test_dataset,
-                                        best_species,
+            save_integrated_gradients(  reg_system, test_dataset, best_species,
                                         class_indices = [list(test_dataset.species).index(s) for s in best_species],
                                         output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients')
 
     else:
-        if cfg.run.checkpoint_path is not None:
-
-            ##### Change final_layer to be able to load pretrained CP
-            #reg_system.model.edit_final_layer(59)                        # If different number of species
-            #aggregator, avgpool, fc = reg_system.model.pop_last_layers()             # If using transductive learning
-            
-                
-            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
-            reg_system.load_state_dict(checkpoint['state_dict'])
-            
-            ##### Rechange final_layer to be able to train
-            #reg_system.model.edit_final_layer(cfg.model.num_species)     # If different number of species
-            #reg_system.model.set_last_layers(aggregator, avgpool, fc)                # If using transductive learning    
-
-
-            
+        
         trainer.fit(reg_system, datamodule=datamodule)
         trainer.validate(reg_system, datamodule=datamodule)
 

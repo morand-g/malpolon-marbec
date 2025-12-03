@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict:  true
+  predict:  false
   interpretable: false
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/37_mm4_transductif-2025-12-02_16-09/last.ckpt
+  checkpoint_path: ${data.root}outputs/36_fm_transductif-2025-12-02_18-11/last.ckpt
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -27,7 +27,7 @@ model:
   num_species: ${data.num_classes}
   num_bins: 2
   aggregator: MLP
-  freeze_submodels: false
+  freeze_submodels: true
   submodels:
     env:
       provider_name: torchvision
@@ -77,8 +77,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-6
-        weight_decay: 1e-6
+        lr: 1e-4
+        weight_decay: 1e-4
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
