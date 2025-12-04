@@ -62,7 +62,7 @@ class ModifiedCELoss(nn.modules.loss._Loss):
 
 
 class MAELoss(nn.modules.loss._Loss):
-    def __init__(self):
+    def __init__(self, **kwargs):
         """
         Loss function for Masked Autoencoding (MAE).
 

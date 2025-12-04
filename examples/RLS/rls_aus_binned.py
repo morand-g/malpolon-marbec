@@ -210,7 +210,7 @@ def main(cfg: DictConfig) -> None:
                                modality_names= list(cfg.model.submodels.keys()),
                                target_transform=lambda x: (x != 0).astype(float))
         
-        tv_predictions = model_loaded.predict(tv_datamodule, trainer)
+        tv_predictions = reg_system.predict(tv_datamodule, trainer)
         tv_datamodule.export_predictions(tv_predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
                                       classif=True, probabilities=True,

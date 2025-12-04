@@ -7,7 +7,7 @@ run:
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: ${data.root}outputs/36_fm_transductif-2025-12-02_18-12/last.ckpt
-  finetuning_mode: transductive
+  finetuning_mode: transductive # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -78,14 +78,14 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-4
-        weight_decay: 1e-4
+        lr: 1e-3
+        weight_decay: 1e-3
       scheduler: 
-        reduce_lr_on_plateau:
-          kwargs:
-            patience: 6
-            eps: 1e-9
-            factor: 0.2
+        cosine_annealing_lr:
+          kwargs: null
+          #   patience: 6
+          #   eps: 1e-9
+          #   factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
   loss: modified_ce_loss
