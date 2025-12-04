@@ -94,8 +94,6 @@ def create_folds(dataframe)->dict[str, dict]:
         and each value is another dictionary
         with keys 'test', 'val', and 'train' containing the indices of the respective folds.
     """
-
-    dataframe = add_rank_column(dataframe)
     fold_names = 'ABCDE'
     test_folds = {i: dataframe[dataframe['fold'] == i].index for i in fold_names}
     folds = {}
@@ -116,8 +114,9 @@ def load_pickle(path):
     with open(path, "rb") as f:
         return pickle.load(f)
 
-
-if __name__ == '__main__':
+def check_folds():
+    """Check that all items in folds_seasonal.pkl are present in folds.pkl.
+    """
 
     fold = load_pickle("folds.pkl")
     fold1 = load_pickle("folds_seasonal.pkl")
@@ -144,3 +143,30 @@ if __name__ == '__main__':
 
     if all_ok:
         print("✅ Tous les items de fold_1.pkl sont bien présents dans fold.pkl")
+
+
+if __name__ == '__main__':
+    df_all = pd.read_csv("common_seasonal_composite.csv", sep=";")
+    df_all = add_rank_column(df_all, column_name='fold', seed=42)
+
+    df_mada = df_all[df_all['country'] == 'Madagascar']
+    df_mada_rural = df_mada[df_mada['urban_rural'] == 2]
+
+    folds = create_folds(df_all)
+    folds_mada = create_folds(df_mada)
+    folds_mada_rural = create_folds(df_mada_rural)
+
+    with open("folds_all.pkl", "wb") as f:
+        pickle.dump(folds, f)
+
+    with open("folds_mada.pkl", "wb") as f:
+        pickle.dump(folds_mada, f)
+
+    with open("folds_mada_rural.pkl", "wb") as f:
+        pickle.dump(folds_mada_rural, f)
+
+    print(folds['A'], folds['B'], folds['C'], folds['D'], folds['E'])
+    print(len(folds['A']['train']), len(folds['A']['test']), len(folds['A']['val']))
+
+    print(len(folds_mada['A']['train']), len(folds_mada['A']['test']), len(folds_mada['A']['val']))
+    print(len(folds_mada_rural['A']['train']), len(folds_mada_rural['A']['test']), len(folds_mada_rural['A']['val']))

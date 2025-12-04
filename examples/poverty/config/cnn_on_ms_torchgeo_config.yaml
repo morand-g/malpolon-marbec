@@ -12,7 +12,7 @@ run:
 data:
   dataset_path: ../../../images/cloudless_composite-2y_centered
   labels_name: /../landsat7.csv
-  train_batch_size: 8
+  train_batch_size: 2
   inference_batch_size: 64
   num_workers: 8
   val_split: 0.2

@@ -28,7 +28,7 @@ import torch.nn as nn
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
-torch.set_float32_matmul_precision('medium')
+# torch.set_float32_matmul_precision('medium')
 
 
 from poverty_dataset import MSDataModule
@@ -40,6 +40,9 @@ import warnings
 from rasterio.errors import NotGeoreferencedWarning
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
+
+torch.backends.cuda.matmul.allow_tf32 = True # Allow TF32 on CuBlas
+torch.backends.cudnn.allow_tf32 = True       # Allow TF32 on CuDNN
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
@@ -72,7 +75,7 @@ def main(cfg: DictConfig) -> None:
     factory = EncoderDecoderFactory()
     base_model = factory.build_model(
         task="classification",
-        backbone="prithvi_eo_v1_100",
+        backbone="prithvi_eo_v2_300",
         backbone_bands=[
             HLSBands.RED,
             HLSBands.GREEN,
