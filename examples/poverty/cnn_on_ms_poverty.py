@@ -72,6 +72,7 @@ def main(cfg: DictConfig) -> None:
 
     # Datamodule & Model
     datamodule = MSDataModule(**cfg.data, fold=fold)
+
     factory = EncoderDecoderFactory()
     base_model = factory.build_model(
         task="classification",
@@ -91,6 +92,7 @@ def main(cfg: DictConfig) -> None:
         backbone_in_channels=6,  # correspond aux 6 canaux des données
     )
     base_model = TerraTorchWrapper(base_model)
+
     # print params number of the model trainable and non trainable
     total_params = sum(p.numel() for p in base_model.parameters())
     trainable_params = sum(p.numel() for p in base_model.parameters() if p.requires_grad)

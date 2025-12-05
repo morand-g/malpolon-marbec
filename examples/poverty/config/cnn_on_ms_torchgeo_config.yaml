@@ -12,15 +12,15 @@ run:
 data:
   dataset_path: ../../../images/cloudless_composite-2y_centered
   labels_name: /../landsat7.csv
-  train_batch_size: 2
+  train_batch_size: 64
   inference_batch_size: 64
   num_workers: 8
   val_split: 0.2
   test_split: 0.2
   nature: composite
   nightlight:
-  dict_normalize: mean_std_normalize_hyperspectral.json
-  fold_path: folds_mada.pkl
+  dict_normalize: mean_std_normalize_all.json
+  fold_path: folds_all.pkl
 
 task:
   task: regression

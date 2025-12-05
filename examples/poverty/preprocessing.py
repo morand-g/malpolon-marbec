@@ -38,8 +38,8 @@ def calcul_mean_std(cfg: DictConfig) -> None:
     datamodule = MSDataModule(**cfg.data, **cfg.task)
     data_loader = datamodule.norm_dataloader()
 
-    mean = torch.zeros(17)
-    std = torch.zeros(17)
+    mean = torch.zeros(16)
+    std = torch.zeros(16)
 
     total_images_count = 0
     for images, _ in tqdm(data_loader):
@@ -146,27 +146,4 @@ def check_folds():
 
 
 if __name__ == '__main__':
-    df_all = pd.read_csv("common_seasonal_composite.csv", sep=";")
-    df_all = add_rank_column(df_all, column_name='fold', seed=42)
-
-    df_mada = df_all[df_all['country'] == 'Madagascar']
-    df_mada_rural = df_mada[df_mada['urban_rural'] == 2]
-
-    folds = create_folds(df_all)
-    folds_mada = create_folds(df_mada)
-    folds_mada_rural = create_folds(df_mada_rural)
-
-    with open("folds_all.pkl", "wb") as f:
-        pickle.dump(folds, f)
-
-    with open("folds_mada.pkl", "wb") as f:
-        pickle.dump(folds_mada, f)
-
-    with open("folds_mada_rural.pkl", "wb") as f:
-        pickle.dump(folds_mada_rural, f)
-
-    print(folds['A'], folds['B'], folds['C'], folds['D'], folds['E'])
-    print(len(folds['A']['train']), len(folds['A']['test']), len(folds['A']['val']))
-
-    print(len(folds_mada['A']['train']), len(folds_mada['A']['test']), len(folds_mada['A']['val']))
-    print(len(folds_mada_rural['A']['train']), len(folds_mada_rural['A']['test']), len(folds_mada_rural['A']['val']))
+    calcul_mean_std()
