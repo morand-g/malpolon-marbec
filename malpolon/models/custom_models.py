@@ -32,7 +32,7 @@ class MultiModalModel(nn.Module):
         self.num_species = num_species
         self.num_bins = num_bins
         self.aggregator = aggregator
-        self.classifying = num_bins != -1
+        self.classifying = num_bins > 1
         self.mae_decoder = mae_decoder
         self.patch_size = patch_size
         self.data_sizes = data_sizes

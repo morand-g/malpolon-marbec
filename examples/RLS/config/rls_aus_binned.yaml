@@ -2,7 +2,7 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict:  false
+  predict: false
   interpretable: false
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}

@@ -1,34 +1,37 @@
 hydra:
   run:
-    dir: ${data.root}outputs/${run.run_name}
-    
+    dir: ${data.root}local/outputs/${run.run_name}
 run:
   predict: false
-  exp_name: 24_humenv_cat_reg_top100
+  interpretable: false
+  exp_name: 0_test_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null #${data.root}outputs/24_humenv_cat_reg_top100-2025-09-15_15-33/last.ckpt
-  pa_predictions_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
-  top100_path: ${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/top100-f1.csv
+  pa_predictions_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
+  top100_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/top100-f1.csv
+  finetuning_mode: null
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia
-  dataset_name: database_split.csv
-  num_classes: 100 #1796
-  train_batch_size: 64
-  inference_batch_size: 16
-  num_workers: 8
+  dataset_name: database_common.csv
+  num_classes: 817
+  train_batch_size: 16
+  inference_batch_size: 64
+  num_workers: 2
 trainer:
   accelerator: "auto"
   devices: "auto"
   max_epochs: 60
   val_check_interval: 100
   check_val_every_n_epoch: 1
+  log_every_n_steps: 100
   detect_anomaly: false
 model:
   num_species: ${data.num_classes}
+  aggregator: MLP
   freeze_submodels: false
   submodels:
-    envhum:
+    env:
       provider_name: torchvision
       model_name: resnet18
       checkpoint: null #${data.root}outputs/12_env_reg-2025-03-03_12-06/last.ckpt
@@ -38,13 +41,13 @@ model:
         change_last_layer:
           num_outputs: ${data.num_classes}
         change_first_convolutional_layer:
-          num_input_channels: 19
+          num_input_channels: 15
 optim:
   optimizer:
     adamw:
       kwargs:
         lr: 1e-2
-        weight_decay: 0.1
+        weight_decay: 1e-2
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
@@ -53,7 +56,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: "filtered_mse_loss"
+  loss: "mse_loss"
   metrics:
     r2:
       callable: "Fmetrics.regression.r2_score"
@@ -64,4 +67,4 @@ optim:
       kwargs:
         num_outputs: 1
 loggers:
-  log_dir_name: ${data.root}logs/
+  log_dir_name: ${data.root}local/logs/

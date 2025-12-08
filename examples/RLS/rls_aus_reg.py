@@ -17,17 +17,46 @@ from malpolon.models.custom_models import MultiModalModel
 from malpolon.models.standard_prediction_systems import GenericPredictionSystem
 from malpolon.models.utils import check_metric
 
-import numpy as np
-
-from omegaconf import DictConfig
-
-import pandas as pd
+from omegaconf import DictConfig, OmegaConf
 
 import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
-from torch import Tensor
+from torch import nn
+
+import torchmetrics.functional as Fmetrics
+import numpy as np
+import copy
+
+from exports_utils import *
+
+
+
+OmegaConf.register_new_resolver("eval", eval)
+
+
+
+def get_custom_metric(nbins, average_type):
+
+    def custom_metric(predictions, target):
+
+        predictions = predictions.argmax(dim=-1)
+        return Fmetrics.classification.multiclass_accuracy(predictions, target, num_classes=nbins, average=average_type)
+
+    return custom_metric
+
+
+
+def dictMSE(predictions, targets):
+
+        loss = 0
+        
+        for mod in targets:
+            loss += Fmetrics.mean_squared_error(predictions[mod].flatten(),
+                                                targets[mod].flatten())
+        
+        return loss / len(targets)
 
 
 class AbundanceSystem(GenericPredictionSystem):
@@ -35,23 +64,38 @@ class AbundanceSystem(GenericPredictionSystem):
         self,
         submodels: DictConfig,
         num_species: int,
-        freeze_submodels: bool,
+        aggregator: str = 'MLP',
+        freeze_submodels: bool = False,
         loss: Union[torch.nn.modules.loss._Loss, str] = 'filtered_huber_loss',
         optimizer: Union[torch.nn.Module, Mapping] = None,
-        metrics: Optional[dict[str, Callable]] = None,
-        loss_weights: Optional[Tensor] = None,
+        metrics: Optional[Mapping] = None,
+        data_sizes: Optional[Mapping] = None,
     ):
 
         model = MultiModalModel(
             submodels,
             num_species,
-            -1,
-            freeze_submodels
+            1,
+            aggregator,
+            freeze_submodels,
+            data_sizes=data_sizes
         )
 
-        metrics = check_metric(metrics)
+        # Loss and metrics
+        
+        self.metrics = check_metric(metrics)
+        super().__init__(model, loss, optimizer, metrics=self.metrics)
 
-        super().__init__(model, loss, optimizer, metrics=metrics)
+        self.model = model
+        self.mae_decoder = False
+            
+
+
+    def _cast_type_to_loss(self, y):
+        
+        return super()._cast_type_to_loss(y)
+
+
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_reg")
@@ -59,7 +103,7 @@ def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')
 
-    # Loggers
+
     log_dir = cfg.loggers.log_dir_name
     logger_csv = pl.loggers.CSVLogger(log_dir, name=cfg.run.run_name, version="")
     logger_csv.log_hyperparams(cfg)
@@ -67,27 +111,49 @@ def main(cfg: DictConfig) -> None:
                                              default_hp_metric=False)
     logger_tb.log_hyperparams(cfg)
 
-
-
+    # Datamodule & Model
     datamodule = RLSDataModule(**cfg.data,
                                modality_names= list(cfg.model.submodels.keys()),
                                target_transform=lambda x: np.log(x+1))
-    reg_system = AbundanceSystem(**cfg.model, **cfg.optim)
-
-    # Copy current file to log folder
-    try:
-        copy2(__file__, Path(log_dir) / cfg.run.run_name / Path(__file__).name)
-    except Exception as e:
-        print(f"Could not copy config file to log folder. Please check your permissions. Error: {e}")
-
+    
+    if cfg.run.checkpoint_path is not None:
+        
+        # Load checkpoint and adapt it if needed
+        
+        if cfg.run.finetuning_mode == 'transductive':
+            # If finetuning from transductive
+            reg_system = AbundanceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
+            aggregator, avgpool, fc = reg_system.model.pop_last_layers()
+            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
+            reg_system.load_state_dict(checkpoint['state_dict'])
+            reg_system.model.set_last_layers(aggregator, avgpool, fc) 
+        
+        elif cfg.run.finetuning_mode == 'species':
+            # If finetuning from different number of species
+            reg_system = AbundanceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
+            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
+            reg_system.model.edit_final_layer(cp = checkpoint)
+            reg_system.load_state_dict(checkpoint['state_dict'])
+            reg_system.model.edit_final_layer(new_species_num = cfg.model.num_species)
+        
+        else:
+            # If no change in head (continuing training or inference):
+            cp = AbundanceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
+            reg_system = AbundanceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes(), model = cp.model)
+        
+    else:
+        reg_system = AbundanceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes())
+    
+                                    
     # Lightning Trainer
+                                    
     callbacks = [
         Summary(),
         ModelCheckpoint(
             dirpath=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-            filename="checkpoint-{epoch:02d}-{step}-{r2/val:.4f}",
-            monitor=None, #"r2/val",
-            #mode="max",
+            filename="checkpoint-{epoch:02d}-{step}-{" + next(iter(reg_system.metrics)) + "/val:.4f}",
+            monitor=next(iter(reg_system.metrics)) + "/val",
+            mode="max",
             save_on_train_epoch_end=True,
             save_last=True,
             auto_insert_metric_name=False
@@ -100,24 +166,17 @@ def main(cfg: DictConfig) -> None:
     # Training / Inference
 
     if cfg.run.predict:
-        model_loaded = AbundanceSystem.load_from_checkpoint(cfg.run.checkpoint_path)
 
-        predictions = model_loaded.predict(datamodule, trainer)
+        predictions = reg_system.predict(datamodule, trainer)
 
-        # Load predicted_presence
-        presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
-
-        presence = presence[best_species]
-        predictions = predictions.numpy() * presence.to_numpy()
-
+        # Predictions on test subset
         datamodule.export_predictions(predictions,
-                                      out_dir=hydra.core.hydra_config.HydraConfig.get().runtime.output_dir)
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
+                                      classif=True, probabilities=True,
+                                      out_name='predictions-biomass')
 
     else:
-        if cfg.run.checkpoint_path is not None:
-            checkpoint = torch.load(cfg.run.checkpoint_path, weights_only=False)
-            reg_system.load_state_dict(checkpoint['state_dict'])
-
+        
         trainer.fit(reg_system, datamodule=datamodule)
         trainer.validate(reg_system, datamodule=datamodule)
 
