@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict:  true
+  predict:  false
   interpretable: false
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/37_mm4_transductif-2025-12-05_18-13/last.ckpt
+  checkpoint_path: null #${data.root}outputs/37_mm4_transductif-2025-12-05_18-13/last.ckpt
   finetuning_mode: null # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
@@ -19,7 +19,7 @@ data:
 trainer:
   accelerator: auto
   devices: auto
-  max_epochs: 20
+  max_epochs: 30
   val_check_interval: 100
   check_val_every_n_epoch: 1
   log_every_n_steps: 100
@@ -78,8 +78,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-6
-        weight_decay: 1e-6
+        lr: 1e-3
+        weight_decay: 1e-3
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
