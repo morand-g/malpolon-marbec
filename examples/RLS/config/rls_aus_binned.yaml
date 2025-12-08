@@ -2,12 +2,12 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict:  false
+  predict:  true
   interpretable: false
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/36_fm_transductif-2025-12-02_18-12/last.ckpt
-  finetuning_mode: transductive # null or transductive or species
+  checkpoint_path: ${data.root}outputs/37_mm4_transductif-2025-12-05_18-13/last.ckpt
+  finetuning_mode: null # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
@@ -33,7 +33,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -44,7 +44,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -55,7 +55,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -66,7 +66,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -78,14 +78,14 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-3
-        weight_decay: 1e-3
+        lr: 1e-6
+        weight_decay: 1e-6
       scheduler: 
-        cosine_annealing_lr:
-          kwargs: null
-          #   patience: 6
-          #   eps: 1e-9
-          #   factor: 0.2
+        reduce_lr_on_plateau:
+          kwargs:
+            patience: 6
+            eps: 1e-9
+            factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
   loss: modified_ce_loss
