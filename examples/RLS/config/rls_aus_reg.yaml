@@ -1,10 +1,10 @@
 hydra:
   run:
-    dir: ${data.root}local/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 0_test_reg
+  exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null #${data.root}outputs/24_humenv_cat_reg_top100-2025-09-15_15-33/last.ckpt
   pa_predictions_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
@@ -67,4 +67,4 @@ optim:
       kwargs:
         num_outputs: 1
 loggers:
-  log_dir_name: ${data.root}local/logs/
+  log_dir_name: ${data.root}logs/
