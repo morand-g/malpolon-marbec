@@ -70,16 +70,18 @@ class AbundanceSystem(GenericPredictionSystem):
         optimizer: Union[torch.nn.Module, Mapping] = None,
         metrics: Optional[Mapping] = None,
         data_sizes: Optional[Mapping] = None,
+        model = None
     ):
-
-        model = MultiModalModel(
-            submodels,
-            num_species,
-            1,
-            aggregator,
-            freeze_submodels,
-            data_sizes=data_sizes
-        )
+        
+        if model is None:
+            model = MultiModalModel(
+                submodels,
+                num_species,
+                1,
+                aggregator,
+                freeze_submodels,
+                data_sizes=data_sizes
+            )
 
         # Loss and metrics
         

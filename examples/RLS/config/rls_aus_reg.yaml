@@ -6,10 +6,10 @@ run:
   interpretable: false
   exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/24_humenv_cat_reg_top100-2025-09-15_15-33/last.ckpt
+  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2025-12-09_11-14/last.ckpt
   pa_predictions_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
   top100_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/top100-f1.csv
-  finetuning_mode: null
+  finetuning_mode: null #transductive
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia
@@ -34,20 +34,53 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/12_env_reg-2025-03-03_12-06/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
         change_last_layer:
-          num_outputs: ${data.num_classes}
+          num_outputs: ${model.num_species}
         change_first_convolutional_layer:
           num_input_channels: 15
+    humhd:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${model.num_species}
+        change_first_convolutional_layer:
+          num_input_channels: 4
+    bathy:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${model.num_species}
+        change_first_convolutional_layer:
+          num_input_channels: 1
+    dhw:
+      provider_name: torchvision
+      model_name: resnet18
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      model_kwargs:
+        weights: IMAGENET1K_V1
+      modifiers:
+        change_last_layer:
+          num_outputs: ${model.num_species}
+        change_first_convolutional_layer:
+          num_input_channels: 1
 optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-2
-        weight_decay: 1e-2
+        lr: 1e-5
+        weight_decay: 1e-5
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
