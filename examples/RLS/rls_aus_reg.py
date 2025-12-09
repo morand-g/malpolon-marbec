@@ -174,8 +174,10 @@ def main(cfg: DictConfig) -> None:
         # Predictions on test subset
         datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
-                                      classif=True, probabilities=True,
                                       out_name='predictions-biomass')
+        
+        
+        export_correlation_scores(cfg)
 
     else:
         
