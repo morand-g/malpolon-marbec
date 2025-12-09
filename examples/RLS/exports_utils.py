@@ -5,6 +5,7 @@ import torch
 from pathlib import Path
 
 from sklearn.metrics import f1_score
+from scipy.stats import pearsonr, spearmanr
 from scipy.optimize import minimize_scalar
 from captum.attr import IntegratedGradients, Saliency
 
@@ -90,3 +91,24 @@ def export_f1_scores(cfg):
     scores.sort_values(ascending=False, by='f1', inplace = True)
     scores.to_csv(output_path / f"testF1--TH={THRESHOLD:.3f}--.4rank={len(scores[scores['f1']>=0.4])}.csv")
 
+
+
+def export_correlation_scores(cfg):
+
+    # Load predictions
+    output_path = Path(cfg.run.checkpoint_path).parent
+    predictions = pd.read_csv(output_path / 'predictions-biomass.csv', index_col='survey_id')
+    
+    # Load targets
+
+    p = Path(cfg.data.inputs_path) / cfg.data.dataset_name
+    fulldf = pd.read_csv(p, index_col='survey_id', dtype = {22:str, 24:str, 25:str}).loc[predictions.index]
+    
+    dic = {}
+    for s in predictions.columns:
+        dic[s] = {'pearsonr': pearsonr(fulldf[s], predictions[s])[0],
+                  'spearmanr': spearmanr(fulldf[s], predictions[s])[0]}
+        
+    scores = pd.DataFrame(dic).T
+    scores.sort_values(ascending=False, by='pearsonr', inplace = True)
+    scores.to_csv(output_path / f"testR2--.4rank={len(scores[scores['pearsonr']>=0.4])}.csv")
