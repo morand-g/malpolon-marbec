@@ -11,7 +11,7 @@ run:
 
 data:
   dataset_path: ../../../images/cloudless_composite-2y_centered
-  labels_name: /../landsat7.csv
+  labels_name: /../common_seasonal_composite.csv
   train_batch_size: 64
   inference_batch_size: 64
   num_workers: 8
@@ -20,7 +20,7 @@ data:
   nature: composite
   nightlight:
   dict_normalize: mean_std_normalize_all.json
-  fold_path: folds_all.pkl
+  fold_path: folds_mada.pkl
 
 task:
   task: regression
@@ -42,7 +42,7 @@ model:
     global_pool: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 6
+      num_input_channels: 16
     change_last_layer:
       num_outputs: 1
 

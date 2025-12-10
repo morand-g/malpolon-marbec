@@ -19,8 +19,8 @@ import lightning.pytorch as pl
 from omegaconf import DictConfig
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
-from terratorch.models import EncoderDecoderFactory
-from terratorch.datasets import HLSBands
+# from terratorch.models import EncoderDecoderFactory
+# from terratorch.datasets import HLSBands
 
 
 import torch
@@ -28,7 +28,7 @@ import torch.nn as nn
 from torch import tensor
 import torchmetrics.functional as Fmetrics
 
-# torch.set_float32_matmul_precision('medium')
+torch.set_float32_matmul_precision('medium')
 
 
 from poverty_dataset import MSDataModule
@@ -41,8 +41,8 @@ from rasterio.errors import NotGeoreferencedWarning
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
-torch.backends.cuda.matmul.allow_tf32 = True # Allow TF32 on CuBlas
-torch.backends.cudnn.allow_tf32 = True       # Allow TF32 on CuDNN
+# torch.backends.cuda.matmul.allow_tf32 = True # Allow TF32 on CuBlas
+# torch.backends.cudnn.allow_tf32 = True       # Allow TF32 on CuDNN
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
@@ -73,34 +73,34 @@ def main(cfg: DictConfig) -> None:
     # Datamodule & Model
     datamodule = MSDataModule(**cfg.data, fold=fold)
 
-    factory = EncoderDecoderFactory()
-    base_model = factory.build_model(
-        task="classification",
-        backbone="prithvi_eo_v2_300",
-        backbone_bands=[
-            HLSBands.RED,
-            HLSBands.GREEN,
-            HLSBands.BLUE,
-            HLSBands.NIR_NARROW,
-            HLSBands.SWIR_1,
-            HLSBands.SWIR_2,
-        ],
-        backbone_freeze_backbone=True,
-        backbone_pretrained=True,
-        decoder="FCNDecoder",
-        num_classes=1,
-        backbone_in_channels=6,  # correspond aux 6 canaux des données
-    )
-    base_model = TerraTorchWrapper(base_model)
+    # factory = EncoderDecoderFactory()
+    # base_model = factory.build_model(
+    #     task="classification",
+    #     backbone="prithvi_eo_v2_300",
+    #     backbone_bands=[
+    #         HLSBands.RED,
+    #         HLSBands.GREEN,
+    #         HLSBands.BLUE,
+    #         HLSBands.NIR_NARROW,
+    #         HLSBands.SWIR_1,
+    #         HLSBands.SWIR_2,
+    #     ],
+    #     backbone_freeze_backbone=True,
+    #     backbone_pretrained=True,
+    #     decoder="FCNDecoder",
+    #     num_classes=1,
+    #     backbone_in_channels=6,  # correspond aux 6 canaux des données
+    # )
+    # base_model = TerraTorchWrapper(base_model)
 
-    # print params number of the model trainable and non trainable
-    total_params = sum(p.numel() for p in base_model.parameters())
-    trainable_params = sum(p.numel() for p in base_model.parameters() if p.requires_grad)
-    print(f"Total parameters: {total_params}")
-    print(f"Trainable parameters: {trainable_params}")
-    model = RegressionSystem(base_model, **cfg.optim)
+    # # print params number of the model trainable and non trainable
+    # total_params = sum(p.numel() for p in base_model.parameters())
+    # trainable_params = sum(p.numel() for p in base_model.parameters() if p.requires_grad)
+    # print(f"Total parameters: {total_params}")
+    # print(f"Trainable parameters: {trainable_params}")
+    # model = RegressionSystem(base_model, **cfg.optim)
 
-    # model = RegressionSystem(cfg.model, **cfg.optim)
+    model = RegressionSystem(cfg.model, **cfg.optim)
 
     # Lightning Trainer
     callbacks = [
