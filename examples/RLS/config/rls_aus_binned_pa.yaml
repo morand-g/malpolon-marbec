@@ -2,16 +2,16 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
-  exp_name: 39_mm4_transductif_bins
+  exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/37_mm4_transductif-2025-12-08_16-06/last.ckpt
-  finetuning_mode: transductive # null or transductive or species
+  checkpoint_path: ${data.root}outputs/37_mm4_transductif-2025-12-08_16-06/last.ckpt
+  finetuning_mode: null # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_common_binned100.csv
+  dataset_name: database_common.csv
   num_classes: 817
   train_batch_size: 16
   inference_batch_size: 64
@@ -26,14 +26,14 @@ trainer:
   detect_anomaly: false
 model:
   num_species: ${data.num_classes}
-  num_bins: 100
+  num_bins: 2
   aggregator: MLP
   freeze_submodels: true
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -44,7 +44,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -55,7 +55,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -66,7 +66,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -78,8 +78,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-4
-        weight_decay: 1e-4
+        lr: 1e-3
+        weight_decay: 1e-3
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
@@ -88,7 +88,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: mse_loss
+  loss: modified_ce_loss
 loggers:
   log_dir_name: ${data.root}logs/
 

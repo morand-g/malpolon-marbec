@@ -89,18 +89,23 @@ class PresenceSystem(GenericPredictionSystem):
 
         # Loss and metrics
         
+        loss_kwargs = {}
+        
         if mae_decoder > 0:
             self.metrics = {'mse': dictMSE}
-            loss_kwargs = {}
+            
         else:
             self.metrics = {'macro_acc': get_custom_metric(num_bins, 'macro')}
-            loss_kwargs = {'num_bins': num_bins,
-                   'num_species': num_species,
-                   'loss_weights': None}
+            self.metrics = {'mse': Fmetrics.mean_squared_error}
             
-        if loss == "ce_and_sr_loss" and alpha is not None:
-            loss_kwargs['alpha'] = alpha
-
+            if loss == 'modified_ce_loss':
+                loss_kwargs = {'num_bins': num_bins,
+                       'num_species': num_species,
+                       'loss_weights': None}
+            
+            elif loss == "ce_and_sr_loss" and alpha is not None:
+                loss_kwargs['alpha'] = alpha
+                
 
         super().__init__(model, loss, optimizer, loss_kwargs, metrics=self.metrics)
 

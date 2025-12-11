@@ -188,7 +188,13 @@ class MultiModalModel(nn.Module):
 
 
         if self.classifying:
-                return out.view(out.shape[:-1] + (self.num_species, self.num_bins))
+            
+            classes = out.view(out.shape[:-1] + (self.num_species, self.num_bins))
+            
+            if self.num_bins == 2:
+                return classes
+            else:
+                return classes.argmax(-1)
 
         else:
             return out
