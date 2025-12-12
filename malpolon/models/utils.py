@@ -48,7 +48,7 @@ LOSS_CALLABLES = {'huber_loss': nn.HuberLoss,
                   'log_spacing_loss': LogSpacingLoss,
                   'ce_and_sr_loss': CeSrLoss,
                   'sum_mse_loss': SumMSELoss,
-                  'mae_loss': nn.MAELoss}
+                  'mae_loss': nn.L1Loss}
 
 
 class CrashHandler():
