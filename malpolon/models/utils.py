@@ -19,7 +19,7 @@ from torch.optim.lr_scheduler import LRScheduler
 
 import torchmetrics.functional as Fmetrics
 
-from .custom_loss import FilteredHuberLoss, LogSpacingLoss, ModifiedCELoss, CeSrLoss, FilteredMSELoss, MAELoss
+from .custom_loss import FilteredHuberLoss, LogSpacingLoss, ModifiedCELoss, CeSrLoss, FilteredMSELoss, SumMSELoss
 from .model_builder import ModelBuilder
 
 FMETRICS_CALLABLES = {'binary_accuracy': Fmetrics.classification.binary_accuracy,
@@ -47,7 +47,8 @@ LOSS_CALLABLES = {'huber_loss': nn.HuberLoss,
                   'modified_ce_loss': ModifiedCELoss,
                   'log_spacing_loss': LogSpacingLoss,
                   'ce_and_sr_loss': CeSrLoss,
-                  'mae_loss': MAELoss}
+                  'sum_mse_loss': SumMSELoss,
+                  'mae_loss': nn.MAELoss}
 
 
 class CrashHandler():
