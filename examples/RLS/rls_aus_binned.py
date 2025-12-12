@@ -118,8 +118,6 @@ class PresenceSystem(GenericPredictionSystem):
         
         if self.mae_decoder:
             return {x:y[x].to(torch.float32) for x in y}
-        elif self.num_bins > 2:
-            return super()._cast_type_to_loss(y.argmax(-1))
         else:
             return super()._cast_type_to_loss(y)
 
