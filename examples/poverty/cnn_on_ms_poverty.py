@@ -14,6 +14,8 @@ import random
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from torch.cuda import nvtx
+
 import hydra
 import lightning.pytorch as pl
 from omegaconf import DictConfig
@@ -113,6 +115,7 @@ def main(cfg: DictConfig) -> None:
             save_last=True,
             every_n_train_steps=10,
         ),
+        NVTXFullCoverage(),
         LearningRateMonitor()
     ]
 
@@ -165,6 +168,22 @@ class TerraTorchWrapper(nn.Module):
         else:
             return out.output
 
+class NVTXFullCoverage(pl.Callback):
+
+    # Backward
+    def on_before_backward(self, trainer, pl_module, loss):
+        nvtx.range_push("backward")
+
+    def on_after_backward(self, trainer, pl_module):
+        nvtx.range_pop()
+
+    # Optimizer
+    def on_before_optimizer_step(self, trainer, pl_module, optimizer):
+        nvtx.range_push("optimizer_step")
+
+    def on_after_optimizer_step(self, trainer, pl_module, optimizer):
+        nvtx.range_pop()
+
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def plot_dataset(cfg: DictConfig) -> None:
@@ -187,4 +206,7 @@ def plot_dataset(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
+    import multiprocessing
+
+    multiprocessing.set_start_method("spawn", force=True)
     main()

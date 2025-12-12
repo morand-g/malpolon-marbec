@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import lightning.pytorch as pl
 
 import torch
+from torch.cuda import nvtx
 
 from torchvision.datasets.utils import download_and_extract_archive, download_url
 
@@ -154,6 +155,8 @@ class GenericPredictionSystem(pl.LightningModule):
             log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
         else:
             log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
+
+        nvtx.range_push(f"{split}_step_{batch_idx}")
         x, y = batch
         y_hat = self(x)
 
@@ -166,6 +169,8 @@ class GenericPredictionSystem(pl.LightningModule):
             else:
                 score = metric_func(y_hat, y)
             self.log(f"{metric_name}/{split}", score, **log_kwargs)
+
+        nvtx.range_pop()
 
         return loss
 
