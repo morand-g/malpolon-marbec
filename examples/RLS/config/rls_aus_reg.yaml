@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
   exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2025-12-09_14-18/last.ckpt
+  checkpoint_path: null #${data.root}outputs/38_mm4_transductif_reg-2025-12-12_11-40/last.ckpt
   pa_predictions_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
   top100_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/top100-f1.csv
   finetuning_mode: null #transductive
@@ -29,12 +29,12 @@ trainer:
 model:
   num_species: ${data.num_classes}
   aggregator: MLP
-  freeze_submodels: false
+  freeze_submodels: true
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -45,7 +45,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -56,7 +56,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -67,7 +67,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -79,8 +79,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-5
-        weight_decay: 1e-5
+        lr: 1e-3
+        weight_decay: 1e-3
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
@@ -89,7 +89,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: "mse_loss"
+  loss: "mae_loss"
   metrics:
     r2:
       callable: "Fmetrics.regression.r2_score"

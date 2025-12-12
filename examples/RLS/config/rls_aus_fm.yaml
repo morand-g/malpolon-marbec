@@ -80,6 +80,6 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: mae_loss
+  loss: sum_mse_loss
 loggers:
   log_dir_name: ${data.root}logs/

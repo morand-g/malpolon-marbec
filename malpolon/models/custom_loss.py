@@ -61,10 +61,10 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         return loss
 
 
-class MAELoss(nn.modules.loss._Loss):
+class SumMSELoss(nn.modules.loss._Loss):
     def __init__(self, **kwargs):
         """
-        Loss function for Masked Autoencoding (MAE).
+        Loss function for Masked Autoencoding
 
         Parameters
         ----------
@@ -73,11 +73,11 @@ class MAELoss(nn.modules.loss._Loss):
         num_layers : int
             Number of layers in the input (e.g., 19).
         """
-        super(MAELoss, self).__init__()
+        super(SumMSELoss, self).__init__()
 
     def forward(self, predictions, targets) -> torch.Tensor:
         """
-        Compute the MAE loss.
+        Compute the MSE loss for Masked Auto Encoding
 
         Parameters
         ----------
@@ -91,7 +91,7 @@ class MAELoss(nn.modules.loss._Loss):
         Returns
         -------
         torch.Tensor
-            Computed MAE loss.
+            Computed MSE loss.
         """
 
         loss = 0
