@@ -96,7 +96,6 @@ class PresenceSystem(GenericPredictionSystem):
             
         else:
             self.metrics = {'macro_acc': get_custom_metric(num_bins, 'macro')}
-            self.metrics = {'mse': Fmetrics.mean_squared_error}
             
             if loss == 'modified_ce_loss':
                 loss_kwargs = {'num_bins': num_bins,
@@ -111,6 +110,7 @@ class PresenceSystem(GenericPredictionSystem):
 
         self.model = model
         self.mae_decoder = mae_decoder
+        self.num_bins = num_bins
             
 
 
@@ -118,13 +118,15 @@ class PresenceSystem(GenericPredictionSystem):
         
         if self.mae_decoder:
             return {x:y[x].to(torch.float32) for x in y}
+        elif self.num_bins > 2:
+            return super()._cast_type_to_loss(y.argmax(-1))
         else:
             return super()._cast_type_to_loss(y)
 
 
 
 
-@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_fm")
+@hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned")
 def main(cfg: DictConfig) -> None:
 
     torch.set_float32_matmul_precision('high')

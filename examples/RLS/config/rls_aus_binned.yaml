@@ -1,10 +1,10 @@
 hydra:
   run:
-    dir: ${data.root}outputs/${run.run_name}
+    dir: ${data.root}local/outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
-  exp_name: 39_mm4_transductif_bins
+  exp_name: 0_mm4_transductif_bins
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
   checkpoint_path: null #${data.root}outputs/37_mm4_transductif-2025-12-08_16-06/last.ckpt
   finetuning_mode: transductive # null or transductive or species
@@ -41,39 +41,39 @@ model:
           num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
         change_first_convolutional_layer:
           num_input_channels: 15
-    humhd:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
-        change_first_convolutional_layer:
-          num_input_channels: 4
-    bathy:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
-        change_first_convolutional_layer:
-          num_input_channels: 1
-    dhw:
-      provider_name: torchvision
-      model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
-      model_kwargs:
-        weights: IMAGENET1K_V1
-      modifiers:
-        change_last_layer:
-          num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
-        change_first_convolutional_layer:
-          num_input_channels: 1
+    # humhd:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 4
+    # bathy:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
+    # dhw:
+    #   provider_name: torchvision
+    #   model_name: resnet18
+    #   checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+    #   model_kwargs:
+    #     weights: IMAGENET1K_V1
+    #   modifiers:
+    #     change_last_layer:
+    #       num_outputs: ${eval:'${model.num_bins}*${model.num_species}'}
+    #     change_first_convolutional_layer:
+    #       num_input_channels: 1
 optim:
   optimizer:
     adamw:
@@ -90,5 +90,5 @@ optim:
             monitor: loss/val
   loss: mse_loss
 loggers:
-  log_dir_name: ${data.root}logs/
+  log_dir_name: ${data.root}local/logs/
 
