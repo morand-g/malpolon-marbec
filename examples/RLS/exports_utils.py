@@ -93,7 +93,7 @@ def export_f1_scores(cfg):
 
 
 
-def export_correlation_scores(cfg):
+def export_correlation_scores(cfg, classif = False):
 
     # Load predictions
     output_path = Path(cfg.run.checkpoint_path).parent
@@ -112,3 +112,26 @@ def export_correlation_scores(cfg):
     scores = pd.DataFrame(dic).T
     scores.sort_values(ascending=False, by='pearsonr', inplace = True)
     scores.to_csv(output_path / f"testR2--.4rank={len(scores[scores['pearsonr']>=0.4])}.csv")
+
+    if classif:
+
+        with open(Path(cfg.data.inputs_path) / "database_common_percentiles.txt", "r") as f:
+            medians = f.readlines()
+            medians = [float(m.strip()) for m in medians]
+
+        median_dic = {i: medians[i] for i in range(len(medians))}
+        median_predictions = predictions.astype(int).replace(median_dic)
+
+        # Load targets
+
+        p = Path(cfg.data.inputs_path) / cfg.data.dataset_name.replace("_binned100","")
+        fulldf = pd.read_csv(p, index_col='survey_id', dtype = {22:str, 24:str, 25:str}).loc[predictions.index]
+
+        dic = {}
+        for s in median_predictions.columns:
+            dic[s] = {'pearsonr': pearsonr(fulldf[s], median_predictions[s])[0],
+                      'spearmanr': spearmanr(fulldf[s], median_predictions[s])[0]}
+            
+        scores = pd.DataFrame(dic).T
+        scores.sort_values(ascending=False, by='pearsonr', inplace = True)
+        scores.to_csv(output_path / f"testR2median--.4rank={len(scores[scores['pearsonr']>=0.4])}.csv")

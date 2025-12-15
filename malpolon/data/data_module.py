@@ -704,13 +704,12 @@ class RLSDataModule(BaseDataModule):
                            out_name: str = "predictions",
                            out_dir: str = './',
                            classif: bool = False,
-                           probabilities: bool = False,
                            **kwargs: Any):
     
         test_ds = self.get_test_dataset()
 
         if classif:
-            if probabilities:
+            if predictions.shape[-1] == 2:
                 predictions = predictions.softmax(dim=-1)[..., 1]
             else:
                 predictions = predictions.argmax(dim=-1)
