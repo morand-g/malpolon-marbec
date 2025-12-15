@@ -20,7 +20,7 @@ data:
   nature: composite
   nightlight:
   dict_normalize: mean_std_normalize_all.json
-  fold_path: folds.pkl
+  fold_path: folds_mada.pkl
 
 task:
   task: regression
@@ -28,7 +28,7 @@ task:
 trainer:
   accelerator: gpu
   devices: 1
-  max_epochs: 1
+  max_epochs: 2
   check_val_every_n_epoch: 1
 
 model:

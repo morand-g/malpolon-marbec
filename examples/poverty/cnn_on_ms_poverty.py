@@ -119,7 +119,7 @@ def main(cfg: DictConfig) -> None:
         LearningRateMonitor()
     ]
 
-    trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=1, callbacks=callbacks,
+    trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=10, callbacks=callbacks,
                          **cfg.trainer)
 
     if os.path.exists(f"{log_dir}/predictions.csv"):
@@ -148,7 +148,6 @@ def main(cfg: DictConfig) -> None:
     else:
         if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path)
         else:trainer.fit(model, datamodule=datamodule)
-        trainer.validate(model, datamodule=datamodule)
         trainer.test(model, datamodule=datamodule)
 
     #Gather prediction points over the whole dataset
@@ -168,7 +167,14 @@ class TerraTorchWrapper(nn.Module):
         else:
             return out.output
 
+
 class NVTXFullCoverage(pl.Callback):
+
+    def on_train_epoch_start(self, trainer, pl_module):
+        nvtx.range_push("train_epoch")
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        nvtx.range_pop()
 
     # Backward
     def on_before_backward(self, trainer, pl_module, loss):
@@ -177,12 +183,7 @@ class NVTXFullCoverage(pl.Callback):
     def on_after_backward(self, trainer, pl_module):
         nvtx.range_pop()
 
-    # Optimizer
-    def on_before_optimizer_step(self, trainer, pl_module, optimizer):
-        nvtx.range_push("optimizer_step")
 
-    def on_after_optimizer_step(self, trainer, pl_module, optimizer):
-        nvtx.range_pop()
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
@@ -206,7 +207,5 @@ def plot_dataset(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    import multiprocessing
 
-    multiprocessing.set_start_method("spawn", force=True)
     main()

@@ -17,6 +17,10 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torchvision
 
+from tqdm import tqdm
+
+from torch.cuda import nvtx
+
 
 from malpolon.data.data_module import BaseDataModule
 
@@ -115,20 +119,26 @@ class MSDataModule(BaseDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.get_train_dataset(), batch_size=self.train_batch_size, shuffle=True,
-                          num_workers=self.num_workers, persistent_workers=True)
+                          num_workers=self.num_workers, persistent_workers=True,prefetch_factor=4, pin_memory=True)
 
     def val_dataloader(self):
         return DataLoader(self.get_val_dataset(), batch_size=self.train_batch_size, shuffle=False,
-                          num_workers=self.num_workers, persistent_workers=True)
+                          num_workers=self.num_workers, persistent_workers=True,prefetch_factor=4, pin_memory=True)
 
 
     def all_dataloader(self):
         return DataLoader(self.get_all_dataset(), batch_size=self.train_batch_size, shuffle=False,
-                          num_workers=self.num_workers, persistent_workers=True)
+                          num_workers=self.num_workers, persistent_workers=True,prefetch_factor=4, pin_memory=True)
 
     def norm_dataloader(self):
         return DataLoader(self.get_norm_dataset(), batch_size=self.train_batch_size, shuffle=False,
-                          num_workers=self.num_workers, persistent_workers=True)
+                          num_workers=self.num_workers, persistent_workers=True,prefetch_factor=4, pin_memory=True)
+
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
+        nvtx.range_push("transfer_batch_to_device")
+        batch_on_device = super().transfer_batch_to_device(batch, device, dataloader_idx)
+        nvtx.range_pop()
+        return batch_on_device
 
 
     def export_predict_csv_basic(self,
@@ -196,61 +206,34 @@ class MSDataset(Dataset):
                             'IWI': 'iwi'}
 
         self.dataframe = self._load_observation_data(root_dir, labels_name, split, obs_data_columns, fold)
+        self.data_cache = []
+
+        print("Pre-loading dataset into RAM...")
+
         self.root_dir = root_dir
         self.nature = nature
         self.nightlight = nightlight
         self.transform = transform
 
-    def __len__(self):
-        return len(self.dataframe)
+        for idx in tqdm(range(len(self.dataframe))):
+            # Re-use the logic from __getitem__ here to load the array
 
-    def __getitem__(self, idx):
+            row = self.dataframe.iloc[idx]
 
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
+            if torch.is_tensor(idx):
+                idx = idx.tolist()
 
-        row = self.dataframe.iloc[idx]
-        value = row.iwi.astype('float')
+            row = self.dataframe.iloc[idx]
+            value = row.iwi.astype('float')
 
+            if self.nature == 'composite':
 
-        if self.nature == 'composite':
-
-            tile = []
-            tile_name = os.path.join(self.root_dir,
-                                     str(row.country.lower()),
-                                     str(row.year),
-                                     str(row.cluster_id) + ".tif"
-                                     )
-
-            with rasterio.open(tile_name) as src:
-
-                bands = src.descriptions
-                bands_indexes = []
-
-                for b in SPECTRUM_ALL:
-                    bands_indexes.append(bands.index(b) + 1)
-
-                for band in bands_indexes:
-                    layer = src.read(band)
-                    tile.append(layer)
-
-            tile = np.stack(tile, axis=0)
-            tile = np.nan_to_num(tile)
-            tile = self.transform(torch.tensor(tile, dtype=torch.float32))
-
-        elif self.nature == 'seasonal':
-
-            tile = torch.empty((0, 224, 224), dtype=torch.float32)
-
-            for trimester in range(1,5):
-
-                tile_t = []
+                tile = []
                 tile_name = os.path.join(self.root_dir,
-                                         str(row.country).lower(),
+                                         str(row.country.lower()),
                                          str(row.year),
-                                         str(row.cluster_id) + f"_{trimester}.tif"
+                                         str(row.cluster_id) + ".tif"
                                          )
-
 
                 with rasterio.open(tile_name) as src:
 
@@ -262,37 +245,71 @@ class MSDataset(Dataset):
 
                     for band in bands_indexes:
                         layer = src.read(band)
-                        tile_t.append(layer)
+                        tile.append(layer)
 
-                tile_t = np.stack(tile_t, axis=0)
-                tile_t = np.nan_to_num(tile_t)
-                tile_t = self.transform(torch.tensor(tile_t, dtype=torch.float32))
-                tile = torch.concat((tile, tile_t), dim=0)
+                tile = np.stack(tile, axis=0)
+                tile = np.nan_to_num(tile)
+                tile = self.transform(torch.tensor(tile, dtype=torch.float32))
+
+            elif self.nature == 'seasonal':
+
+                tile = torch.empty((0, 224, 224), dtype=torch.float32)
+
+                for trimester in range(1, 5):
+
+                    tile_t = []
+                    tile_name = os.path.join(self.root_dir,
+                                             str(row.country).lower(),
+                                             str(row.year),
+                                             str(row.cluster_id) + f"_{trimester}.tif"
+                                             )
+
+                    with rasterio.open(tile_name) as src:
+
+                        bands = src.descriptions
+                        bands_indexes = []
+
+                        for b in SPECTRUM_ALL:
+                            bands_indexes.append(bands.index(b) + 1)
+
+                        for band in bands_indexes:
+                            layer = src.read(band)
+                            tile_t.append(layer)
+
+                    tile_t = np.stack(tile_t, axis=0)
+                    tile_t = np.nan_to_num(tile_t)
+                    tile_t = self.transform(torch.tensor(tile_t, dtype=torch.float32))
+                    tile = torch.concat((tile, tile_t), dim=0)
+
+            if self.nightlight:
+                tile_name = os.path.join(self.root_dir,
+                                         f"../HREA/{self.nightlight}",
+                                         str(row.country),
+                                         str(row.year),
+                                         str(row.cluster_id) + ".tif"
+                                         )
+
+                with rasterio.open(tile_name) as src:
+                    layer = src.read(1)
+                tile_n = np.nan_to_num(layer)
+                transforms = torchvision.transforms.Compose([
+                    torchvision.transforms.CenterCrop(224),
+                    torchvision.transforms.RandomHorizontalFlip(),
+                    torchvision.transforms.RandomVerticalFlip(),
+                ])
+                tile_n = transforms(torch.tensor(tile_n, dtype=torch.float32).unsqueeze(0))
+                tile = torch.concat((tile, tile_n), dim=0)
+
+            value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
+
+            self.data_cache.append((tile, value))
 
 
-        if self.nightlight:
-            tile_name = os.path.join(self.root_dir,
-                                     f"../HREA/{self.nightlight}",
-                                     str(row.country),
-                                     str(row.year),
-                                     str(row.cluster_id) + ".tif"
-                                     )
+    def __len__(self):
+        return len(self.dataframe)
 
-            with rasterio.open(tile_name) as src:
-                layer = src.read(1)
-            tile_n = np.nan_to_num(layer)
-            transforms = torchvision.transforms.Compose([
-                torchvision.transforms.CenterCrop(224),
-                torchvision.transforms.RandomHorizontalFlip(),
-                torchvision.transforms.RandomVerticalFlip(),
-            ])
-            tile_n = transforms(torch.tensor(tile_n, dtype=torch.float32).unsqueeze(0))
-            tile = torch.concat((tile, tile_n), dim=0)
-
-
-        value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
-
-        return tile, value
+    def __getitem__(self, idx):
+        return self.data_cache[idx]
 
 
 
