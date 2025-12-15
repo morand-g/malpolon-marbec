@@ -95,7 +95,7 @@ class AbundanceSystem(GenericPredictionSystem):
 
     def _cast_type_to_loss(self, y):
         
-        return super()._cast_type_to_loss(y)
+        return y.to(torch.float32)
 
 
 
@@ -173,7 +173,7 @@ def main(cfg: DictConfig) -> None:
 
         # Predictions on test subset
         datamodule.export_predictions(predictions,
-                                      out_dir=Path(cfg.run.checkpoint_path).parent,
+                                      out_dir='~', #Xiphias_gladiusPath(cfg.run.checkpoint_path).parent,
                                       out_name='predictions-biomass')
         
         

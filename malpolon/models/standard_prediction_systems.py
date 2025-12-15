@@ -137,12 +137,7 @@ class GenericPredictionSystem(pl.LightningModule):
         self.checkpoint_path = path
 
     def _cast_type_to_loss(self, y):
-        if isinstance(self.loss, torch.nn.CrossEntropyLoss) and len(y.shape) == 1 or\
-           isinstance(self.loss, torch.nn.NLLLoss):
-            y = y.to(torch.int64)
-        else:
-            y = y.to(torch.float32)
-        return y
+        return y.to(torch.float32)
 
     def forward(self, x: Any) -> Any:
         return self.model(x)
