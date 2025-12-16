@@ -137,10 +137,20 @@ def main(cfg: DictConfig) -> None:
                                              default_hp_metric=False)
     logger_tb.log_hyperparams(cfg)
 
+    
+    # Define target transform
+    
+    if cfg.model.num_bins == 2:
+        target_transform=lambda x: (x != 0).astype(float)
+    elif cfg.model.num_bins == 5:
+        target_transform=lambda x: (x+24).astype(int) // 25
+    else:
+        target_transform=lambda x: x.astype(int)
+        
     # Datamodule & Model
     datamodule = RLSDataModule(**cfg.data,
                                modality_names= list(cfg.model.submodels.keys()),
-                               target_transform=lambda x: (x != 0).astype(float))
+                               target_transform=target_transform)
     
     if cfg.run.checkpoint_path is not None:
         

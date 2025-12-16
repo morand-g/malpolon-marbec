@@ -173,7 +173,7 @@ def main(cfg: DictConfig) -> None:
 
         # Predictions on test subset
         datamodule.export_predictions(predictions,
-                                      out_dir='~', #Path(cfg.run.checkpoint_path).parent,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
                                       out_name='predictions-biomass')
         
         

@@ -97,7 +97,11 @@ def export_correlation_scores(cfg, classif = False):
 
     # Load predictions
     output_path = Path(cfg.run.checkpoint_path).parent
-    predictions = pd.read_csv(output_path / 'predictions-biomass.csv', index_col='survey_id')
+    
+    if classif:
+        predictions = pd.read_csv(output_path / 'predictions-probs.csv', index_col='survey_id')
+    else:
+        predictions = pd.read_csv(output_path / 'predictions-biomass.csv', index_col='survey_id')
     
     # Load targets
 
