@@ -4,7 +4,7 @@
 #SBATCH --job-name=malpolon_rls
 #SBATCH --mem=128G
 #SBATCH --gres=gpu:1
-#SBATCH --dependency=afterany:14469
+#SBATCH --dependency=afterany:14947
 #SBATCH --cpus-per-task=4
 #SBATCH -o malpolon_rls.out
 #SBATCH -e malpolon_rls.err

@@ -93,11 +93,6 @@ class AbundanceSystem(GenericPredictionSystem):
             
 
 
-    def _cast_type_to_loss(self, y):
-        
-        return y.to(torch.float32)
-
-
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_reg")
