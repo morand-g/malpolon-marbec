@@ -119,7 +119,7 @@ def export_correlation_scores(cfg, classif = False):
 
     if classif:
 
-        with open(Path(cfg.data.inputs_path) / "database_common_percentiles.txt", "r") as f:
+        with open(Path(cfg.data.inputs_path) / cfg.data.dataset_name.replace("binned.csv","bins.txt"), "r") as f:
             medians = f.readlines()
             medians = [float(m.strip()) for m in medians]
 
@@ -128,7 +128,7 @@ def export_correlation_scores(cfg, classif = False):
 
         # Load targets
 
-        p = Path(cfg.data.inputs_path) / cfg.data.dataset_name.replace("_binned100","")
+        p = Path(cfg.data.inputs_path) / cfg.data.dataset_name.replace(f"_{cfg.model.num_bins}binned","")
         fulldf = pd.read_csv(p, index_col='survey_id', dtype = {22:str, 24:str, 25:str}).loc[predictions.index]
 
         dic = {}

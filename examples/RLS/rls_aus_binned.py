@@ -142,8 +142,6 @@ def main(cfg: DictConfig) -> None:
     
     if cfg.model.num_bins == 2:
         target_transform=lambda x: (x != 0).astype(float)
-    elif cfg.model.num_bins == 5:
-        target_transform=lambda x: (x+24).astype(int) // 25
     else:
         target_transform=lambda x: x.astype(int)
         
