@@ -26,6 +26,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
 
 import torch
+import torch
+
 import torch.nn as nn
 from torch import tensor
 import torchmetrics.functional as Fmetrics
@@ -74,35 +76,8 @@ def main(cfg: DictConfig) -> None:
 
     # Datamodule & Model
     datamodule = MSDataModule(**cfg.data, fold=fold)
-
-    # factory = EncoderDecoderFactory()
-    # base_model = factory.build_model(
-    #     task="classification",
-    #     backbone="prithvi_eo_v2_300",
-    #     backbone_bands=[
-    #         HLSBands.RED,
-    #         HLSBands.GREEN,
-    #         HLSBands.BLUE,
-    #         HLSBands.NIR_NARROW,
-    #         HLSBands.SWIR_1,
-    #         HLSBands.SWIR_2,
-    #     ],
-    #     backbone_freeze_backbone=True,
-    #     backbone_pretrained=True,
-    #     decoder="FCNDecoder",
-    #     num_classes=1,
-    #     backbone_in_channels=6,  # correspond aux 6 canaux des données
-    # )
-    # base_model = TerraTorchWrapper(base_model)
-
-    # # print params number of the model trainable and non trainable
-    # total_params = sum(p.numel() for p in base_model.parameters())
-    # trainable_params = sum(p.numel() for p in base_model.parameters() if p.requires_grad)
-    # print(f"Total parameters: {total_params}")
-    # print(f"Trainable parameters: {trainable_params}")
-    # model = RegressionSystem(base_model, **cfg.optim)
-
     model = RegressionSystem(cfg.model, **cfg.optim)
+
 
     # Lightning Trainer
     callbacks = [
@@ -121,6 +96,9 @@ def main(cfg: DictConfig) -> None:
 
     trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=10, callbacks=callbacks,
                          **cfg.trainer)
+
+    print(trainer.precision)
+
 
     if os.path.exists(f"{log_dir}/predictions.csv"):
         inference_data = pd.read_csv(f"{log_dir}/predictions.csv", index_col=0)
@@ -153,20 +131,6 @@ def main(cfg: DictConfig) -> None:
     #Gather prediction points over the whole dataset
     if cfg.run.predict:
         inference_data.to_csv(f"{log_dir}/predictions.csv")
-
-class TerraTorchWrapper(nn.Module):
-    def __init__(self, model):
-        super().__init__()
-        self.model = model
-
-    def forward(self, x):
-        out = self.model(x)
-        # TerraTorch ModelOutput → dictionnaire ou objet avec attribut .output
-        if isinstance(out, dict):
-            return out["output"]
-        else:
-            return out.output
-
 
 class NVTXFullCoverage(pl.Callback):
 
