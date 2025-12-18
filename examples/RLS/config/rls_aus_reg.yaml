@@ -6,9 +6,8 @@ run:
   interpretable: false
   exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/0_mm4_transductif_reg-2025-12-17_14-25/last.ckpt
-  pa_predictions_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/presences.csv
-  top100_path: null #${data.root}outputs/18_humenv_dhw_cat_pa-2025-07-11_16-53-preds/top100-f1.csv
+  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2025-12-17_18-53/last.ckpt
+  pa_predictions_path: ${data.root}outputs/37_mm4_transductif-2025-12-02_12_47/presences.csv
   finetuning_mode: null #transductive
 data:
   root: /marbec-data/RLS-Australia/malpolon/
@@ -89,7 +88,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: "mae_loss"
+  loss: "filtered_huber_loss"
   metrics:
     r2:
       callable: "Fmetrics.regression.r2_score"

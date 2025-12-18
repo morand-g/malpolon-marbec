@@ -165,6 +165,11 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
 
         predictions = reg_system.predict(datamodule, trainer)
+        
+        # Filter present
+        
+        presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
+        predictions = predictions.numpy() * presence.to_numpy()
 
         # Predictions on test subset
         datamodule.export_predictions(predictions,
