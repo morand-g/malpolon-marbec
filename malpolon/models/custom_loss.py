@@ -181,6 +181,8 @@ class ClassifMSELoss(nn.MSELoss):
 
     def forward(self, preds: Tensor, targets: Tensor) -> Tensor:
 
-        mse_loss = super().forward(preds.argmax(dim=-1), targets)
+        bin_indices = torch.arange(preds.shape[-1], device=preds.device).float()  # Shape: (num_bins,)
+        expected_bin = torch.sum(torch.softmax(preds, dim=-1) * bin_indices, dim=-1)  # Shape: (batch_size, num_bins)
+        mse_loss = super().forward(expected_bin, targets)
 
         return mse_loss
