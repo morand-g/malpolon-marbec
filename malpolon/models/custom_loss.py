@@ -171,3 +171,16 @@ class FilteredMSELoss(nn.MSELoss):
         mse_loss = super().forward(input, target)
         filtered_loss = (mse_loss * present).mean()
         return filtered_loss
+
+    
+class ClassifMSELoss(nn.MSELoss):
+
+    def __init__(self) -> None:
+
+        super().__init__()
+
+    def forward(self, preds: Tensor, targets: Tensor) -> Tensor:
+
+        mse_loss = super().forward(preds.argmax(dim=-1), targets)
+
+        return mse_loss
