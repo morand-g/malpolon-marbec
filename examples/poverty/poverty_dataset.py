@@ -263,18 +263,24 @@ class MSDataset(Dataset):
                                          str(row.year),
                                          str(row.cluster_id) + f"_{trimester}.tif"
                                          )
+                try:
 
-                with rasterio.open(tile_name) as src:
-
-                    bands = src.descriptions
-                    bands_indexes = []
-
-                    for b in SPECTRUM_ALL:
-                        bands_indexes.append(bands.index(b) + 1)
-
-                    for band in bands_indexes:
-                        layer = src.read(band)
-                        tile_t.append(layer)
+                    with rasterio.open(tile_name) as src:
+    
+                        bands = src.descriptions
+                        bands_indexes = []
+    
+                        for b in SPECTRUM_ALL:
+                            bands_indexes.append(bands.index(b) + 1)
+    
+                        for band in bands_indexes:
+                            layer = src.read(band)
+                            tile_t.append(layer)
+                            
+                except Exception as e:
+                    print(f"❌ Erreur avec l'image : {tile_name}")
+                    raise e
+                    
 
                 tile_t = np.stack(tile_t, axis=0)
                 tile_t = np.nan_to_num(tile_t)
