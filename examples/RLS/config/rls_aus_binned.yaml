@@ -29,7 +29,7 @@ model:
   num_bins: 5
   aggregator: MLP
   freeze_submodels: false
-  mse_alpha: 0.5
+  #mse_alpha: 0.5
   submodels:
     env:
       provider_name: torchvision
@@ -79,8 +79,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-3
-        weight_decay: 1e-3
+        lr: 1e-2
+        weight_decay: 1e-2
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:

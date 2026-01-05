@@ -62,7 +62,7 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         else:
             loss = F.cross_entropy(predictions, targets, reduction='mean')
 
-        if mse_alpha > 0:
+        if self.mse_alpha > 0:
             loss = (1 - self.mse_alpha) * loss + self.mse_alpha * self.mse_loss(predictions, targets)
             
         return loss
