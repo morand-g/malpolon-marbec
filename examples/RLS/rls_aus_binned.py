@@ -72,7 +72,8 @@ class PresenceSystem(GenericPredictionSystem):
         mae_decoder: bool = False,
         mae_patch_size: int = 8,
         data_sizes: Optional[Mapping] = None,
-        model = None
+        model = None,
+        mse_alpha = 0
     ):
         
         if model is None:
@@ -101,6 +102,8 @@ class PresenceSystem(GenericPredictionSystem):
                 loss_kwargs = {'num_bins': num_bins,
                        'num_species': num_species,
                        'loss_weights': None}
+                if mse_alpha > 0:
+                    loss_kwargs['mse_alpha'] = mse_alpha
             
             elif loss == "ce_and_sr_loss" and alpha is not None:
                 loss_kwargs['alpha'] = alpha

@@ -35,12 +35,16 @@ class LogSpacingLoss(nn.modules.loss._Loss):
 
 class ModifiedCELoss(nn.modules.loss._Loss):
 
-    def __init__(self, num_bins, num_species, loss_weights=None):
+    def __init__(self, num_bins, num_species, mse_alpha = 0, loss_weights=None):
         super(ModifiedCELoss, self).__init__()
 
         self.num_bins = num_bins
         self.num_species = num_species
         self.loss_weights = torch.tensor(loss_weights, dtype=torch.float32) if loss_weights is not None else None
+        
+        self.mse_alpha = mse_alpha
+        if mse_alpha > 0:
+            self.mse_loss = ClassifMSELoss()
 
     def forward(self, predictions, targets):
         """
@@ -58,6 +62,9 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         else:
             loss = F.cross_entropy(predictions, targets, reduction='mean')
 
+        if mse_alpha > 0:
+            loss = (1 - self.mse_alpha) * loss + self.mse_alpha * self.mse_loss(predictions, targets)
+            
         return loss
 
 
@@ -102,7 +109,7 @@ class SumMSELoss(nn.modules.loss._Loss):
                                 targets[mod].view(targets[mod].shape[0], -1),
                                 reduction='mean')
         
-        return loss
+        return loss  
     
 
 class CeSrLoss(nn.modules.loss._Loss):
@@ -142,7 +149,7 @@ class CeSrLoss(nn.modules.loss._Loss):
 
         return loss + self.alpha * sr_term
 
-
+    
 
 class FilteredHuberLoss(nn.HuberLoss):
 
