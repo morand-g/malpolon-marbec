@@ -29,12 +29,12 @@ model:
   num_bins: 5
   aggregator: MLP
   freeze_submodels: false
-  #mse_alpha: 0.5
+  mse_alpha: 0.5
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -45,7 +45,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -56,7 +56,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -67,7 +67,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -79,8 +79,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-2
-        weight_decay: 1e-2
+        lr: 1e-3
+        weight_decay: 1e-3
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
