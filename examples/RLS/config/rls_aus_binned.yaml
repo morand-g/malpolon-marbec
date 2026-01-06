@@ -6,12 +6,12 @@ run:
   interpretable: false
   exp_name: 39_mm4_transductif_bins
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/39_mm4_transductif_bins-2025-12-19_10-36/last.ckpt
+  checkpoint_path: null #${data.root}outputs/39_mm4_transductif_bins-2026-01-06_14-18/last.ckpt
   finetuning_mode: null # or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_common_5binned.csv
+  dataset_name: database_common_10binned.csv
   num_classes: 817
   train_batch_size: 16
   inference_batch_size: 64
@@ -26,10 +26,10 @@ trainer:
   detect_anomaly: false
 model:
   num_species: ${data.num_classes}
-  num_bins: 5
+  num_bins: 10
   aggregator: MLP
   freeze_submodels: false
-  mse_alpha: 0.5
+  mse_alpha: 0.9
   submodels:
     env:
       provider_name: torchvision
