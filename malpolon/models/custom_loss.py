@@ -46,15 +46,15 @@ class ModifiedCELoss(nn.modules.loss._Loss):
         if mse_alpha > 0:
             self.mse_loss = ClassifMSELoss()
 
-    def forward(self, predictions, targets):
+    def forward(self, preds, targs):
         """
         predictions: (batch_size, num_species, num_classes) -> Raw logits
         targets: (batch_size, num_species) -> Class indices (0 to num_classes - 1)
         """
 
         # Reshape for cross-entropy compatibility
-        predictions = predictions.view(-1, self.num_bins)  # (batch_size * num_species, num_classes)
-        targets = targets.view(-1).to(torch.int64)  # (batch_size * num_species,)
+        predictions = preds.view(-1, self.num_bins)  # (batch_size * num_species, num_classes)
+        targets = targs.view(-1).to(torch.int64)  # (batch_size * num_species,)
 
         # Apply optional class weights
         if self.loss_weights is not None:
@@ -63,7 +63,7 @@ class ModifiedCELoss(nn.modules.loss._Loss):
             loss = F.cross_entropy(predictions, targets, reduction='mean')
 
         if self.mse_alpha > 0:
-            loss = (1 - self.mse_alpha) * loss + self.mse_alpha * self.mse_loss(predictions, targets)
+            loss = (1 - self.mse_alpha) * loss + self.mse_alpha * self.mse_loss(preds, targs)
             
         return loss
 

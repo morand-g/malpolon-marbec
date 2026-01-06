@@ -1,6 +1,6 @@
 hydra:
   run:
-    dir: ${data.root}outputs/${run.run_name}
+    dir: ${data.root}local/outputs/${run.run_name}
 run:
   predict: false
   interpretable: false
@@ -29,7 +29,7 @@ model:
   num_bins: 5
   aggregator: MLP
   freeze_submodels: false
-  #mse_alpha: 0.5
+  mse_alpha: 0.5
   submodels:
     env:
       provider_name: torchvision
@@ -91,5 +91,5 @@ optim:
             monitor: loss/val
   loss: modified_ce_loss
 loggers:
-  log_dir_name: ${data.root}logs/
+  log_dir_name: ${data.root}local/logs/
 
