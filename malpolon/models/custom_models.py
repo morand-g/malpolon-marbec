@@ -244,7 +244,7 @@ class MultiModalModel(nn.Module):
     def remove_final_layer(self):
         """Remove the final layers of the model to keep only the feature extractor."""
 
-        self.aggregator_model[1] = nn.Identity()
+        self.aggregator_model[3] = nn.Identity()
 
 
     def edit_final_layer(self, new_species_num = None, cp = None):

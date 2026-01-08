@@ -10,5 +10,5 @@
 #SBATCH -e malpolon_rls.err
 
 source /home/gmorand/venvs/deepsdm2/bin/activate
-python rls_aus_binned.py -cn "rls_aus_binned"
+python rls_aus_binned.py -cn "rls_aus_binned_pa"
 #nsys profile --trace=cuda,nvtx,osrt --force-overwrite true -o profiling_test python rls_aus_binned.py -cn "rls_aus_fm"

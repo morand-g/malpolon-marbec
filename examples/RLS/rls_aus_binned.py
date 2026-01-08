@@ -204,18 +204,18 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.run.predict:
 
-        # Feature extractor only
-        # reg_system.remove_final_layer()
-        # reg_system.model.classifying = False
+        ##Feature extractor only
+        reg_system.model.remove_final_layer()
+        reg_system.model.classifying = False
 
         predictions = reg_system.predict(datamodule, trainer)
 
-        # np.save(Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir) / 'embedding.npy', predictions.numpy())
+        np.save(Path(cfg.run.checkpoint_path).parent) / 'embedding.npy', predictions.numpy())
 
         # Predictions on test subset
-        datamodule.export_predictions(predictions,
-                                      out_dir=Path(cfg.run.checkpoint_path).parent,
-                                      classif=True, out_name='predictions-probs')
+        # datamodule.export_predictions(predictions,
+        #                               out_dir=Path(cfg.run.checkpoint_path).parent,
+        #                               classif=True, out_name='predictions-probs')
 
         ### Binary
         # # Predictions on train+val subset
