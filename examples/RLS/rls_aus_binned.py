@@ -205,33 +205,33 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
 
         ##Feature extractor only
-        reg_system.model.remove_final_layer()
-        reg_system.model.classifying = False
+        # reg_system.model.remove_final_layer()
+        # reg_system.model.classifying = False
 
         predictions = reg_system.predict(datamodule, trainer)
 
-        np.save(Path(cfg.run.checkpoint_path).parent) / 'embedding.npy', predictions.numpy())
+        # np.save(Path(cfg.run.checkpoint_path).parent) / 'embedding.npy', predictions.numpy())
 
         # Predictions on test subset
-        # datamodule.export_predictions(predictions,
-        #                               out_dir=Path(cfg.run.checkpoint_path).parent,
-        #                               classif=True, out_name='predictions-probs')
+        datamodule.export_predictions(predictions,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
+                                      classif=True, out_name='predictions-probs')
 
-        ### Binary
-        # # Predictions on train+val subset
-        # cfgtrainval = copy.deepcopy(cfg)
-        # cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
+        ## Binary
+        # Predictions on train+val subset
+        cfgtrainval = copy.deepcopy(cfg)
+        cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
 
-        # tv_datamodule = RLSDataModule(**cfgtrainval.data,
-        #                        modality_names= list(cfg.model.submodels.keys()),
-        #                        target_transform=lambda x: (x != 0).astype(float))
+        tv_datamodule = RLSDataModule(**cfgtrainval.data,
+                               modality_names= list(cfg.model.submodels.keys()),
+                               target_transform=lambda x: (x != 0).astype(float))
         
-        # tv_predictions = reg_system.predict(tv_datamodule, trainer)
-        # tv_datamodule.export_predictions(tv_predictions,
-        #                               out_dir=Path(cfg.run.checkpoint_path).parent,
-        #                               classif=True, out_name='predictions-probs-trainval')
+        tv_predictions = reg_system.predict(tv_datamodule, trainer)
+        tv_datamodule.export_predictions(tv_predictions,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
+                                      classif=True, out_name='predictions-probs-trainval')
         
-        # export_f1_scores(cfg)
+        export_f1_scores(cfg)
 
         ### Classification with bins
 
