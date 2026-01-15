@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
   exp_name: 40_mm4_transductif_eco
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/38_mm4_transductif_reg-2025-12-18_11-07/last.ckpt
+  checkpoint_path: ${data.root}outputs/40_mm4_transductif_eco-2026-01-15_15-29/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences.csv
   finetuning_mode: null #transductive
 data:
@@ -88,7 +88,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: "huber_loss"
+  loss: "mse_loss"
   metrics:
     r2:
       callable: "Fmetrics.regression.r2_score"

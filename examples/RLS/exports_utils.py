@@ -106,7 +106,12 @@ def export_correlation_scores(cfg, classif = False):
     # Load targets
 
     p = Path(cfg.data.inputs_path) / cfg.data.dataset_name
-    fulldf = pd.read_csv(p, index_col='survey_id', dtype = {22:str, 24:str, 25:str}).loc[predictions.index]
+    
+    try:
+        fulldf = pd.read_csv(p, index_col='survey_id', dtype = {22:str, 24:str, 25:str}).loc[predictions.index]
+    except IndexError:
+        fulldf = pd.read_csv(p, index_col='survey_id').loc[predictions.index]
+        
     
     dic = {}
     for s in predictions.columns:
