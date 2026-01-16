@@ -235,7 +235,7 @@ def main(cfg: DictConfig) -> None:
 
         ### Classification with bins
 
-        export_correlation_scores(cfg, classif = True)
+        # export_correlation_scores(cfg, classif = True)
 
 
         if cfg.run.interpretable:
