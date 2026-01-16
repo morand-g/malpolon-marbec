@@ -12,7 +12,7 @@ run:
 data:
   root: /marbec-data/RLS-Australia/malpolon/
   inputs_path: ${data.root}inputs/australia
-  dataset_name: database_common.csv
+  dataset_name: eco_indic_norm.csv
   num_classes: 5
   train_batch_size: 16
   inference_batch_size: 64
