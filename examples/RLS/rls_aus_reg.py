@@ -25,7 +25,7 @@ import torch
 
 import numpy as np
 
-from .exports_utils import *
+from exports_utils import *
 
 OmegaConf.register_new_resolver("eval", eval)
 
