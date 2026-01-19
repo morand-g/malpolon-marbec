@@ -6,8 +6,7 @@ Adapted from: examples/benchmarks/geolifeclef/geolifeclef2022/cnn_on_rgb_tempera
 
 
 from pathlib import Path
-from shutil import copy2
-from typing import Callable, Mapping, Optional, Union
+from typing import Mapping, Optional, Union
 
 import hydra
 
@@ -23,40 +22,12 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
-from torch import nn
 
-import torchmetrics.functional as Fmetrics
 import numpy as np
-import copy
 
 from exports_utils import *
 
-
-
 OmegaConf.register_new_resolver("eval", eval)
-
-
-
-def get_custom_metric(nbins, average_type):
-
-    def custom_metric(predictions, target):
-
-        predictions = predictions.argmax(dim=-1)
-        return Fmetrics.classification.multiclass_accuracy(predictions, target, num_classes=nbins, average=average_type)
-
-    return custom_metric
-
-
-
-def dictMSE(predictions, targets):
-
-        loss = 0
-        
-        for mod in targets:
-            loss += Fmetrics.mean_squared_error(predictions[mod].flatten(),
-                                                targets[mod].flatten())
-        
-        return loss / len(targets)
 
 
 class AbundanceSystem(GenericPredictionSystem):
@@ -91,8 +62,6 @@ class AbundanceSystem(GenericPredictionSystem):
         self.model = model
         self.mae_decoder = False
             
-
-
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_reg")
