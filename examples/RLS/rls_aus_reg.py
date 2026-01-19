@@ -30,6 +30,17 @@ from exports_utils import *
 OmegaConf.register_new_resolver("eval", eval)
 
 
+def dictMSE(predictions, targets):
+
+        loss = 0
+        
+        for mod in targets:
+            loss += Fmetrics.mean_squared_error(predictions[mod].flatten(),
+                                                targets[mod].flatten())
+        
+        return loss / len(targets)
+    
+
 class AbundanceSystem(GenericPredictionSystem):
     def __init__(
         self,
