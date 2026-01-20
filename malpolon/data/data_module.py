@@ -335,6 +335,7 @@ class RLSDataset(Dataset):
         transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
         mae_decoder: bool = False,
+        ignore_layer: str = None,
         **kwargs,
     ):
         root = Path(root)
@@ -354,6 +355,7 @@ class RLSDataset(Dataset):
         self.training = subset != "test"
         self.num_classes = num_classes
         self.mae_decoder = mae_decoder
+        self.ignore_layer = ignore_layer
 
         df = self._load_observation_data()
         self.survey_ids = df.index
@@ -470,6 +472,10 @@ class RLSDataset(Dataset):
 
         for n in data:
             patches[n] = self.load_modality(survey_id, inputs_path, n)
+            
+        if self.ignore_layer is not None:
+            mod, num = self.ignore_layer.split('_')
+            patches[mod][int(num),:,:] = 0
 
         return patches
 
@@ -532,6 +538,7 @@ class RLSDataModule(BaseDataModule):
         modality_names: Optional[dict[str, str]] = ["env", "hum", "sat"],
         mask_inputs: float = 0.0,
         mae_patch_size: int = 4,
+        ignore_layer: str = None,
     ):
         super().__init__(train_batch_size, inference_batch_size, num_workers)
         self.dataset_name = dataset_name
@@ -542,6 +549,7 @@ class RLSDataModule(BaseDataModule):
         self.modality_names = modality_names
         self.mask_inputs = mask_inputs
         self.patch_size = mae_patch_size
+        self.ignore_layer = ignore_layer
 
         self.general_transform = self.basic_transform
         
@@ -656,7 +664,8 @@ class RLSDataModule(BaseDataModule):
             patch_data=self.modality_names,
             transform=transform,
             target_transform=self.target_transform,
-            mae_decoder=self.mask_inputs > 0.0,    
+            mae_decoder=self.mask_inputs > 0.0,
+            ignore_layer=self.ignore_layer,
             **kwargs
         )
         return dataset

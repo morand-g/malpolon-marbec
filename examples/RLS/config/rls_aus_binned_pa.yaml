@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  predict: false
   interpretable: false
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/37_mm4_transductif-2026-01-16_11-18/last.ckpt
+  checkpoint_path: null #${data.root}outputs/37_mm4_transductif-2026-01-16_11-18/last.ckpt
   finetuning_mode: null # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
@@ -16,6 +16,7 @@ data:
   train_batch_size: 16
   inference_batch_size: 64
   num_workers: 2
+  ignore_layer: humhd_3
 trainer:
   accelerator: auto
   devices: auto
