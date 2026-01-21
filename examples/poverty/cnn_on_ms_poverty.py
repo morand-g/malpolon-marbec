@@ -94,7 +94,7 @@ def main(cfg: DictConfig) -> None:
         LearningRateMonitor()
     ]
 
-    trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=10, callbacks=callbacks,
+    trainer = pl.Trainer(logger=[logger_csv, logger_tb], log_every_n_steps=10, callbacks=callbacks, accumulate_grad_batches=16,
                          **cfg.trainer)
 
     print(trainer.precision)
