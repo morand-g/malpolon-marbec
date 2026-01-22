@@ -1,12 +1,12 @@
 hydra:
   run:
-    dir: ${data.root}local/outputs/${run.run_name}
+    dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
   exp_name: 39_mm4_transductif_bins
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/39_mm4_transductif_bins-2026-01-06_14-18/last.ckpt
+  checkpoint_path: ${data.root}outputs/39_mm4_transductif_bins-2026-01-22_16-30/last.ckpt
   finetuning_mode: null # or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
@@ -28,13 +28,13 @@ model:
   num_species: ${data.num_classes}
   num_bins: 10
   aggregator: MLP
-  freeze_submodels: false
-  mse_alpha: 0.9
+  freeze_submodels: true
+  mse_alpha: 0.18
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -45,7 +45,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -56,7 +56,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -67,7 +67,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -91,5 +91,5 @@ optim:
             monitor: loss/val
   loss: modified_ce_loss
 loggers:
-  log_dir_name: ${data.root}local/logs/
+  log_dir_name: ${data.root}logs/
 
