@@ -9,6 +9,7 @@ from pathlib import Path
 from shutil import copy2
 from typing import Callable, Mapping, Optional, Union
 
+from examples.RLS.exports_utils import export_f1_scores
 import hydra
 
 from malpolon.data.data_module import RLSDataModule
@@ -204,50 +205,57 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.run.predict:
 
-        # Feature extractor only
-        reg_system.model.remove_final_layer()
-        reg_system.model.classifying = False
 
-        predictions = reg_system.predict(datamodule, trainer)
+        if cfg.run.embeddings:
+            # Feature extractor only
 
-        np.save(Path(cfg.run.checkpoint_path).parent / 'embedding.npy', predictions.numpy())
+            reg_system.model.remove_final_layer()
+            reg_system.model.classifying = False
 
-        cfgtrainval = copy.deepcopy(cfg)
-        cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
+            predictions = reg_system.predict(datamodule, trainer)
 
-        tv_datamodule = RLSDataModule(**cfgtrainval.data,
-                                modality_names= list(cfg.model.submodels.keys()),
-                                target_transform=lambda x: (x != 0).astype(float))
-        
-        tv_predictions = reg_system.predict(tv_datamodule, trainer)
+            np.save(Path(cfg.run.checkpoint_path).parent / 'embedding.npy', predictions.numpy())
 
-        np.save(Path(cfg.run.checkpoint_path).parent / 'embedding_trainval.npy', tv_predictions.numpy())
+            cfgtrainval = copy.deepcopy(cfg)
+            cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
 
+            tv_datamodule = RLSDataModule(**cfgtrainval.data,
+                                    modality_names= list(cfg.model.submodels.keys()),
+                                    target_transform=lambda x: (x != 0).astype(float))
+            
+            tv_predictions = reg_system.predict(tv_datamodule, trainer)
 
-        # # Predictions on test subset
-        # datamodule.export_predictions(predictions,
-        #                               out_dir=Path(cfg.run.checkpoint_path).parent,
-        #                               classif=True, out_name='predictions-probs')
+            np.save(Path(cfg.run.checkpoint_path).parent / 'embedding_trainval.npy', tv_predictions.numpy())
 
-        # ## Binary
-        # # Predictions on train+val subset
-        # cfgtrainval = copy.deepcopy(cfg)
-        # cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
+        else:
+            predictions = reg_system.predict(datamodule, trainer)
 
-        # tv_datamodule = RLSDataModule(**cfgtrainval.data,
-        #                         modality_names= list(cfg.model.submodels.keys()),
-        #                         target_transform=lambda x: (x != 0).astype(float))
-        
-        # tv_predictions = reg_system.predict(tv_datamodule, trainer)
-        # tv_datamodule.export_predictions(tv_predictions,
-        #                                out_dir=Path(cfg.run.checkpoint_path).parent,
-        #                                classif=True, out_name='predictions-probs-trainval')
-        
-        # export_f1_scores(cfg)
+            # Predictions on test subset
+            datamodule.export_predictions(predictions,
+                                        out_dir=Path(cfg.run.checkpoint_path).parent,
+                                        classif=True, out_name='predictions-probs')
 
-        ### Classification with bins
+            ## Binary
+            # Predictions on train+val subset
+            cfgtrainval = copy.deepcopy(cfg)
+            cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
 
-        #export_correlation_scores(cfg, classif = True)
+            tv_datamodule = RLSDataModule(**cfgtrainval.data,
+                                    modality_names= list(cfg.model.submodels.keys()),
+                                    target_transform=lambda x: (x != 0).astype(float))
+            
+            tv_predictions = reg_system.predict(tv_datamodule, trainer)
+            tv_datamodule.export_predictions(tv_predictions,
+                                        out_dir=Path(cfg.run.checkpoint_path).parent,
+                                        classif=True, out_name='predictions-probs-trainval')
+            
+            if cfg.model.num_bins == 2:
+
+                export_f1_scores(cfg)
+
+            else:
+
+                export_correlation_scores(cfg, classif = True)
 
 
         if cfg.run.interpretable:
