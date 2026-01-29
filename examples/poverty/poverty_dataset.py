@@ -1,11 +1,9 @@
-
 import os
 import json
 from typing import Callable, Any, Union
 from pathlib import Path
 
 import numpy as np
-import rasterio
 import pandas as pd
 
 import matplotlib.pyplot as plt
@@ -17,12 +15,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torchvision
 
-from tqdm import tqdm
-
 from torch.cuda import nvtx
-
-import idr_torch 
-
 
 from malpolon.data.data_module import BaseDataModule
 
@@ -71,17 +64,14 @@ class MSDataModule(BaseDataModule):
     @property
     def train_transform(self) -> Callable:
         return torchvision.transforms.Compose([
-            torchvision.transforms.CenterCrop(224),
             torchvision.transforms.RandomHorizontalFlip(),
             torchvision.transforms.RandomVerticalFlip(),
-            torchvision.transforms.Normalize(mean=self.dict_normalize["mean"], std=self.dict_normalize["std"]),
         ])
 
     @property
     def test_transform(self) -> Callable:
         return torchvision.transforms.Compose([
             torchvision.transforms.CenterCrop(224),
-            torchvision.transforms.Normalize(mean=self.dict_normalize['mean'], std=self.dict_normalize['std']),
         ])
 
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
@@ -191,7 +181,7 @@ class MSDataset(Dataset):
         Rasters were previously downloaded from Microsoft Planetary Computer.
         Images contain 16 bands, all consigned in the SPECTRUM_ALL variable."""
 
-    def __init__(self, root_dir, labels_name, fold, split,  nature="composite",  nightlight=None, transform=None):
+    def __init__(self, root_dir, labels_name, fold, split, nature="composite",  nightlight=None, transform=None):
         """
         Args:
             root_dir (string): Directory with all the images
@@ -206,109 +196,49 @@ class MSDataset(Dataset):
                             'y': 'lat',
                             'IWI': 'iwi'}
 
+        self.memmap_path = os.path.join(root_dir, f"{nature}.dat")
+
         self.dataframe = self._load_observation_data(root_dir, labels_name, split, obs_data_columns, fold)
         self.root_dir = root_dir
         self.nature = nature
         self.nightlight = nightlight
         self.transform = transform
+        self.X = None
 
+    def _lazy_init(self):
+        n = self.dataframe.shape[0]
+        c = 16 if self.nature == "composite" else 64
+        c += 1 if self.nightlight else 0
+        h = 224
+        w = 224
+
+        if self.X is None:
+            self.X = np.memmap(
+                self.memmap_path,
+                dtype=np.float32,
+                mode="r",
+                shape=(n, c, h, w)
+            )
 
     def __len__(self):
         return len(self.dataframe)
 
     def __getitem__(self, idx):
 
-        row = self.dataframe.iloc[idx]
+        self._lazy_init()
 
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
         row = self.dataframe.iloc[idx]
-        value = row.iwi.astype('float')
+        y = row.iwi.astype('float')
 
-        if self.nature == 'composite':
+        x = self.X[idx].copy()
+        x = torch.from_numpy(x)
 
-            tile = []
-            tile_name = os.path.join(self.root_dir,
-                                     str(row.country.lower()),
-                                     str(row.year),
-                                     str(row.cluster_id) + ".tif"
-                                     )
+        y = torch.tensor(y, dtype=torch.float32).unsqueeze(-1)
 
-            with rasterio.open(tile_name) as src:
-
-                bands = src.descriptions
-                bands_indexes = []
-
-                for b in SPECTRUM_ALL:
-                    bands_indexes.append(bands.index(b) + 1)
-
-                for band in bands_indexes:
-                    layer = src.read(band)
-                    tile.append(layer)
-
-            tile = np.stack(tile, axis=0)
-            tile = np.nan_to_num(tile)
-            tile = self.transform(torch.tensor(tile, dtype=torch.float32))
-
-        elif self.nature == 'seasonal':
-
-            tile = torch.empty((0, 224, 224), dtype=torch.float32)
-
-            for trimester in range(1, 5):
-
-                tile_t = []
-                tile_name = os.path.join(self.root_dir,
-                                         str(row.country).lower(),
-                                         str(row.year),
-                                         str(row.cluster_id) + f"_{trimester}.tif"
-                                         )
-                try:
-
-                    with rasterio.open(tile_name) as src:
-    
-                        bands = src.descriptions
-                        bands_indexes = []
-    
-                        for b in SPECTRUM_ALL:
-                            bands_indexes.append(bands.index(b) + 1)
-    
-                        for band in bands_indexes:
-                            layer = src.read(band)
-                            tile_t.append(layer)
-                            
-                except Exception as e:
-                    print(f"❌ Erreur avec l'image : {tile_name}")
-                    raise e
-                    
-
-                tile_t = np.stack(tile_t, axis=0)
-                tile_t = np.nan_to_num(tile_t)
-                tile_t = self.transform(torch.tensor(tile_t, dtype=torch.float32))
-                tile = torch.concat((tile, tile_t), dim=0)
-
-        if self.nightlight:
-            tile_name = os.path.join(self.root_dir,
-                                     f"../HREA/{self.nightlight}",
-                                     str(row.country),
-                                     str(row.year),
-                                     str(row.cluster_id) + ".tif"
-                                     )
-
-            with rasterio.open(tile_name) as src:
-                layer = src.read(1)
-            tile_n = np.nan_to_num(layer)
-            transforms = torchvision.transforms.Compose([
-                torchvision.transforms.CenterCrop(224),
-                torchvision.transforms.RandomHorizontalFlip(),
-                torchvision.transforms.RandomVerticalFlip(),
-            ])
-            tile_n = transforms(torch.tensor(tile_n, dtype=torch.float32).unsqueeze(0))
-            tile = torch.concat((tile, tile_n), dim=0)
-
-        value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
-
-        return tile, value
+        return x, y
 
 
 
@@ -316,18 +246,16 @@ class MSDataset(Dataset):
         self,
         root: str = None,
         obs_fn: str = None,
-        subsets: str = ['train', 'test', 'val'],
-        keys: dict = {'x': 'lon',
-                      'y': 'lat',
-                      'IWI': 'iwi'},
-        folds: dict = {}
+        subsets: str = "all",
+        keys: dict = None,
+        fold: dict = None
     ) -> pd.DataFrame:
         """Load observation data from a CSV file.
 
         Reads values from a CSV file containing lon/lat coordinates,
-        species id (labels) and dataset subset info (train/test/val).
+        IWI and dataset subset info (train/test/val).
         The associated columns must have the following values:
-        ['longitude', 'latitude', 'speciesId', 'subset']
+        ['longitude', 'latitude', 'IWI', 'subset']
 
         If no value is given to root or obs_fn, the method returns an
         empty labels DataFrame.
@@ -347,26 +275,20 @@ class MSDataset(Dataset):
         pd.DataFrame
             labels DataFrame
         """
+
         x_key, y_key = keys['x'], keys['y']
         iwi_key = keys['IWI']
 
-        if any([root is None, obs_fn is None]):
-            df = pd.DataFrame(columns=[x_key, y_key, iwi_key])
-            df = df.iloc[folds[subsets]]
-            self.observation_ids = df.index
-            self.coordinates = df[["lon", "lat"]].values
-            self.targets = df["IWI"].values
-            return df
         labels_fp = obs_fn if len(obs_fn.split('.csv')) >= 2 else f'{obs_fn}.csv'
         labels_fp = root + labels_fp
         labels_fp = Path(labels_fp)
+
         df = pd.read_csv(
             labels_fp,
             sep=";",
         )
-        self.unique_labels = np.sort(np.unique(df[iwi_key]))
 
-        df = df.iloc[folds[subsets]] if subsets!="all" else df
+        df = df.iloc[fold[subsets]] if subsets != "all" else df
 
         self.observation_ids = df.index
         self.coordinates = df[[x_key, y_key]].values
@@ -382,7 +304,9 @@ class MSDataset(Dataset):
         provider's __get__() method.
 
         Args:
-            item (dict): provider's get index.
+            idx (int): index of the patch to plot
+            rgb (bool): if True, plot the RGB rendering of the patch.
+                If False, plot all layers of the patch.
         """
 
         patch, value = self.__getitem__(idx)
@@ -393,7 +317,7 @@ class MSDataset(Dataset):
 
         if rgb:
             patch_rgb = patch[[0, 1, 2], :, :]
-            img_rgb = patch_rgb.permute(1, 2, 0).numpy()
+            img_rgb = np.transpose(patch_rgb, (1, 2, 0))
             img_rgb = (img_rgb - img_rgb.min()) / (img_rgb.max() - img_rgb.min())
 
             # Plot the image
