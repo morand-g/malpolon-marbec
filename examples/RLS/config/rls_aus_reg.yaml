@@ -2,11 +2,11 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: false
+  predict: true
   interpretable: false
   exp_name: 40_mm4_transductif_eco
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/40_mm4_transductif_eco-2026-01-27_17-06/last.ckpt
+  checkpoint_path: ${data.root}outputs/40_mm4_transductif_eco-2026-01-29_16-49/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences.csv
   finetuning_mode: null # transductive
 data:
@@ -78,8 +78,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-5
-        weight_decay: 1e-5
+        lr: 1e-4
+        weight_decay: 1e-4
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
