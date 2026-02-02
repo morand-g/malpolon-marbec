@@ -111,7 +111,8 @@ def main(cfg: DictConfig) -> None:
                                                       hparams_preprocess=False,
                                                       weights_dir=log_dir_fold,
                                                       loss=cfg.optim.loss,
-                                                      metrics=cfg.optim.metrics)
+                                                      metrics=cfg.optim.metrics,
+                                                      strict=True,)
 
         # Save prediction points for each fold
         predictions = model.predict(datamodule, trainer)
@@ -124,7 +125,15 @@ def main(cfg: DictConfig) -> None:
         inference_data = pd.concat([inference_data, df_predictions])
 
     else:
-        if cfg.run.checkpoint_path:trainer.fit(model, datamodule=datamodule, ckpt_path=cfg.run.checkpoint_path)
+        if cfg.run.checkpoint_path:
+            model = RegressionSystem.load_from_checkpoint(cfg.run.checkpoint_path,
+                                                      model=model.model,
+                                                      hparams_preprocess=False,
+                                                      weights_dir=log_dir_fold,
+                                                      loss=cfg.optim.loss,
+                                                      metrics=cfg.optim.metrics,
+                                                         strict=True,)
+            trainer.fit(model, datamodule=datamodule)
         else:trainer.fit(model, datamodule=datamodule)
         trainer.test(model, datamodule=datamodule)
 

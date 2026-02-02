@@ -10,17 +10,17 @@ run:
 
 
 data:
-  dataset_path: ../../../images/
-  labels_name: landsat.csv
-  train_batch_size: 64
-  inference_batch_size: 64
-  num_workers: 4
+  dataset_path: ../../../images/seasonal
+  labels_name: /../common_seasonal_composite.csv
+  train_batch_size: 2
+  inference_batch_size: 2
+  num_workers: 8
   val_split: 0.2
   test_split: 0.2
-  nature: composite
+  nature: seasonal
   nightlight:
   dict_normalize: mean_std_normalize_all.json
-  fold_path: folds_landsat.pkl
+  fold_path: folds_all.pkl
 
 task:
   task: regression
