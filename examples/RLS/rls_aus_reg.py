@@ -88,10 +88,17 @@ def main(cfg: DictConfig) -> None:
                                              default_hp_metric=False)
     logger_tb.log_hyperparams(cfg)
 
+    if "database" in cfg.data.dataset_name:
+        # Using species biomass
+        target_transform=lambda x: np.log(x+1)
+    else:
+        # Eco indicators
+        target_transform=None
+        
     # Datamodule & Model
     datamodule = RLSDataModule(**cfg.data,
                                modality_names= list(cfg.model.submodels.keys()),
-                               target_transform=lambda x: np.log(x+1))
+                               target_transform=target_transform)
     
     if cfg.run.checkpoint_path is not None:
         
