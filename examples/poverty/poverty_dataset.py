@@ -75,8 +75,9 @@ class MSDataModule(BaseDataModule):
         ])
 
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
+        dataset = MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
                          nightlight= self.nightlight, transform=transform)
+        return dataset
 
     def get_all_dataset(self) -> Dataset:
         """Call self.get_dataset to return the whole dataset.
@@ -110,11 +111,11 @@ class MSDataModule(BaseDataModule):
 
     def train_dataloader(self):
         return DataLoader(self.get_train_dataset(), batch_size=self.train_batch_size, shuffle=True,
-                          num_workers=self.num_workers, persistent_workers=True,prefetch_factor=4, pin_memory=True)
+                          num_workers=0, persistent_workers=False, pin_memory=False)
 
     def val_dataloader(self):
         return DataLoader(self.get_val_dataset(), batch_size=self.train_batch_size, shuffle=False,
-                          num_workers=self.num_workers, persistent_workers=True,prefetch_factor=4, pin_memory=True)
+                          num_workers=0, persistent_workers=False, pin_memory=False)
 
 
     def all_dataloader(self):
@@ -203,29 +204,24 @@ class MSDataset(Dataset):
         self.nature = nature
         self.nightlight = nightlight
         self.transform = transform
-        self.X = None
 
-    def _lazy_init(self):
         n = self.dataframe.shape[0]
         c = 16 if self.nature == "composite" else 64
         c += 1 if self.nightlight else 0
         h = 224
         w = 224
 
-        if self.X is None:
-            self.X = np.memmap(
-                self.memmap_path,
-                dtype=np.float32,
-                mode="r",
-                shape=(n, c, h, w)
-            )
+        self.X = np.memmap(
+            self.memmap_path,
+            dtype=np.float32,
+            mode="r",
+            shape=(n, c, h, w)
+        )
 
     def __len__(self):
         return len(self.dataframe)
 
     def __getitem__(self, idx):
-
-        self._lazy_init()
 
         if torch.is_tensor(idx):
             idx = idx.tolist()

@@ -12,8 +12,8 @@ run:
 data:
   dataset_path: ../../../images/seasonal
   labels_name: /../common_seasonal_composite.csv
-  train_batch_size: 2
-  inference_batch_size: 2
+  train_batch_size: 64
+  inference_batch_size: 64
   num_workers: 8
   val_split: 0.2
   test_split: 0.2

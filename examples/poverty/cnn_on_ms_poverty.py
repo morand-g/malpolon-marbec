@@ -85,8 +85,10 @@ def main(cfg: DictConfig) -> None:
         ModelCheckpoint(
             dirpath=log_dir_fold,
             filename="{epoch:02d}-{step}-{" + f"{next(iter(model.metrics.keys()))}_val" + ":.4f}",
-            mode="max",
+            monitor="loss/val",
+            mode="min",
             save_on_train_epoch_end=True,
+            save_top_k=2,
             save_last=True,
             every_n_train_steps=10,
         ),
