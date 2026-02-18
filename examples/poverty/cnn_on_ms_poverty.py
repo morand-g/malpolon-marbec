@@ -12,26 +12,12 @@ import os
 import random
 
 import pandas as pd
-import matplotlib.pyplot as plt
-
-from torch.cuda import nvtx
-
 import hydra
 import lightning.pytorch as pl
 from omegaconf import DictConfig
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 
-# from terratorch.models import EncoderDecoderFactory
-# from terratorch.datasets import HLSBands
-
-
 import torch
-import torch
-
-import torch.nn as nn
-from torch import tensor
-import torchmetrics.functional as Fmetrics
-
 torch.set_float32_matmul_precision('medium')
 
 
@@ -84,7 +70,7 @@ def main(cfg: DictConfig) -> None:
         Summary(),
         ModelCheckpoint(
             dirpath=log_dir_fold,
-            filename="{epoch:02d}-{step}-{" + f"{next(iter(model.metrics.keys()))}_val" + ":.4f}",
+            filename="{epoch:02d}-{step}",
             monitor="loss/val",
             mode="min",
             save_on_train_epoch_end=True,
@@ -92,7 +78,6 @@ def main(cfg: DictConfig) -> None:
             save_last=True,
             every_n_train_steps=10,
         ),
-        NVTXFullCoverage(),
         LearningRateMonitor()
     ]
 
@@ -143,22 +128,6 @@ def main(cfg: DictConfig) -> None:
     if cfg.run.predict:
         inference_data.to_csv(f"{log_dir}/predictions.csv")
 
-class NVTXFullCoverage(pl.Callback):
-
-    def on_train_epoch_start(self, trainer, pl_module):
-        nvtx.range_push("train_epoch")
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        nvtx.range_pop()
-
-    # Backward
-    def on_before_backward(self, trainer, pl_module, loss):
-        nvtx.range_push("backward")
-
-    def on_after_backward(self, trainer, pl_module):
-        nvtx.range_pop()
-
-
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
@@ -176,6 +145,8 @@ def plot_dataset(cfg: DictConfig) -> None:
     datamodule = MSDataModule(**cfg.data, **cfg.task)
     dataset = datamodule.get_all_dataset()
     idx = random.randint(0, len(dataset)-1)
+
+    print(f"Plotting sample {idx} from the dataset.")
 
     dataset.plot(idx, True)
     dataset.plot(idx, False)
