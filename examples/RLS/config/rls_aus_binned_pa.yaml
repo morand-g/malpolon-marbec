@@ -3,7 +3,7 @@ hydra:
     dir: ${data.root}outputs/${run.run_name}
 run:
   predict: true
-  embeddings: true
+  embeddings: false
   interpretable: false
   exp_name: 37_mm4_transductif
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
@@ -11,13 +11,13 @@ run:
   finetuning_mode: null # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/australia/
-  dataset_name: database_common.csv
+  inputs_path: ${data.root}inputs/australiapreds/
+  dataset_name: auspredgrid.csv
   num_classes: 817
   train_batch_size: 16
   inference_batch_size: 64
   num_workers: 2
-  ignore_layer: humhd_3
+  ignore_layer: null
 trainer:
   accelerator: auto
   devices: auto
@@ -35,7 +35,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -46,7 +46,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -57,7 +57,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -68,7 +68,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:

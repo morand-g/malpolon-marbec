@@ -365,9 +365,10 @@ class RLSDataset(Dataset):
             first_species_index = list(df.columns).index('eventDate') + 1
             self.species = df.columns[first_species_index:]
 
-            assert len(self.species) == num_classes
-
             if self.training:
+                
+                assert len(self.species) == num_classes
+                
                 self.targets = df[self.species].values.astype(np.float32)
 
                 if self.target_transform:
@@ -692,7 +693,7 @@ class RLSDataModule(BaseDataModule):
 
         """ get input data sizes per modality """
 
-        ds = self.get_dataset("train", transform=self.train_transform)
+        ds = self.get_dataset("test", transform=self.train_transform)
 
         data_sizes = {}
 

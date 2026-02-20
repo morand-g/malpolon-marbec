@@ -164,7 +164,7 @@ def main(cfg: DictConfig) -> None:
                                       out_name='predictions-biomass')
         
         
-        export_correlation_scores(cfg)
+        #export_correlation_scores(cfg)
 
     else:
         

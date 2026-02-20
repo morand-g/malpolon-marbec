@@ -6,13 +6,14 @@ run:
   interpretable: false
   exp_name: 40_mm4_transductif_eco
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/40_mm4_transductif_eco-2026-01-30_14-44/last.ckpt
+  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2025-12-17_15-41
+/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences.csv
   finetuning_mode: null # transductive
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/australia
-  dataset_name: eco_indic_norm.csv
+  inputs_path: ${data.root}inputs/australiapreds
+  dataset_name: auspredgrid_eco.csv
   num_classes: 3
   train_batch_size: 32
   inference_batch_size: 64
