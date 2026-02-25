@@ -9,6 +9,9 @@ from scipy.stats import pearsonr, spearmanr
 from scipy.optimize import minimize_scalar
 from captum.attr import IntegratedGradients, Saliency
 
+import rasterio
+from rasterio.transform import from_origin
+
 
 def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
 
@@ -144,3 +147,43 @@ def export_correlation_scores(cfg, classif = False):
         scores = pd.DataFrame(dic).T
         scores.sort_values(ascending=False, by='pearsonr', inplace = True)
         scores.to_csv(output_path / f"testR2median--.4rank={len(scores[scores['pearsonr']>=0.4])}.csv")
+
+
+
+def export_map(predictions, var_name, out_path, filename):
+
+    RES = 0.1
+
+    min_lat, max_lat = predictions['latitude'].min() - 1, predictions['latitude'].max() + 1
+    min_lon, max_lon = predictions['longitude'].min() - 1, predictions['longitude'].max() + 1
+
+    # Create a regular grid over the extent
+    grid_lon = np.arange(min_lon + .5*RES, max_lon + .5*RES, RES)
+    grid_lat = np.arange(min_lat + .5*RES, max_lat + .5*RES, RES)
+    grid_lon, grid_lat = np.meshgrid(grid_lon, grid_lat)
+
+    grid_values = np.full(grid_lon.shape, np.nan) 
+
+    # Convert point data to grid coordinates
+    x = ((predictions['longitude'] - min_lon) / RES).round().astype(int)
+    y = ((predictions['latitude'] - min_lat) / RES).round().astype(int)
+    grid_values[y, x] = predictions[var_name].to_numpy()
+    data = np.floor(255*np.flipud(grid_values))
+
+
+    # Write raster
+    transform = from_origin(min_lon, max_lat, RES, RES)
+    dst = rasterio.open(Path(out_path,f'{filename}.tif'), 'w', driver='GTiff',
+                        height = data.shape[0], width = data.shape[1],
+                        dtype=str(data.dtype),
+                        count=1,
+                        crs='epsg:4326',
+                        transform=transform,
+                        nodata=np.nan,
+                        compress='lzw')
+
+    dst.write(data, indexes=1)
+    dst.close()
+
+
+    # Write png
