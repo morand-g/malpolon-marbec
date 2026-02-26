@@ -154,19 +154,19 @@ def export_map(predictions, var_name, out_path, filename):
 
     RES = 0.1
 
-    min_lat, max_lat = predictions['latitude'].min() - 1, predictions['latitude'].max() + 1
-    min_lon, max_lon = predictions['longitude'].min() - 1, predictions['longitude'].max() + 1
+    min_lat, max_lat = predictions['latitude'].min() - 1 - 0.5*RES, predictions['latitude'].max() + 1 - 0.5*RES
+    min_lon, max_lon = predictions['longitude'].min() - 1 - 0.5*RES, predictions['longitude'].max() + 1 - 0.5*RES
 
     # Create a regular grid over the extent
-    grid_lon = np.arange(min_lon + .5*RES, max_lon + .5*RES, RES)
-    grid_lat = np.arange(min_lat + .5*RES, max_lat + .5*RES, RES)
+    grid_lon = np.linspace(min_lon, max_lon, 1+int((max_lon - min_lon) / RES), endpoint=True)
+    grid_lat = np.linspace(min_lat, max_lat, 1+int((max_lat - min_lat) / RES), endpoint=True)
     grid_lon, grid_lat = np.meshgrid(grid_lon, grid_lat)
 
     grid_values = np.full(grid_lon.shape, np.nan) 
 
     # Convert point data to grid coordinates
-    x = ((predictions['longitude'] - min_lon) / RES).round().astype(int)
-    y = ((predictions['latitude'] - min_lat) / RES).round().astype(int)
+    x = (np.floor((predictions['longitude'].values - min_lon) / RES).astype(int))
+    y = (np.ceil((predictions['latitude'].values - min_lat) / RES).astype(int))
     grid_values[y, x] = predictions[var_name].to_numpy()
     data = np.floor(255*np.flipud(grid_values))
 
