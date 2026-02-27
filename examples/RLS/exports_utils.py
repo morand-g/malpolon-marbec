@@ -11,6 +11,8 @@ from captum.attr import IntegratedGradients, Saliency
 
 import rasterio
 from rasterio.transform import from_origin
+from rasterio.plot import show as rioshow
+import matplotlib.pyplot as plt
 
 
 def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
@@ -186,4 +188,40 @@ def export_map(predictions, var_name, out_path, filename):
     dst.close()
 
 
-    # Write png
+
+def convert_to_png(input_dir, input_file):
+
+    date = input_file.split('_')[-1].replace('.tif', '')
+
+    with rasterio.open('/home/gaetan/Downloads/oceans50m.tiff') as src:
+
+        oceans = src.read(1)
+        ocean_transform = src.transform
+
+    # Open raster
+    with rasterio.open(Path(input_dir) / input_file) as src:
+
+        fig = plt.figure(frameon=False, figsize=(40, 40 * oceans.shape[0] / oceans.shape[1]))
+        ax = fig.add_axes([0., 0., 1., 1.])
+        ax.set_axis_off()
+
+        # Plot background
+        rioshow(oceans, transform=ocean_transform, vmin=0, vmax = 1, cmap='gray', ax = ax)
+
+        # Plot raster
+        ret = rioshow(src, ax=ax,cmap='turbo')
+
+        im = ret.get_images()[-1]
+        cax = fig.add_axes([0, 0, 0.1, 1])
+        cax.set_axis_off()  
+        cbar = fig.colorbar(im, ax=cax)
+        cbar.ax.tick_params(labelsize=40)
+        cbar.ax.tick_params(length=10, width=2)
+        
+        fig.text(   0.05, 0.95,
+                    date,
+                    ha='left', va='top',
+                    fontsize=40
+                )
+        
+        plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
