@@ -1,0 +1,9 @@
+torch
+hydra-core
+lightning
+matplotlib
+rasterio
+torchgeo
+scikit-learn
+scipy
+captum
