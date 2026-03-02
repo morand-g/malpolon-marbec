@@ -4,8 +4,9 @@
 #SBATCH --job-name=malpolon_rls_reg
 #SBATCH --mem=128G
 #SBATCH --gres=gpu:1
-#SBATCH --dependency=afterany:16022
-#SBATCH --ntasks-per-node=4
+#SBATCH --dependency=afterany:16707
+#SBATCH --cpus-per-task=4
+#SBATCH --ntasks-per-node=2
 #SBATCH -o malpolon_rls_reg.out
 #SBATCH -e malpolon_rls_reg.err
 
