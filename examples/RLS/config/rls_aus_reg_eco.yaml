@@ -12,9 +12,9 @@ run:
   finetuning_mode: null # transductive
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/australia
-  dataset_name: biomass_lognorm.csv
-  num_classes: 817
+  inputs_path: ${data.root}inputs/australiapreds
+  dataset_name: auspredgrid_eco.csv
+  num_classes: 3
   train_batch_size: 32
   inference_batch_size: 64
   num_workers: 2
