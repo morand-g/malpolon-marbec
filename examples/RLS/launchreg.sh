@@ -9,5 +9,5 @@
 #SBATCH -o malpolon_rls_reg.out
 #SBATCH -e malpolon_rls_reg.err
 
-source /home/gmorand/venvs/deepsdm2/bin/activate
-python rls_aus_reg.py -cn "rls_aus_reg_eco"
+source /home/gmorand/venvs/deepsdm3/bin/activate
+python rls_aus_reg.py -cn "rls_aus_reg"

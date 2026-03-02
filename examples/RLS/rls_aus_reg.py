@@ -7,6 +7,7 @@ Adapted from: examples/benchmarks/geolifeclef/geolifeclef2022/cnn_on_rgb_tempera
 
 from pathlib import Path
 from typing import Mapping, Optional, Union
+import copy
 
 import hydra
 
