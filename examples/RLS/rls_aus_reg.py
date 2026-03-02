@@ -149,22 +149,32 @@ def main(cfg: DictConfig) -> None:
 
     # Training / Inference
 
-    if cfg.run.predict:
+    if cfg.run.inference:
 
         predictions = reg_system.predict(datamodule, trainer)
         
         # Filter present
         
-        # presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
-        # predictions = predictions.numpy() * presence.to_numpy()
+        #presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
+        #predictions = predictions.numpy() * presence.to_numpy()
 
-        # Predictions on test subset
-        datamodule.export_predictions(predictions,
+        if cfg.run.testing:
+        
+            # Predictions on test subset
+            datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
                                       out_name='predictions-biomass')
         
         
-        #export_correlation_scores(cfg)
+            export_correlation_scores(cfg)
+        
+        else:
+            
+            # Predictions on new data set
+            
+            datamodule.export_predictions(predictions,
+                                      out_dir=Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir),
+                                      out_name='predictions-biomass')
 
     else:
         

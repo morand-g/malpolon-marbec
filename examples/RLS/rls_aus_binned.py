@@ -202,7 +202,7 @@ def main(cfg: DictConfig) -> None:
 
     # Training / Inference
 
-    if cfg.run.predict:
+    if cfg.run.inference:
 
 
         if cfg.run.embeddings:
@@ -226,38 +226,7 @@ def main(cfg: DictConfig) -> None:
 
             np.save(Path(cfg.run.checkpoint_path).parent / 'embedding_trainval.npy', tv_predictions.numpy())
 
-        else:
-            predictions = reg_system.predict(datamodule, trainer)
-
-            # Predictions on test subset
-            datamodule.export_predictions(predictions,
-                                        out_dir=Path(cfg.run.checkpoint_path).parent,
-                                        classif=True, out_name='predictions-probs')
-
-#             ## Binary
-#             # Predictions on train+val subset
-#             cfgtrainval = copy.deepcopy(cfg)
-#             cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
-
-#             tv_datamodule = RLSDataModule(**cfgtrainval.data,
-#                                     modality_names= list(cfg.model.submodels.keys()),
-#                                     target_transform=lambda x: (x != 0).astype(float))
-            
-#             tv_predictions = reg_system.predict(tv_datamodule, trainer)
-#             tv_datamodule.export_predictions(tv_predictions,
-#                                         out_dir=Path(cfg.run.checkpoint_path).parent,
-#                                         classif=True, out_name='predictions-probs-trainval')
-            
-#             if cfg.model.num_bins == 2:
-
-#                 export_f1_scores(cfg)
-
-#             else:
-
-#                 export_correlation_scores(cfg, classif = True)
-
-
-        if cfg.run.interpretable:
+        elif cfg.run.interpretable:
 
             test_dataset = datamodule.get_test_dataset()
             best_species = list(test_dataset.species)
@@ -265,6 +234,57 @@ def main(cfg: DictConfig) -> None:
                                         class_indices = [list(test_dataset.species).index(s) for s in best_species],
                                         output_dir = Path(cfg.run.checkpoint_path).parent / 'integrated_gradients')
 
+        else:
+            
+            predictions = reg_system.predict(datamodule, trainer)
+
+            if cfg.run.testing:
+                
+                # Predictions on test subset
+                datamodule.export_predictions(predictions,
+                                                out_dir=Path(cfg.run.checkpoint_path).parent,
+                                                classif=True, out_name='predictions-probs')
+                ## Binary
+                # Predictions on train+val subset
+                cfgtrainval = copy.deepcopy(cfg)
+                cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
+                tv_datamodule = RLSDataModule(**cfgtrainval.data,
+                                     modality_names= list(cfg.model.submodels.keys()),
+                                     target_transform=lambda x: (x != 0).astype(float))
+           
+                tv_predictions = reg_system.predict(tv_datamodule, trainer)
+                tv_datamodule.export_predictions(tv_predictions,
+                                         out_dir=Path(cfg.run.checkpoint_path).parent,
+                                         classif=True, out_name='predictions-probs-trainval')
+           
+                if cfg.model.num_bins == 2:
+                    export_f1_scores(cfg)
+                    
+                    score_path = next(Path(cfg.run.checkpoint_path).parent.glob("testF1*.csv")).name
+                    threshold = float(score_path.split("TH=")[1].split("--")[0])
+
+                    datamodule.export_predictions((predictions[...,1] >= threshold).int(),
+                                                    out_dir=Path(cfg.run.checkpoint_path).parent,
+                                                    classif=False, out_name=f"presences--TH={threshold}")
+                else:
+                    export_correlation_scores(cfg, classif = True)
+                    
+            else:
+                
+                # Predictions on new data set
+                
+                datamodule.export_predictions(predictions,
+                                                out_dir=Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir),
+                                                classif=True, out_name='predictions-probs')
+                
+                score_path = next(Path(cfg.run.checkpoint_path).parent.glob("testF1*.csv")).name
+                threshold = float(score_path.split("TH=")[1].split("--")[0])
+                
+                datamodule.export_predictions((predictions[...,1] >= threshold).int(),
+                                                out_dir=Path(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir),
+                                                classif=False, out_name=f"presences--TH={threshold}")
+
+        
     else:
         
         trainer.fit(reg_system, datamodule=datamodule)

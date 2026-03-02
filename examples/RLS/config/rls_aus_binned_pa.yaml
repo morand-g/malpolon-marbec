@@ -2,7 +2,8 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  inference: true
+  testing: true
   embeddings: false
   interpretable: false
   exp_name: 37_mm4_transductif
@@ -11,8 +12,8 @@ run:
   finetuning_mode: null # null or transductive or species
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/australiapreds/
-  dataset_name: auspredgrid.csv
+  inputs_path: ${data.root}inputs/australia/
+  dataset_name: database_common.csv
   num_classes: 817
   train_batch_size: 16
   inference_batch_size: 64

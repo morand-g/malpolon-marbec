@@ -2,19 +2,19 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  predict: true
+  inference: false
+  testing: false
   interpretable: false
-  exp_name: 40_mm4_transductif_eco
+  exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2025-12-17_15-41
-/last.ckpt
-  pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences.csv
+  checkpoint_path: null #${data.root}outputs/40_mm4_transductif_eco-2026-01-30_10-52/last.ckpt
+  pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/australiapreds
-  dataset_name: auspredgrid_eco.csv
-  num_classes: 3
+  inputs_path: ${data.root}inputs/australia
+  dataset_name: biomass_lognorm.csv
+  num_classes: 817
   train_batch_size: 32
   inference_batch_size: 64
   num_workers: 2
@@ -34,7 +34,7 @@ model:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -45,7 +45,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -56,7 +56,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -67,7 +67,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
