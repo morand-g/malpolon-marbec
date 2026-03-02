@@ -167,6 +167,18 @@ def main(cfg: DictConfig) -> None:
         
         
             export_correlation_scores(cfg)
+            
+            # Predictions on train+val subset
+            cfgtrainval = copy.deepcopy(cfg)
+            cfgtrainval.data.dataset_name = cfg.data.dataset_name.split('.')[0] + '_trainval' + '.csv'
+            tv_datamodule = RLSDataModule(**cfgtrainval.data,
+                                 modality_names= list(cfg.model.submodels.keys()),
+                                 target_transform=target_transform)
+
+            tv_predictions = reg_system.predict(tv_datamodule, trainer)
+            tv_datamodule.export_predictions(tv_predictions,
+                                     out_dir=Path(cfg.run.checkpoint_path).parent,
+                                     out_name='predictions-biomass-trainval')
         
         else:
             
