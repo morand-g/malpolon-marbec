@@ -11,4 +11,4 @@
 #SBATCH -e malpolon_rls_reg.err
 
 source /home/gmorand/venvs/deepsdm3/bin/activate
-python rls_aus_reg.py -cn "rls_aus_reg_eco"
+python rls_aus_reg.py -cn "rls_aus_reg"

@@ -1,11 +1,12 @@
 #!/bin/bash
 
-#SBATCH --partition=standard
+#SBATCH --partition=gpu
 #SBATCH --job-name=malpolon_rls
 #SBATCH --mem=128G
 #SBATCH --gres=gpu:1
 #SBATCH --dependency=afterany:15772
 #SBATCH --cpus-per-task=4
+#SBATCH --ntasks-per-node=2
 #SBATCH -o malpolon_rls.out
 #SBATCH -e malpolon_rls.err
 

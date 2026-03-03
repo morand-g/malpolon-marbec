@@ -175,7 +175,7 @@ def main(cfg: DictConfig) -> None:
         
         else:
             # If no change in head (continuing training or inference):
-            cp = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path, , weights_only=False)
+            cp = PresenceSystem.load_from_checkpoint(cfg.run.checkpoint_path, weights_only=False)
             reg_system = PresenceSystem(**cfg.model, **cfg.optim, data_sizes = datamodule.get_data_sizes(), model = cp.model)
         
     else:

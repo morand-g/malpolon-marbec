@@ -156,8 +156,8 @@ def main(cfg: DictConfig) -> None:
         
         # Filter present
         
-        #presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
-        #predictions = predictions.numpy() * presence.to_numpy()
+        presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
+        filt_predictions = predictions.numpy() * presence.to_numpy()
 
         if cfg.run.testing:
         
@@ -165,9 +165,14 @@ def main(cfg: DictConfig) -> None:
             datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
                                       out_name='predictions-biomass')
-        
-        
             export_correlation_scores(cfg)
+        
+            # Filtered
+            datamodule.export_predictions(filt_predictions,
+                                      out_dir=Path(cfg.run.checkpoint_path).parent,
+                                      out_name='predictions-biomass-filt')
+            export_correlation_scores(cfg, filename='predictions-biomass-filt.csv')
+            
             
             # Predictions on train+val subset
             cfgtrainval = copy.deepcopy(cfg)
