@@ -7,7 +7,7 @@ run:
   interpretable: false
   exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/38_mm4_transductif_reg-2026-03-02_15-48/last.ckpt
+  checkpoint_path: null #${data.root}outputs/38_mm4_transductif_reg-2026-03-03_10-20/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
 data:
@@ -89,7 +89,7 @@ optim:
             factor: 0.2
           lr_scheduler_config:
             monitor: loss/val
-  loss: "filtered_mse_loss"
+  loss: "filtered_huber_loss"
   metrics:
     r2:
       callable: "Fmetrics.regression.r2_score"
