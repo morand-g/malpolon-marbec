@@ -98,7 +98,7 @@ def export_f1_scores(cfg):
 
 
 
-def export_correlation_scores(cfg, classif = False):
+def export_correlation_scores(cfg, classif = False, filename = 'predictions-biomass'):
 
     # Load predictions
     output_path = Path(cfg.run.checkpoint_path).parent
@@ -106,7 +106,7 @@ def export_correlation_scores(cfg, classif = False):
     if classif:
         predictions = pd.read_csv(output_path / 'predictions-probs.csv', index_col='survey_id')
     else:
-        predictions = pd.read_csv(output_path / 'predictions-biomass.csv', index_col='survey_id')
+        predictions = pd.read_csv(output_path / f'{filename}.csv', index_col='survey_id')
     
     # Load targets
 
@@ -125,7 +125,7 @@ def export_correlation_scores(cfg, classif = False):
         
     scores = pd.DataFrame(dic).T
     scores.sort_values(ascending=False, by='pearsonr', inplace = True)
-    scores.to_csv(output_path / f"testR2--.4rank={len(scores[scores['pearsonr']>=0.4])}.csv")
+    scores.to_csv(output_path / f"testR2--.4rank={len(scores[scores['pearsonr']>=0.4])}--{filename}.csv")
 
     if classif:
 
