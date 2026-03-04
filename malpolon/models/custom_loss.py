@@ -161,7 +161,8 @@ class FilteredHuberLoss(nn.HuberLoss):
 
         present = (target != 0).to(int)
         huber_loss = super().forward(input, target)
-        filtered_loss = (huber_loss * present).mean()
+        
+        filtered_loss = (huber_loss  * present).sum() / present.sum().clamp(min=1)
         return filtered_loss
 
 
@@ -176,8 +177,26 @@ class FilteredMSELoss(nn.MSELoss):
 
         present = (target != 0).to(int)
         mse_loss = super().forward(input, target)
-        filtered_loss = (mse_loss * present).mean()
+
+        filtered_loss = (mse_loss * present).sum() / present.sum().clamp(min=1)
         return filtered_loss
+    
+    
+class ZeroWeightedMSELoss(nn.MSELoss):
+
+    def __init__(self) -> None:
+
+        super().__init__(reduction='none')
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+
+        present = (target != 0).to(int)
+        mse_loss = super().forward(input, target)
+
+        loss_zero = (mse * (1-present)).sum() / zero_mask.sum().clamp(min=1)
+        loss_nonzero = (mse * present).sum() / nonzero_mask.sum().clamp(min=1)
+
+        return 0.02 * loss_zero + 0.98 * loss_nonzero
 
     
 class ClassifMSELoss(nn.MSELoss):

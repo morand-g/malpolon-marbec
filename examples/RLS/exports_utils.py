@@ -106,7 +106,7 @@ def export_correlation_scores(cfg, classif = False):
     if classif:
         predictions = pd.read_csv(output_path / 'predictions-probs.csv', index_col='survey_id')
     else:
-        predictions = pd.read_csv(output_path / f'predictions-biomass.csv', index_col='survey_id')
+        predictions = pd.read_csv(output_path / 'predictions-biomass.csv', index_col='survey_id')
     
     # Load targets
 
