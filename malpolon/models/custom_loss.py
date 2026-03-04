@@ -193,8 +193,8 @@ class ZeroWeightedMSELoss(nn.MSELoss):
         present = (target != 0).to(int)
         mse_loss = super().forward(input, target)
 
-        loss_zero = (mse * (1-present)).sum() / zero_mask.sum().clamp(min=1)
-        loss_nonzero = (mse * present).sum() / nonzero_mask.sum().clamp(min=1)
+        loss_zero = (mse_loss * (1-present)).sum() / (1-present).sum().clamp(min=1)
+        loss_nonzero = (mse_loss * present).sum() / present.sum().clamp(min=1)
 
         return 0.02 * loss_zero + 0.98 * loss_nonzero
 
