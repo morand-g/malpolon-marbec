@@ -156,17 +156,13 @@ def main(cfg: DictConfig) -> None:
 
         if cfg.run.testing:
         
-            # Predictions on test subset
-            datamodule.export_predictions(predictions,
-                                      out_dir=Path(cfg.run.checkpoint_path).parent,
-                                      out_name='predictions-biomass')
-            export_correlation_scores(cfg)
-        
             # Filtered
             if "filtered" in cfg.optim.loss:
                 
                 presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
                 predictions = predictions.numpy() * presence.to_numpy()
+                
+            # Predictions on test subset
                 
             datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
