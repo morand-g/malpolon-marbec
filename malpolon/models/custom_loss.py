@@ -196,7 +196,7 @@ class ZeroWeightedMSELoss(nn.MSELoss):
         loss_zero = (mse_loss * (1-present)).sum() / (1-present).sum().clamp(min=1)
         loss_nonzero = (mse_loss * present).sum() / present.sum().clamp(min=1)
 
-        return 0.1 * loss_zero + 0.9 * loss_nonzero
+        return 0.02 * loss_zero + 0.98 * loss_nonzero
 
     
 class ClassifMSELoss(nn.MSELoss):
