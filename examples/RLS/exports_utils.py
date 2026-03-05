@@ -120,8 +120,14 @@ def export_correlation_scores(cfg, classif = False):
     
     dic = {}
     for s in predictions.columns:
+        nonzero = (fulldf[s] > 0) * (predictions[s] > 0)
         dic[s] = {'pearsonr': pearsonr(fulldf[s], predictions[s])[0],
-                  'spearmanr': spearmanr(fulldf[s], predictions[s])[0]}
+                  'spearmanr': spearmanr(fulldf[s], predictions[s])[0],
+                 }
+        
+        if nonzero.sum() > 1:
+            dic[s]['pearsonr_nz'] =  pearsonr(fulldf.loc[nonzero,s], predictions.loc[nonzero,s])[0]
+            dic[s]['spearmanr_nz'] =  spearmanr(fulldf.loc[nonzero,s], predictions.loc[nonzero,s])[0]
         
     scores = pd.DataFrame(dic).T
     scores.sort_values(ascending=False, by='pearsonr', inplace = True)
