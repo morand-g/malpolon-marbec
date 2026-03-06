@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 
 def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
 
+     #################### To rewrite completely ####################
+
     model.eval()
     integrated_gradients = Saliency(model)
     os.makedirs(output_dir, exist_ok=True)
@@ -34,17 +36,17 @@ def save_integrated_gradients(model, dataset, best_species, class_indices, outpu
         inputs = {k:v.to(model.device).unsqueeze(0).requires_grad_() for k, v in inputs.items()}
         #targets = targets.to(model.device).float().requires_grad_()
 
-        for i in range(len(best_species)):
+        for j in range(len(best_species)):
             class_idx = class_indices[i]
 
-            os.makedirs(output_dir / str(best_species[i]), exist_ok=True)
+            os.makedirs(output_dir / str(best_species[j]), exist_ok=True)
 
             target = torch.nn.functional.one_hot(torch.tensor(class_idx), num_classes=len(dataset.species)).to(model.device).float().requires_grad_()
             negativetarget = 1 - target
             fulltarget = torch.stack([negativetarget, target], dim=-1).unsqueeze(0)
             attributions = integrated_gradients.attribute(tuple(inputs.values()), target=(class_idx,1))
             attributions_np = attributions[0].cpu().detach().numpy()
-            np.save(output_dir / str(best_species[i]) / f'ig_{ind}.npy', attributions_np)
+            np.save(output_dir / str(best_species[j]) / f'ig_{ind}.npy', attributions_np)
 
 
 

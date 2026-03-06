@@ -29,17 +29,6 @@ import numpy as np
 from exports_utils import *
 
 OmegaConf.register_new_resolver("eval", eval)
-
-
-def dictMSE(predictions, targets):
-
-        loss = 0
-        
-        for mod in targets:
-            loss += Fmetrics.mean_squared_error(predictions[mod].flatten(),
-                                                targets[mod].flatten())
-        
-        return loss / len(targets)
     
 
 class AbundanceSystem(GenericPredictionSystem):
@@ -78,6 +67,8 @@ class AbundanceSystem(GenericPredictionSystem):
 
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_reg")
 def main(cfg: DictConfig) -> None:
+
+    pl.seed_everything(12, workers=True)
 
     torch.set_float32_matmul_precision('high')
 
@@ -160,7 +151,7 @@ def main(cfg: DictConfig) -> None:
             if "filtered" in cfg.optim.loss:
                 
                 presence = pd.read_csv(cfg.run.pa_predictions_path, index_col='survey_id')
-                predictions = predictions.numpy() * presence.to_numpy()
+                predictions = predictions.detach().cpu().numpy() * presence.to_numpy()
                 
             # Predictions on test subset
                 

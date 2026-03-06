@@ -130,6 +130,8 @@ class PresenceSystem(GenericPredictionSystem):
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_binned_pa")
 def main(cfg: DictConfig) -> None:
 
+    pl.seed_everything(12, workers=True)
+
     torch.set_float32_matmul_precision('high')
 
 
