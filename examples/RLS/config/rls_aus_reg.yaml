@@ -7,7 +7,7 @@ run:
   interpretable: false
   exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2026-03-05_17-07/last.ckpt
+  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2026-03-06_10-26/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
 data:
@@ -79,8 +79,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-3
-        weight_decay: 1e-3
+        lr: 1e-4
+        weight_decay: 1e-4
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
