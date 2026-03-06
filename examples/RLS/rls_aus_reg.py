@@ -170,7 +170,9 @@ def main(cfg: DictConfig) -> None:
             datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
                                       out_name='predictions-biomass')
-            export_correlation_scores(cfg)
+            
+            export_correlation_scores(cfg, ordering='pearsonr')
+            export_correlation_scores(cfg, ordering='pearsonr_nz')
             
             
             # Predictions on train+val subset
