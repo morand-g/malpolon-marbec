@@ -23,6 +23,7 @@ import lightning.pytorch as pl
 from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
 
 import torch
+import torchmetrics.functional as Fmetrics
 
 import numpy as np
 
@@ -64,7 +65,17 @@ class AbundanceSystem(GenericPredictionSystem):
         self.mae_decoder = False
             
 
+def dictMSE(predictions, targets):
 
+        loss = 0
+        
+        for mod in targets:
+            loss += Fmetrics.mean_squared_error(predictions[mod].flatten(),
+                                                targets[mod].flatten())
+        
+        return loss / len(targets)
+    
+    
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_reg")
 def main(cfg: DictConfig) -> None:
 
@@ -143,6 +154,7 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.run.inference:
 
+        print(reg_system)
         predictions = reg_system.predict(datamodule, trainer)
 
         if cfg.run.testing:
@@ -158,7 +170,9 @@ def main(cfg: DictConfig) -> None:
             datamodule.export_predictions(predictions,
                                       out_dir=Path(cfg.run.checkpoint_path).parent,
                                       out_name='predictions-biomass')
-            export_correlation_scores(cfg)
+            
+            export_correlation_scores(cfg, ordering='pearsonr')
+            export_correlation_scores(cfg, ordering='pearsonr_nz')
             
             
             # Predictions on train+val subset

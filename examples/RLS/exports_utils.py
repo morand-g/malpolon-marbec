@@ -100,7 +100,7 @@ def export_f1_scores(cfg):
 
 
 
-def export_correlation_scores(cfg, classif = False):
+def export_correlation_scores(cfg, classif = False, ordering = 'pearsonr'):
 
     # Load predictions
     output_path = Path(cfg.run.checkpoint_path).parent
@@ -132,8 +132,8 @@ def export_correlation_scores(cfg, classif = False):
             dic[s]['spearmanr_nz'] =  spearmanr(fulldf.loc[nonzero,s], predictions.loc[nonzero,s])[0]
         
     scores = pd.DataFrame(dic).T
-    scores.sort_values(ascending=False, by='pearsonr', inplace = True)
-    scores.to_csv(output_path / f"testR2--.4rank={len(scores[scores['pearsonr']>=0.4])}.csv")
+    scores.sort_values(ascending=False, by=ordering, inplace = True)
+    scores.to_csv(output_path / f"testR2--{ordering}.4rank={len(scores[scores[ordering]>=0.4])}.csv")
 
     if classif:
 
