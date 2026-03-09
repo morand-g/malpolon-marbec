@@ -190,7 +190,7 @@ class ZeroWeightedMSELoss(nn.MSELoss):
 
     def forward(self, input: Tensor, target: Tensor) -> Tensor:
 
-        present = (target != 0).to(int)
+        present = (target > 0).to(int)
         mse_loss = super().forward(input, target)
 
         loss_zero = (mse_loss * (1-present)).sum() / (1-present).sum().clamp(min=1)
