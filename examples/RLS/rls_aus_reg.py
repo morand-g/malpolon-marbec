@@ -79,7 +79,7 @@ def dictMSE(predictions, targets):
 @hydra.main(version_base="1.3", config_path="config", config_name="rls_aus_reg")
 def main(cfg: DictConfig) -> None:
 
-    pl.seed_everything(12, workers=True)
+    pl.seed_everything(cfg.run.seed, workers=True)
 
     torch.set_float32_matmul_precision('high')
 

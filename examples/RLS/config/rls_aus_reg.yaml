@@ -2,12 +2,12 @@ hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
 run:
-  inference: false
-  testing: false
+  inference: true
+  testing: true
   interpretable: false
   exp_name: 38_mm4_transductif_reg
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/38_mm4_transductif_reg-2026-03-06_13-58/last.ckpt
+  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2026-03-06_18-33/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
 data:
