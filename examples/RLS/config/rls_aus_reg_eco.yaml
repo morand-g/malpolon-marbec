@@ -5,12 +5,12 @@ hydra:
     dir: ${data.root}outputs/${run.run_name}
     subdir: Seed-${run.seed}
 run:
-  inference: false
+  inference: true
   testing: true
   interpretable: false
-  exp_name: 42_ind_eco_seedtest
+  exp_name: 42_td_eco_seedtest
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/40_mm4_transductif_eco-2026-03-09_18-20/last.ckpt
+  checkpoint_path: ${data.root}outputs/42_td_eco_seedtest-2026-03-11_10-57/Seed-${run.seed}/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
   seed: 12
@@ -33,12 +33,12 @@ trainer:
 model:
   num_species: ${data.num_classes}
   aggregator: MLP
-  freeze_submodels: false
+  freeze_submodels: true
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -49,7 +49,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -60,7 +60,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -71,7 +71,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
