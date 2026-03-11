@@ -1,13 +1,16 @@
 hydra:
   run:
     dir: ${data.root}outputs/${run.run_name}
+  sweep:
+    dir: ${data.root}outputs/${run.run_name}
+    subdir: Seed-${run.seed}
 run:
-  inference: true
+  inference: false
   testing: true
   interpretable: false
-  exp_name: 38_mm4_transductif_reg
+  exp_name: 42_td_reg_seedtest
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/38_mm4_transductif_reg-2026-03-06_18-33/last.ckpt
+  checkpoint_path: null #${data.root}outputs/38_mm4_transductif_reg-2026-03-06_18-33/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
 data:
@@ -79,8 +82,8 @@ optim:
   optimizer:
     adamw:
       kwargs:
-        lr: 1e-2
-        weight_decay: 1e-2
+        lr: 1e-4
+        weight_decay: 1e-4
       scheduler: 
         reduce_lr_on_plateau:
           kwargs:
