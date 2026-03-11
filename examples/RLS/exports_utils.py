@@ -233,3 +233,45 @@ def convert_to_png(input_dir, input_file):
                 )
         
         plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
+
+
+def load_seedtest(output_dir, cp_name):
+
+    ### Load multiple output metrics and return average and confidence intervals
+
+    if 'pa' in cp_name:
+        metric = 'f1'
+        metric_key = 'testF1'
+    elif 'reg' in cp_name:
+        metric = 'pearsonr_nz'
+        metric_key = 'testR2--pearsonr_nz.4'
+    else:
+        metric = 'pearsonr'
+        metric_key = 'testR2--pearsonr.4'
+
+    if 'xgb' in str(output_dir):
+        metric_key = "xgb_best_r2"
+    
+    parent_folder = Path(output_dir) / cp_name
+
+    df_list = []
+    for fo in parent_folder.glob("Seed*"):
+        df = pd.read_csv(next(fo.glob(metric_key + "*.csv")), index_col = 0)
+        if 'eco' in cp_name:
+            ind = df.index
+        else:
+            ind = range(400)
+        dg = pd.Series(df.iloc[:400][metric], name = fo.name, index = ind)
+        df_list.append(dg)
+
+
+    all_df = pd.concat(df_list, axis = 1).T
+
+    y_mean = all_df.mean(axis=0)
+    y_std  = all_df.std(axis=0)
+    y_sem  = y_std / np.sqrt(len(df_list))  # standard error
+
+    # 95% confidence interval (normal approx): mean ± 1.96 * SEM 
+    ci = 1.96 * y_sem
+
+    return(y_mean, ci)
