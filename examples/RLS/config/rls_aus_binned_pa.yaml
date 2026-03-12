@@ -5,13 +5,13 @@ hydra:
     dir: ${data.root}outputs/${run.run_name}
     subdir: Seed-${run.seed}
 run:
-  inference: false
-  testing: false
+  inference: true
+  testing: true
   embeddings: false
   interpretable: false
   exp_name: 42_td_pa_seedtest
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/last.ckpt
+  checkpoint_path: ${data.root}outputs/42_td_pa_seedtest-2026-03-11_14-31/Seed-${run.seed}/last.ckpt
   finetuning_mode: null # null or transductive or species
   seed: 12
 data:
