@@ -5,13 +5,13 @@ hydra:
     dir: ${data.root}outputs/${run.run_name}
     subdir: Seed-${run.seed}
 run:
-  inference: true
+  inference: false
   testing: true
   embeddings: false
   interpretable: false
-  exp_name: 42_td_pa_seedtest
+  exp_name: 42_ind_pa_seedtest
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/42_td_pa_seedtest-2026-03-11_14-31/Seed-${run.seed}/last.ckpt
+  checkpoint_path: null #${data.root}outputs/42_td_pa_seedtest-2026-03-11_14-31/Seed-${run.seed}/last.ckpt
   finetuning_mode: null # null or transductive or species
   seed: 12
 data:
@@ -35,12 +35,12 @@ model:
   num_species: ${data.num_classes}
   num_bins: 2
   aggregator: MLP
-  freeze_submodels: true
+  freeze_submodels: false
   submodels:
     env:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-02_08-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -51,7 +51,7 @@ model:
     humhd:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-53/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -62,7 +62,7 @@ model:
     bathy:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_22-22/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
@@ -73,7 +73,7 @@ model:
     dhw:
       provider_name: torchvision
       model_name: resnet18
-      checkpoint: ${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
+      checkpoint: null #${data.root}outputs/36_fm_transductif-2025-12-01_16-56/last.ckpt
       model_kwargs:
         weights: IMAGENET1K_V1
       modifiers:
