@@ -257,11 +257,9 @@ def load_seedtest(output_dir, cp_name):
     df_list = []
     for fo in parent_folder.glob("Seed*"):
         df = pd.read_csv(next(fo.glob(metric_key + "*.csv")), index_col = 0)
-        if 'eco' in cp_name:
-            ind = df.index
-        else:
-            ind = range(400)
-        dg = pd.Series(df.iloc[:400][metric], name = fo.name, index = ind)
+        dg = pd.Series(df.iloc[:400][metric], name = fo.name)
+        if 'eco' not in cp_name:
+            dg = dg.reset_index(drop=True)
         df_list.append(dg)
 
 
