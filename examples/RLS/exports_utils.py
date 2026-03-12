@@ -250,7 +250,7 @@ def load_seedtest(output_dir, cp_name):
         metric_key = 'testR2--pearsonr.4'
 
     if 'xgb' in str(output_dir):
-        metric_key = "xgb_best_r2"
+        metric_key = "xgb_best_"
     
     parent_folder = Path(output_dir) / cp_name
 
