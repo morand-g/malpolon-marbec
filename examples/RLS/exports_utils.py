@@ -273,3 +273,66 @@ def load_seedtest(output_dir, cp_name):
     ci = 1.96 * y_sem
 
     return(y_mean, ci)
+
+
+
+def load_seedtest_sr(output_dir, cp_name, uicn = False):
+
+    parent_folder = Path(output_dir) / cp_name
+
+    if uicn:
+        traits = pd.read_csv('/data/data/RLS/traits.csv', index_col=0)
+        
+
+    df_list = []
+    for fo in parent_folder.glob("Seed*"):
+        filename = next(fo.glob("presences*.csv"))
+        df = pd.read_csv(filename, index_col = 0)
+        THRESHOLD = float(filename.stem.split('--TH=')[-1])
+        sr = (df > THRESHOLD).astype(int).sum(axis=1)
+        if uicn:
+            species= df.columns
+            uicnL_status_dict = {s: traits['IUCN_inferred_Loiseau23'].get(s, 'No Status') for s in species}
+            uicnL_threatened = pd.Series([(uicnL_status_dict[s] == 'Threatened')*1 for s in species], index = species, name = 'Threatened')
+            df = df * uicnL_threatened
+            sr = (df > THRESHOLD).astype(int).sum(axis=1)
+        df_list.append(np.log(1+sr))
+
+    
+    all_df = pd.concat(df_list, axis = 1).T
+
+    y_mean = all_df.mean(axis=0)
+    y_std  = all_df.std(axis=0)
+    y_sem  = y_std / np.sqrt(len(df_list))  # standard error
+
+    # 95% confidence interval (normal approx): mean ± 1.96 * SEM 
+    ci = 1.96 * y_sem
+
+    return(y_mean, ci)
+    
+
+
+def load_seedtest_bm(output_dir, cp_name):
+
+    ### Load multiple output metrics and return average and confidence intervals
+
+    bm_maxima = pd.read_csv('/marbec-data/RLS-Australia/malpolon/inputs/australia/biomass_lognorm_maxima.csv', index_col=0)['0']
+    parent_folder = Path(output_dir) / cp_name
+
+    df_list = []
+    for fo in parent_folder.glob("Seed*"):
+        df = pd.read_csv(next(fo.glob("predictions-biomass.csv")), index_col = 0)
+        actual_bm = np.exp(bm_maxima*df) - 1
+        log_total_bm = np.log(1 + actual_bm.sum(axis=1))
+        df_list.append(log_total_bm)
+
+    all_df = pd.concat(df_list, axis = 1).T
+
+    y_mean = all_df.mean(axis=0)
+    y_std  = all_df.std(axis=0)
+    y_sem  = y_std / np.sqrt(len(df_list))  # standard error
+
+    # 95% confidence interval (normal approx): mean ± 1.96 * SEM 
+    ci = 1.96 * y_sem
+
+    return(y_mean, ci)
