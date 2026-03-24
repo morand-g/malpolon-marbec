@@ -235,7 +235,7 @@ def convert_to_png(input_dir, input_file):
         plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
 
 
-def load_seedtest(output_dir, cp_name):
+def load_seedtest(output_dir, cp_name, reindex = True):
 
     ### Load multiple output metrics and return average and confidence intervals
 
@@ -257,9 +257,11 @@ def load_seedtest(output_dir, cp_name):
     df_list = []
     for fo in parent_folder.glob("Seed*"):
         df = pd.read_csv(next(fo.glob(metric_key + "*.csv")), index_col = 0)
-        dg = pd.Series(df.iloc[:400][metric], name = fo.name)
-        if 'eco' not in cp_name:
+        if 'eco' not in cp_name and reindex:
+            dg = pd.Series(df.iloc[:400][metric], name = fo.name)
             dg = dg.reset_index(drop=True)
+        else:
+            dg = pd.Series(df[metric], name = fo.name)
         df_list.append(dg)
 
 
