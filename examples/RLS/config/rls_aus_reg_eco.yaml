@@ -6,18 +6,18 @@ hydra:
     subdir: Seed-${run.seed}
 run:
   inference: true
-  testing: true
+  testing: false
   interpretable: false
-  exp_name: 42_td_eco_seedtest
+  exp_name: 43_td_eco_preds
   run_name: ${run.exp_name}-${now:%Y-%m-%d_%H-%M}
-  checkpoint_path: ${data.root}outputs/42_td_eco_seedtest-2026-03-11_10-57/Seed-${run.seed}/last.ckpt
+  checkpoint_path: ${data.root}outputs/42_td_eco_seedtest-2026-03-10_14-13/Seed-${run.seed}/last.ckpt
   pa_predictions_path: null #${data.root}outputs/37_mm4_transductif-2025-12-02_12-47/presences--TH=0.226.csv
   finetuning_mode: null # transductive
   seed: 12
 data:
   root: /marbec-data/RLS-Australia/malpolon/
-  inputs_path: ${data.root}inputs/australia
-  dataset_name: eco_indic_norm.csv
+  inputs_path: ${data.root}inputs/australiapreds
+  dataset_name: auspredgrid_eco.csv
   num_classes: 3
   train_batch_size: 32
   inference_batch_size: 64
