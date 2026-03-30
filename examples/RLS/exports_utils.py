@@ -178,7 +178,7 @@ def export_map(predictions, var_name, out_path, filename):
     x = (np.floor((predictions['longitude'].values - min_lon) / RES).astype(int))
     y = (np.ceil((predictions['latitude'].values - min_lat) / RES).astype(int))
     grid_values[y, x] = predictions[var_name].to_numpy()
-    data = np.floor(255*np.flipud(grid_values))
+    data = np.flipud(grid_values)
 
 
     # Write raster
@@ -235,7 +235,7 @@ def convert_to_png(input_dir, input_file):
         plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
 
 
-def load_seedtest(output_dir, cp_name, reindex = True):
+def load_bootstrap_metrics(output_dir, cp_name, reindex = True):
 
     ### Load multiple output metrics and return average and confidence intervals
 
@@ -278,7 +278,9 @@ def load_seedtest(output_dir, cp_name, reindex = True):
 
 
 
-def load_seedtest_sr(output_dir, cp_name, uicn = False):
+def load_bootstrap_sr_metrics(output_dir, cp_name, uicn = False):
+
+    # Calculate SR from P-A predictions and return average and confidence intervals
 
     parent_folder = Path(output_dir) / cp_name
 
@@ -314,16 +316,16 @@ def load_seedtest_sr(output_dir, cp_name, uicn = False):
     
 
 
-def load_seedtest_bm(output_dir, cp_name):
+def load_bootstrap_bm_metrics(output_dir, cp_name):
 
-    ### Load multiple output metrics and return average and confidence intervals
+    ### Calculate total biomass from predictions and return average and confidence intervals
 
     bm_maxima = pd.read_csv('/marbec-data/RLS-Australia/malpolon/inputs/australia/biomass_lognorm_maxima.csv', index_col=0)['0']
     parent_folder = Path(output_dir) / cp_name
 
     df_list = []
     for fo in parent_folder.glob("Seed*"):
-        df = pd.read_csv(next(fo.glob("predictions-biomass.csv")), index_col = 0)
+        df = pd.read_csv(fo / "predictions-biomass.csv", index_col = 0)
         actual_bm = np.exp(bm_maxima*df) - 1
         log_total_bm = np.log(1 + actual_bm.sum(axis=1))
         df_list.append(log_total_bm)
@@ -332,6 +334,38 @@ def load_seedtest_bm(output_dir, cp_name):
 
     y_mean = all_df.mean(axis=0)
     y_std  = all_df.std(axis=0)
+    y_sem  = y_std / np.sqrt(len(df_list))  # standard error
+
+    # 95% confidence interval (normal approx): mean ± 1.96 * SEM 
+    ci = 1.96 * y_sem
+
+    return(y_mean, ci)
+
+
+
+
+
+def load_bootstrap_eco(output_dir, pred_name, cp_name):
+
+    # Load ecological indicators predictions and return average and confidence intervals
+
+    parent_folder = Path(output_dir) / pred_name
+
+    eco_maxima = pd.read_csv('/marbec-data/RLS-Australia/malpolon/inputs/australia/eco_indic_maxima.csv', index_col=0)
+
+    df_list = []
+    for fo in parent_folder.glob("Seed*"):
+        df = pd.read_csv(fo / "predictions-biomass.csv", index_col = 0)
+        actual_eco = np.exp(eco_maxima.loc[df.columns].T.values * df) - 1
+
+        corrections = pd.read_csv(Path(output_dir) / cp_name / fo.name / "corrections.csv", index_col = 0)
+        corrected_eco = actual_eco * corrections['slope'] + corrections['intercept']
+        df_list.append(corrected_eco.clip(0, None))
+
+    all_df = np.stack([df.values for df in df_list])
+
+    y_mean = pd.DataFrame(all_df.mean(axis=0), index=df_list[0].index, columns=df_list[0].columns)
+    y_std  = pd.DataFrame(all_df.std(axis=0), index=df_list[0].index, columns=df_list[0].columns)
     y_sem  = y_std / np.sqrt(len(df_list))  # standard error
 
     # 95% confidence interval (normal approx): mean ± 1.96 * SEM 
