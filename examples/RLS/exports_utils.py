@@ -13,8 +13,8 @@ import rasterio
 from rasterio.transform import from_origin
 from rasterio.plot import show as rioshow
 import matplotlib.pyplot as plt
-from matplotlib import colormaps
-
+from matplotlib import colors
+from matplotlib.patches import Patch
 
 def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
 
@@ -200,47 +200,7 @@ def export_map(predictions_mean, predictions_ci, var_name, out_path, filename):
     dst.close()
 
 
-
-def interpolate_color(a, b, color_a: str, color_b: str):
-
-    # Pick a color from a 2d space varying between color a and color b, where a controls the hue interpolation and b controls the saturation.
-
-    def hex_to_hsl(hex_color):
-        r, g, bl = (int(hex_color.lstrip('#')[i:i+2], 16) / 255 for i in (0, 2, 4))
-        cmax, cmin = max(r, g, bl), min(r, g, bl)
-        l = (cmax + cmin) / 2
-        d = cmax - cmin
-        s = 0 if d == 0 else d / (1 - abs(2*l - 1))
-        if d == 0: h = 0
-        elif cmax == r: h = 60 * (((g - bl) / d) % 6)
-        elif cmax == g: h = 60 * ((bl - r) / d + 2)
-        else:           h = 60 * ((r - g)  / d + 4)
-        return h, s * 100, l * 100
-
-    hA, sA, lA = hex_to_hsl(color_a)
-    hB, sB, lB = hex_to_hsl(color_b)
-
-    dh = ((hB - hA + 540) % 360) - 180
-    h = (hA + dh * a) % 360
-    s = sA + (sB - sA) * b
-    l = lA + (lB - lA) * b
-
-    h, s, l = np.asarray(h), np.asarray(s) / 100, np.asarray(l) / 100
-    c = (1 - np.abs(2*l - 1)) * s
-    x = c * (1 - np.abs((h / 60) % 2 - 1))
-    m = l - c / 2
-    h6 = h / 60
-    r = np.select([h6<1, h6<2, h6<3, h6<4, h6<5], [c, x, 0, 0, x], c)
-    g = np.select([h6<1, h6<2, h6<3, h6<4, h6<5], [x, c, c, x, 0], 0)
-    b = np.select([h6<1, h6<2, h6<3, h6<4, h6<5], [0, 0, x, c, c], x)
-
-    rgb = np.stack([r + m, g + m, b + m], axis=-1)
-    return np.clip(rgb, 0, 1)
-
-
-
-
-def convert_to_png(input_dir, input_file):
+def convert_to_png(input_dir, input_file, colormap, species = False):
 
     date = input_file.split('_')[-1].replace('.tif', '')
 
@@ -256,20 +216,6 @@ def convert_to_png(input_dir, input_file):
         ci = src.read(2).astype(float)
         transform = src.transform
 
-        mask = np.isnan(means)
-
-         # Normalize each band to [0, 1]
-        def norm(arr, mask):
-            valid = arr[~mask]
-            mn, mx = valid.min(), valid.max()
-            out = (arr - mn) / (mx - mn + 1e-10)
-            out[mask] = 0
-            return out
-        
-        means_norm = norm(means, mask)
-
-        #rgba = np.dstack((interpolate_color(means_norm, ci_norm, "#ff381a", "#041a00"), (~mask).astype(float)))
-        rgba = np.dstack((colormaps.get_cmap('turbo')(means_norm)[:,:,:3],  (~mask).astype(float)[:,:,np.newaxis]))
         fig = plt.figure(frameon=False, figsize=(40, 40 * oceans.shape[0] / oceans.shape[1]))
         ax = fig.add_axes([0., 0., 1., 1.])
         ax.set_axis_off()
@@ -283,33 +229,65 @@ def convert_to_png(input_dir, input_file):
         top    = transform.f
         right  = left + transform.a * w
         bottom = top  + transform.e * h
-        ax.imshow(rgba, extent=[left, right, bottom, top],
+        ret = ax.imshow(means, extent=[left, right, bottom, top], cmap = colormap, norm=colors.Normalize(vmin=np.nanmin(means), vmax=np.nanmax(means)),
                 origin='upper', aspect='auto', interpolation='nearest')
+        
+        # Add uncertainty hatching
+        if species:
+            ys, xs = np.where(ci > np.nanmedian(ci))
+            title = r"$\bfit{" + title_mapping[input_file.split('_')[1]].replace(' ', '\ ') + "}$"
+            legendlabel = f"High uncertainty (CI > {np.nanmedian(ci):.2f})" 
 
+        else:
+            title_mapping = {
+                'sr': 'Species Richness',
+                'bm': 'Biomass',
+                'uicn': 'Threatened Species Richness'
+            }
+            
+            relative_ci = ci / (means + 1e-8)
+            ys, xs = np.where(relative_ci > np.nanmedian(relative_ci))
+            title = r"$\bf{" + title_mapping[input_file.split('_')[1]].replace(' ', '\ ') + "}$"
+            legendlabel = f"High uncertainty (CI > {100*np.nanmedian(relative_ci):.0f}%)" 
+
+        lons = transform.c + (xs + 0.5) * transform.a
+        lats = transform.f + (ys + 0.5) * transform.e
+
+        ax.scatter(lons, lats, s=12, c='white',
+                marker='.', linewidths=0, zorder=5)
+
+
+        # Plot colorbar
+        cax = fig.add_axes([0, 0, 0.1, 1])
+        cax.set_axis_off()  
+        cbar = fig.colorbar(ret, ax=cax)
+        cbar.ax.tick_params(labelsize=40)
+        cbar.ax.tick_params(length=10, width=2)
 
         # Plot legend
-        legend_size = 32
-        legend_img = np.zeros((legend_size, legend_size, 3))
-        xv, yv = np.meshgrid(np.linspace(0, 1, legend_size),
-                            np.linspace(0, 1, legend_size))
-        legend_img = interpolate_color(xv, yv, "#ff381a", "#041a00")
+        handle_certain = Patch(facecolor='steelblue', edgecolor='none', label='Low uncertainty')
+        handle_uncertain = Patch(facecolor='steelblue', edgecolor='white',label=legendlabel, hatch='..')
 
-        legend_ax = fig.add_axes([0.01, 0.01, 0.08, 0.08 * oceans.shape[1] / oceans.shape[0]])
-        legend_ax.imshow(legend_img, origin='lower', aspect='auto')
-        legend_ax.set_xlabel('Mean', fontsize=20, color='white')
-        legend_ax.set_ylabel('Confidence interval', fontsize=20, color='white')
-        legend_ax.tick_params(left=False, bottom=False,
-                            labelleft=False, labelbottom=False)
-        for spine in legend_ax.spines.values():
-            spine.set_edgecolor('white')
+        legend = ax.legend(
+            handles=[handle_certain, handle_uncertain],
+            loc='lower center',
+            fontsize=30,
+            framealpha=0.8,
+            handleheight=1.2
+        )
+
+        # Add date annotation
 
         
+
         fig.text(   0.05, 0.95,
-                    date,
+                    f"Predictions for\n" + title + f"\non {date}",
                     ha='left', va='top',
                     fontsize=40
                 )
         
+        
+
         plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
 
 
@@ -439,6 +417,30 @@ def load_bootstrap_eco(output_dir, pred_name, cp_name):
         corrections = pd.read_csv(Path(output_dir) / cp_name / fo.name / "corrections.csv", index_col = 0)
         corrected_eco = actual_eco * corrections['slope'] + corrections['intercept']
         df_list.append(corrected_eco.clip(0, None))
+
+    all_df = np.stack([df.values for df in df_list])
+
+    y_mean = pd.DataFrame(all_df.mean(axis=0), index=df_list[0].index, columns=df_list[0].columns)
+    y_std  = pd.DataFrame(all_df.std(axis=0), index=df_list[0].index, columns=df_list[0].columns)
+    y_sem  = y_std / np.sqrt(len(df_list))  # standard error
+
+    # 95% confidence interval (normal approx): mean ± 1.96 * SEM 
+    ci = 1.96 * y_sem
+
+    return(y_mean, ci)
+
+
+
+def load_bootstrap_pa(output_dir, pred_name, usecols = None):
+
+    # Load P-A predictions and return average and confidence intervals
+
+    parent_folder = Path(output_dir) / pred_name
+
+    df_list = []
+    for fo in parent_folder.glob("Seed*"):
+        df = pd.read_csv(fo / "predictions-probs.csv", index_col = 0, usecols=usecols)
+        df_list.append(df)
 
     all_df = np.stack([df.values for df in df_list])
 
