@@ -13,6 +13,7 @@ import rasterio
 from rasterio.transform import from_origin
 from rasterio.plot import show as rioshow
 import matplotlib.pyplot as plt
+from matplotlib import colormaps
 
 
 def save_integrated_gradients(model, dataset, best_species, class_indices, output_dir):
@@ -160,40 +161,82 @@ def export_correlation_scores(cfg, classif = False, ordering = 'pearsonr'):
 
 
 
-def export_map(predictions, var_name, out_path, filename):
+def export_map(predictions_mean, predictions_ci, var_name, out_path, filename):
 
     RES = 0.1
 
-    min_lat, max_lat = predictions['latitude'].min() - 1 - 0.5*RES, predictions['latitude'].max() + 1 - 0.5*RES
-    min_lon, max_lon = predictions['longitude'].min() - 1 - 0.5*RES, predictions['longitude'].max() + 1 - 0.5*RES
+    min_lat, max_lat = predictions_mean['latitude'].min() - 1 - 0.5*RES, predictions_mean['latitude'].max() + 1 - 0.5*RES
+    min_lon, max_lon = predictions_mean['longitude'].min() - 1 - 0.5*RES, predictions_mean['longitude'].max() + 1 - 0.5*RES
 
     # Create a regular grid over the extent
     grid_lon = np.linspace(min_lon, max_lon, 1+int((max_lon - min_lon) / RES), endpoint=True)
     grid_lat = np.linspace(min_lat, max_lat, 1+int((max_lat - min_lat) / RES), endpoint=True)
     grid_lon, grid_lat = np.meshgrid(grid_lon, grid_lat)
 
-    grid_values = np.full(grid_lon.shape, np.nan) 
+    grid_values, grid_ci = np.full(grid_lon.shape, np.nan), np.full(grid_lon.shape, np.nan)
 
     # Convert point data to grid coordinates
-    x = (np.floor((predictions['longitude'].values - min_lon) / RES).astype(int))
-    y = (np.ceil((predictions['latitude'].values - min_lat) / RES).astype(int))
-    grid_values[y, x] = predictions[var_name].to_numpy()
-    data = np.flipud(grid_values)
+    x = (np.floor((predictions_mean['longitude'].values - min_lon) / RES).astype(int))
+    y = (np.ceil((predictions_mean['latitude'].values - min_lat) / RES).astype(int))
+    grid_values[y, x] = predictions_mean[var_name].to_numpy()
+    grid_ci[y, x] = predictions_ci[var_name].to_numpy()
 
 
     # Write raster
     transform = from_origin(min_lon, max_lat, RES, RES)
     dst = rasterio.open(Path(out_path,f'{filename}.tif'), 'w', driver='GTiff',
-                        height = data.shape[0], width = data.shape[1],
-                        dtype=str(data.dtype),
-                        count=1,
+                        height = grid_values.shape[0], width = grid_values.shape[1],
+                        dtype=str(grid_values.dtype),
+                        count=2,
                         crs='epsg:4326',
                         transform=transform,
                         nodata=np.nan,
                         compress='lzw')
 
-    dst.write(data, indexes=1)
+    dst.write_band(1, np.flipud(grid_values))
+    dst.set_band_description(1, f'{var_name}_mean')
+    dst.write_band(2, np.flipud(grid_ci))
+    dst.set_band_description(2, f'{var_name}_ci')
     dst.close()
+
+
+
+def interpolate_color(a, b, color_a: str, color_b: str):
+
+    # Pick a color from a 2d space varying between color a and color b, where a controls the hue interpolation and b controls the saturation.
+
+    def hex_to_hsl(hex_color):
+        r, g, bl = (int(hex_color.lstrip('#')[i:i+2], 16) / 255 for i in (0, 2, 4))
+        cmax, cmin = max(r, g, bl), min(r, g, bl)
+        l = (cmax + cmin) / 2
+        d = cmax - cmin
+        s = 0 if d == 0 else d / (1 - abs(2*l - 1))
+        if d == 0: h = 0
+        elif cmax == r: h = 60 * (((g - bl) / d) % 6)
+        elif cmax == g: h = 60 * ((bl - r) / d + 2)
+        else:           h = 60 * ((r - g)  / d + 4)
+        return h, s * 100, l * 100
+
+    hA, sA, lA = hex_to_hsl(color_a)
+    hB, sB, lB = hex_to_hsl(color_b)
+
+    dh = ((hB - hA + 540) % 360) - 180
+    h = (hA + dh * a) % 360
+    s = sA + (sB - sA) * b
+    l = lA + (lB - lA) * b
+
+    h, s, l = np.asarray(h), np.asarray(s) / 100, np.asarray(l) / 100
+    c = (1 - np.abs(2*l - 1)) * s
+    x = c * (1 - np.abs((h / 60) % 2 - 1))
+    m = l - c / 2
+    h6 = h / 60
+    r = np.select([h6<1, h6<2, h6<3, h6<4, h6<5], [c, x, 0, 0, x], c)
+    g = np.select([h6<1, h6<2, h6<3, h6<4, h6<5], [x, c, c, x, 0], 0)
+    b = np.select([h6<1, h6<2, h6<3, h6<4, h6<5], [0, 0, x, c, c], x)
+
+    rgb = np.stack([r + m, g + m, b + m], axis=-1)
+    return np.clip(rgb, 0, 1)
+
 
 
 
@@ -209,6 +252,24 @@ def convert_to_png(input_dir, input_file):
     # Open raster
     with rasterio.open(Path(input_dir) / input_file) as src:
 
+        means = src.read(1).astype(float)
+        ci = src.read(2).astype(float)
+        transform = src.transform
+
+        mask = np.isnan(means)
+
+         # Normalize each band to [0, 1]
+        def norm(arr, mask):
+            valid = arr[~mask]
+            mn, mx = valid.min(), valid.max()
+            out = (arr - mn) / (mx - mn + 1e-10)
+            out[mask] = 0
+            return out
+        
+        means_norm = norm(means, mask)
+
+        #rgba = np.dstack((interpolate_color(means_norm, ci_norm, "#ff381a", "#041a00"), (~mask).astype(float)))
+        rgba = np.dstack((colormaps.get_cmap('turbo')(means_norm)[:,:,:3],  (~mask).astype(float)[:,:,np.newaxis]))
         fig = plt.figure(frameon=False, figsize=(40, 40 * oceans.shape[0] / oceans.shape[1]))
         ax = fig.add_axes([0., 0., 1., 1.])
         ax.set_axis_off()
@@ -217,14 +278,31 @@ def convert_to_png(input_dir, input_file):
         rioshow(oceans, transform=ocean_transform, vmin=0, vmax = 1, cmap='gray', ax = ax)
 
         # Plot raster
-        ret = rioshow(src, ax=ax,cmap='turbo')
+        h, w = means.shape
+        left   = transform.c
+        top    = transform.f
+        right  = left + transform.a * w
+        bottom = top  + transform.e * h
+        ax.imshow(rgba, extent=[left, right, bottom, top],
+                origin='upper', aspect='auto', interpolation='nearest')
 
-        im = ret.get_images()[-1]
-        cax = fig.add_axes([0, 0, 0.1, 1])
-        cax.set_axis_off()  
-        cbar = fig.colorbar(im, ax=cax)
-        cbar.ax.tick_params(labelsize=40)
-        cbar.ax.tick_params(length=10, width=2)
+
+        # Plot legend
+        legend_size = 32
+        legend_img = np.zeros((legend_size, legend_size, 3))
+        xv, yv = np.meshgrid(np.linspace(0, 1, legend_size),
+                            np.linspace(0, 1, legend_size))
+        legend_img = interpolate_color(xv, yv, "#ff381a", "#041a00")
+
+        legend_ax = fig.add_axes([0.01, 0.01, 0.08, 0.08 * oceans.shape[1] / oceans.shape[0]])
+        legend_ax.imshow(legend_img, origin='lower', aspect='auto')
+        legend_ax.set_xlabel('Mean', fontsize=20, color='white')
+        legend_ax.set_ylabel('Confidence interval', fontsize=20, color='white')
+        legend_ax.tick_params(left=False, bottom=False,
+                            labelleft=False, labelbottom=False)
+        for spine in legend_ax.spines.values():
+            spine.set_edgecolor('white')
+
         
         fig.text(   0.05, 0.95,
                     date,
