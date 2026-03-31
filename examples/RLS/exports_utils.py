@@ -234,9 +234,9 @@ def convert_to_png(input_dir, input_file, colormap, species = False):
         
         # Add uncertainty hatching
         if species:
-            ys, xs = np.where(ci > np.nanmedian(ci))
-            title = r"$\bfit{" + title_mapping[input_file.split('_')[1]].replace(' ', '\ ') + "}$"
-            legendlabel = f"High uncertainty (CI > {np.nanmedian(ci):.2f})" 
+            ys, xs = np.where(ci > 0.05)
+            title = r"$\bfit{" + input_file.split('_')[0].replace(' ', '\ ') + "}$"
+            legendlabel = f"High uncertainty (CI > 0.05)" 
 
         else:
             title_mapping = {
