@@ -57,8 +57,8 @@ def create_processed_memmap(config):
     print(f"Operation: Center Crop ({TARGET_H}x{TARGET_W}) -> Quantize")
 
     # Create Memmaps with FIXED 224x224 size
-    fp_ref = np.memmap("poverty_reflectance.dat", dtype='uint16', mode='w+', shape=(N, 4, 6, TARGET_H, TARGET_W))
-    fp_temp = np.memmap("poverty_temperature.dat", dtype='uint16', mode='w+', shape=(N, 4, 1, TARGET_H, TARGET_W))
+    fp_ref = np.memmap("mada_reflectance_f32.dat", dtype='float32', mode='w+', shape=(N, 4, 6, TARGET_H, TARGET_W))
+    fp_temp = np.memmap("mada_temperature_f32.dat", dtype='float32', mode='w+', shape=(N, 4, 1, TARGET_H, TARGET_W))
 
     for i in tqdm(range(N)):
         row = dataframe.iloc[i]
@@ -118,8 +118,7 @@ def create_processed_memmap(config):
             ref_stack[:t] = np.stack(ref_buffer[:t], axis=0)
             ref_stack = np.nan_to_num(ref_stack)
         
-        ref_quant = (ref_stack + REF_OFFSET) / REF_SCALE
-        fp_ref[i] = np.clip(ref_quant, 0, 65535).astype(np.uint16)
+        fp_ref[i] = ref_stack.astype(np.float32)
 
         # Temperature
         temp_stack = np.zeros((T, TARGET_H, TARGET_W), dtype=np.float32)
@@ -128,15 +127,14 @@ def create_processed_memmap(config):
             t = min(len(lwir_buffer), T)
             temp_stack[:t] = np.stack(lwir_buffer[:t], axis=0)
             temp_stack = np.nan_to_num(temp_stack)
-        
-        temp_quant = temp_stack * TEMP_SCALE
-        fp_temp[i] = np.clip(temp_quant, 0, 65535).astype(np.uint16)[:, None, :, :]
+
+        fp_temp[i] = temp_stack[:, None, :, :].astype(np.float32)
         
         if i % 500 == 0:
             fp_ref.flush()
             fp_temp.flush()
 
-        np.save("poverty_meta.npy", {
+        np.save("mada_meta.npy", {
                 "shape_ref":  (N, 4, 6, TARGET_H, TARGET_W),
                 "shape_temp": (N, 4, 1, TARGET_H, TARGET_W),
                 "ref_offset": REF_OFFSET,

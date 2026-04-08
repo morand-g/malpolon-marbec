@@ -78,31 +78,31 @@ class MSDataModule(BaseDataModule):
             torchvision.transforms.Normalize(mean=self.dict_normalize['mean'], std=self.dict_normalize['std']),
         ])
 
-    def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
-                         nightlight= self.nightlight, transform=transform)
-
     # def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-    #     """New approach that reade a np.memmap file"""
-    #     print(f"⚡ Loading Fast Memmap Dataset for split: {split}")
-    #
-    #     # We need to recreate the dataframe logic here because MemmapDataset
-    #     # expects a dataframe, but MSDataset used to load it internally.
-    #     # We can borrow the helper from the old class or just instantiate it briefly.
-    #
-    #     # Fast trick: Use the old class just to get the dataframe (it's fast to load CSVs)
-    #     # We pass transform=None because we only want the metadata/labels right now
-    #     temp_ds = MSDataset(self.dataset_path, self.labels_name, self.fold_dict,
-    #                         split=split, nature=self.nature, nightlight=self.nightlight,
-    #                         transform=None)
+    #     return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
+    #                      nightlight= self.nightlight, transform=transform)
 
-        # return MemmapDataset(
-        #     ref_path="poverty_reflectance.dat",
-        #     temp_path="poverty_temperature.dat",
-        #     meta_path="poverty_meta.npy",
-        #     dataframe=temp_ds.dataframe, # Pass the loaded labels
-        #     transform=transform
-        # )
+    def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
+        """New approach that reade a np.memmap file"""
+        print(f"⚡ Loading Fast Memmap Dataset for split: {split}")
+
+        # We need to recreate the dataframe logic here because MemmapDataset
+        # expects a dataframe, but MSDataset used to load it internally.
+        # We can borrow the helper from the old class or just instantiate it briefly.
+
+        # Fast trick: Use the old class just to get the dataframe (it's fast to load CSVs)
+        # We pass transform=None because we only want the metadata/labels right now
+        temp_ds = MSDataset(self.dataset_path, self.labels_name, self.fold_dict,
+                            split=split, nature=self.nature, nightlight=self.nightlight,
+                            transform=None)
+
+        return MemmapDataset(
+            ref_path="mada_reflectance.dat",
+            temp_path="mada_temperature.dat",
+            meta_path="mada_meta.npy",
+            dataframe=temp_ds.dataframe, # Pass the loaded labels
+            transform=transform
+        )
 
     def get_all_dataset(self) -> Dataset:
         """Call self.get_dataset to return the whole dataset.
@@ -222,7 +222,6 @@ class MemmapDataset(Dataset):
         return len(self.dataframe)
 
     def __getitem__(self, idx):
-        real_idx = self.dataframe.index[idx]
         real_idx = idx
 
         # Reflectance (T, 6, H, W)
@@ -265,7 +264,7 @@ class MemmapDataset(Dataset):
         nb_layers = len(SPECTRUM_ALL)
 
         if rgb:
-            patch_rgb = patch[0, [0, 1, 2], :, :]
+            patch_rgb = patch[[0, 1, 2], :, :]
             img_rgb = patch_rgb.permute(1, 2, 0).numpy()
             img_rgb = (img_rgb - img_rgb.min()) / (img_rgb.max() - img_rgb.min())
 
@@ -292,10 +291,8 @@ class MemmapDataset(Dataset):
                 # flatten the subplots array to easily access the subplots
                 axs = axs.flatten()
 
-                # loop through the layers of patch data
                 for i, band_name in enumerate(SPECTRUM_ALL):
-                    # display the layer on the corresponding subplot
-                    axs[i].imshow(patch[0][i])
+                    im = axs[i].imshow(patch[i])  # récupérer l'image
                     axs[i].set_title(f'layer_{i}: {band_name}')
                     axs[i].axis('off')
 
@@ -308,6 +305,7 @@ class MemmapDataset(Dataset):
             # show the plot
             plt.tight_layout(rect=[0, 0.03, 1, 0.95])
             plt.show()
+
 
 
 class MSDataset(Dataset):
@@ -553,10 +551,8 @@ class MSDataset(Dataset):
                 if self.nightlight:
                     SPECTRUM_ALL.append('nightlight')
 
-                # loop through the layers of patch data
                 for i, band_name in enumerate(SPECTRUM_ALL):
-                    # display the layer on the corresponding subplot
-                    axs[i].imshow(patch[i])
+                    im = axs[i].imshow(patch[i])  # récupérer l'image
                     axs[i].set_title(f'layer_{i}: {band_name}')
                     axs[i].axis('off')
 
