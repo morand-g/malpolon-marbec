@@ -200,7 +200,8 @@ def export_map(predictions_mean, predictions_ci, var_name, out_path, filename):
     dst.close()
 
 
-def convert_to_png(input_dir, input_file, colormap, species = False):
+def convert_to_png(input_dir, input_file, colormap, species = False,
+                   uncertainty_threshold = 0.05, relative_threshold = False):
 
     date = input_file.split('_')[-1].replace('.tif', '')
 
@@ -233,22 +234,26 @@ def convert_to_png(input_dir, input_file, colormap, species = False):
                 origin='upper', aspect='auto', interpolation='nearest')
         
         # Add uncertainty hatching
-        if species:
-            ys, xs = np.where(ci > 0.05)
-            title = r"$\bfit{" + input_file.split('_')[0].replace(' ', '\ ') + "}$"
-            legendlabel = f"High uncertainty (CI > 0.05)" 
+        if relative_threshold:
+            threshold_name = f"{100*uncertainty_threshold:.0f}%"
+            relative_ci = ci / (means + 1e-8)
+            ys, xs = np.where(relative_ci > uncertainty_threshold)
+        else:
+            threshold_name = f"{uncertainty_threshold:.2f}"
+            ys, xs = np.where(ci > uncertainty_threshold)
 
+
+        # Add title and legend
+        if species:
+            title = r"$\bfit{" + input_file.split('_')[0].replace(' ', '\ ') + "}$"
+            
         else:
             title_mapping = {
                 'sr': 'Species Richness',
                 'bm': 'Biomass',
                 'uicn': 'Threatened Species Richness'
             }
-            
-            relative_ci = ci / (means + 1e-8)
-            ys, xs = np.where(relative_ci > np.nanmedian(relative_ci))
-            title = r"$\bf{" + title_mapping[input_file.split('_')[1]].replace(' ', '\ ') + "}$"
-            legendlabel = f"High uncertainty (CI > {100*np.nanmedian(relative_ci):.0f}%)" 
+            title = r"$\bf{" + title_mapping[input_file.split('_')[1]].replace(' ', '\ ') + "}$"   
 
         lons = transform.c + (xs + 0.5) * transform.a
         lats = transform.f + (ys + 0.5) * transform.e
@@ -265,6 +270,7 @@ def convert_to_png(input_dir, input_file, colormap, species = False):
         cbar.ax.tick_params(length=10, width=2)
 
         # Plot legend
+        legendlabel = f"High uncertainty (CI > {threshold_name})"
         handle_certain = Patch(facecolor='steelblue', edgecolor='none', label='Low uncertainty')
         handle_uncertain = Patch(facecolor='steelblue', edgecolor='white',label=legendlabel, hatch='..')
 
