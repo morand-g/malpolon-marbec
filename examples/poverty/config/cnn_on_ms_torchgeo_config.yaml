@@ -5,7 +5,7 @@ hydra:
 
 run:
   fold: A
-  predict:
+  predict: true
   checkpoint_path:
 
 
