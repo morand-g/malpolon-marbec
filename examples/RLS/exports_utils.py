@@ -297,13 +297,17 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
         plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
 
 
-def load_bootstrap_metrics(output_dir, cp_name, reindex = True):
+def load_bootstrap_metrics(output_dir, cp_name, reindex = True, pa_metric = 'F1'):
 
     ### Load multiple output metrics and return average and confidence intervals
 
     if 'pa' in cp_name:
-        metric = 'f1'
-        metric_key = 'testF1'
+        if pa_metric == 'TSS':
+            metric = 'TSS'
+            metric_key = 'tss'
+        else:
+            metric = 'f1'
+            metric_key = 'testF1'
     elif 'reg' in cp_name:
         metric = 'pearsonr_nz'
         metric_key = 'testR2--pearsonr_nz.4'
@@ -311,7 +315,7 @@ def load_bootstrap_metrics(output_dir, cp_name, reindex = True):
         metric = 'pearsonr'
         metric_key = 'testR2--pearsonr.4'
 
-    if 'xgb' in str(output_dir):
+    if 'xgb' in str(output_dir) and pa_metric == 'F1':
         metric_key = "xgb_best_"
     
     parent_folder = Path(output_dir) / cp_name
