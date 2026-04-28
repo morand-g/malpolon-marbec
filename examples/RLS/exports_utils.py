@@ -305,6 +305,9 @@ def load_bootstrap_metrics(output_dir, cp_name, reindex = True, pa_metric = 'F1'
         if pa_metric == 'TSS':
             metric = 'TSS'
             metric_key = 'tss'
+        elif pa_metric == 'Boyce':
+            metric = 'boyce'
+            metric_key = 'boyce'
         else:
             metric = 'f1'
             metric_key = 'testF1'
