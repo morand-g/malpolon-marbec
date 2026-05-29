@@ -493,7 +493,6 @@ class MSDataset(Dataset):
         labels_fp = Path(labels_fp)
         df = pd.read_csv(
             labels_fp,
-            sep=";",
         )
         self.unique_labels = np.sort(np.unique(df[iwi_key]))
 

@@ -5,21 +5,21 @@ hydra:
 
 run:
   fold: A
-  predict: true
+  predict:
   checkpoint_path:
 
 
 data:
-  dataset_path: ../../../images/seasonal
+  dataset_path: ../../../images/composite
   labels_name: /../common_seasonal_composite.csv
   train_batch_size: 64
   inference_batch_size: 64
   num_workers: 9
   val_split: 0.2
   test_split: 0.2
-  nature: seasonal
+  nature: composite
   nightlight:
-  dict_normalize: mean_std_normalize_memmap.json
+  dict_normalize: mean_std_normalize_HS.json
   fold_path: folds_mada.pkl
 
 task:
@@ -42,7 +42,7 @@ model:
     global_pool: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 28
+      num_input_channels: 6
     change_last_layer:
       num_outputs: 1
 
