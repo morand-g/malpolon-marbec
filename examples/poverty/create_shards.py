@@ -36,9 +36,9 @@ import rasterio
 # 6 reflectance + 1 thermal — the spectral bands useful for prediction.
 # Aliases handle different Landsat sensor naming conventions.
 
-TARGET_BANDS = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22', 'lwir']
+TARGET_BANDS = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22']
 REFLECTANCE_BANDS = {'red', 'green', 'blue', 'nir08', 'swir16', 'swir22'}
-THERMAL_BANDS = {'lwir'}
+THERMAL_BANDS = set()
 
 BAND_ALIASES = {
     'red': ['red', 'SR_B3', 'SR_B4'],
@@ -47,7 +47,6 @@ BAND_ALIASES = {
     'nir08': ['nir08', 'nir', 'SR_B4', 'SR_B5'],
     'swir16': ['swir16', 'swir1', 'SR_B5', 'SR_B6'],
     'swir22': ['swir22', 'swir2', 'SR_B7'],
-    'lwir': ['lwir', 'lwir11', 'ST_B6', 'ST_B10'],
 }
 
 
@@ -68,7 +67,7 @@ def _read_tile(tiff_path, crop_size):
     """
     with rasterio.open(tiff_path) as src:
         descriptions = src.descriptions
-        tile = np.empty((7, src.height, src.width), dtype=np.uint16)
+        tile = np.empty((len(TARGET_BANDS), src.height, src.width), dtype=np.uint16)
         for i, name in enumerate(TARGET_BANDS):
             idx = _find_band_index(descriptions, name)
             if idx is None:
@@ -112,9 +111,9 @@ def _process_sample(source_dir, country, year, cluster_id, iwi, crop_size):
 
     # Accumulate per-band stats in physical units for normalization
     scale = np.array(
-        [1 / 10000.0] * len(REFLECTANCE_BANDS) + [1 / 100.0] * len(THERMAL_BANDS),
-        dtype=np.float64,
-    )  # (7,)
+    [1 / 10000.0 if b in REFLECTANCE_BANDS else 1 / 100.0 for b in TARGET_BANDS],
+    dtype=np.float64,
+)
     band_sum = np.zeros(len(TARGET_BANDS), dtype=np.float64)
     band_sq_sum = np.zeros(len(TARGET_BANDS), dtype=np.float64)
     n_pixels = 0
@@ -331,8 +330,8 @@ if __name__=="__main__":
     
     create_shards(
     source_dir="../../../images/seasonal",              # country/year/cluster_trimester.tiff
-    source_csv="common_seasonal_composite_folds.csv",        # semicolon-separated CSV
-    output_dir="../../../webdataset",             # will be created
+    source_csv="madagascar_folds.csv",        # semicolon-separated CSV
+    output_dir="../../../webdataset_mada",             # will be created
     n_folds=5,                               # number of CV folds
     num_workers=32,                          # parallel TIFF reads (default: all cores)
     fold_column="fold",                    # uncomment if your CSV has a fold column

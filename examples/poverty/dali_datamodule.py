@@ -116,7 +116,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
 
         n_reflectance = 6  # red, green, blue, nir08, swir16, swir22
         scale_7 = np.array(
-            [1 / 10000.0] * n_reflectance + [1 / 100.0] * (n_bands - n_reflectance),
+            [1 / 10000.0] * n_reflectance ,
             dtype=np.float64,
         )
 

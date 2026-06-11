@@ -22,7 +22,8 @@ from torch.cuda import nvtx
 from malpolon.data.data_module import BaseDataModule
 
 
-SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22', 'lwir']
+
+SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22']
 
 
 class MSDataModule(BaseDataModule):
