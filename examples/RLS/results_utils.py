@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.patches import Patch
 
-
+import geopandas as gpd
 
 def export_map(predictions_mean, predictions_ci, var_name, out_path, filename):
 
@@ -51,7 +51,7 @@ def export_map(predictions_mean, predictions_ci, var_name, out_path, filename):
 
 
 def convert_to_png(input_dir, input_file, colormap, species = False,
-                   uncertainty_threshold = 0.05, relative_threshold = False):
+                   uncertainty_threshold = 0.05, relative_threshold = False, crop = None, hatch_color='black', hatch_size=20, title_coords = (0.05, 0.95)):
 
     date = input_file.split('_')[-1].replace('.tif', '')
 
@@ -67,7 +67,25 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
         ci = src.read(2).astype(float)
         transform = src.transform
 
-        fig = plt.figure(frameon=False, figsize=(40, 40 * oceans.shape[0] / oceans.shape[1]))
+        # Calculate extent of the raster
+        h, w = means.shape
+        left   = transform.c
+        top    = transform.f
+        right  = left + transform.a * w
+        bottom = top  + transform.e * h
+
+        # Apply percentage crop if provided
+        if crop is not None:
+            crop_left   = left   + crop['left'] * (right - left)
+            crop_right  = left   + crop['right'] * (right - left)
+            crop_bottom = bottom + crop['bottom'] * (top - bottom)
+            crop_top    = bottom + crop['top'] * (top - bottom)
+        else:
+            crop_left, crop_right, crop_bottom, crop_top = left, right, bottom, top
+            
+        crop_w = crop_right - crop_left
+        crop_h = crop_top - crop_bottom
+        fig = plt.figure(frameon=False, figsize=(40, 40 * crop_h / crop_w))
         ax = fig.add_axes([0., 0., 1., 1.])
         ax.set_axis_off()
 
@@ -75,11 +93,6 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
         rioshow(oceans, transform=ocean_transform, vmin=0, vmax = 1, cmap='gray', ax = ax)
 
         # Plot raster
-        h, w = means.shape
-        left   = transform.c
-        top    = transform.f
-        right  = left + transform.a * w
-        bottom = top  + transform.e * h
         ret = ax.imshow(means, extent=[left, right, bottom, top], cmap = colormap, norm=colors.Normalize(vmin=np.nanmin(means), vmax=np.nanmax(means)),
                 origin='upper', aspect='auto', interpolation='nearest')
         
@@ -89,9 +102,18 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
             relative_ci = ci / (means + 1e-8)
             ys, xs = np.where(relative_ci > uncertainty_threshold)
         else:
-            threshold_name = f"{uncertainty_threshold:.2f}"
+            threshold_name = f"{uncertainty_threshold:.3f}"
             ys, xs = np.where(ci > uncertainty_threshold)
 
+        lons = transform.c + (xs + 0.5) * transform.a
+        lats = transform.f + (ys + 0.5) * transform.e
+
+        ax.scatter(lons, lats, s=hatch_size, c=hatch_color,
+                marker='.', linewidths=0, zorder=5)
+
+        # Crop the plot to the specified extent
+        ax.set_xlim(crop_left, crop_right)
+        ax.set_ylim(crop_bottom, crop_top)
 
         # Add title and legend
         if species:
@@ -105,12 +127,6 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
             }
             title = r"$\bf{" + title_mapping[input_file.split('_')[1]].replace(' ', '\ ') + "}$"   
 
-        lons = transform.c + (xs + 0.5) * transform.a
-        lats = transform.f + (ys + 0.5) * transform.e
-
-        ax.scatter(lons, lats, s=12, c='white',
-                marker='.', linewidths=0, zorder=5)
-
 
         # Plot colorbar
         cax = fig.add_axes([0, 0, 0.1, 1])
@@ -122,7 +138,7 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
         # Plot legend
         legendlabel = f"High uncertainty (CI > {threshold_name})"
         handle_certain = Patch(facecolor='steelblue', edgecolor='none', label='Low uncertainty')
-        handle_uncertain = Patch(facecolor='steelblue', edgecolor='white',label=legendlabel, hatch='..')
+        handle_uncertain = Patch(facecolor='steelblue', edgecolor=hatch_color,label=legendlabel, hatch='..')
 
         legend = ax.legend(
             handles=[handle_certain, handle_uncertain],
@@ -134,9 +150,7 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
 
         # Add date annotation
 
-        
-
-        fig.text(   0.05, 0.95,
+        fig.text(   title_coords[0], title_coords[1],
                     f"Predictions for\n" + title + f"\non {date}",
                     ha='left', va='top',
                     fontsize=40
@@ -145,6 +159,101 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
         
 
         plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
+
+
+
+
+
+def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
+
+    date = input_file.split('_')[-1].replace('.tif', '')
+
+    with rasterio.open('/home/gaetan/Downloads/oceans50m.tiff') as src:
+
+        oceans = src.read(1)
+        ocean_transform = src.transform
+
+    # Open raster
+    with rasterio.open(Path(input_dir) / input_file) as src:
+
+        means = np.floor(src.read(1).astype(float))
+        transform = src.transform
+
+        # Calculate extent of the raster
+        h, w = means.shape
+        left   = transform.c
+        top    = transform.f
+        right  = left + transform.a * w
+        bottom = top  + transform.e * h
+
+        crop_left   = left   + crop['left'] * (right - left)
+        crop_right  = left   + crop['right'] * (right - left)
+        crop_bottom = bottom + crop['bottom'] * (top - bottom)
+        crop_top    = bottom + crop['top'] * (top - bottom)
+        crop_w = right - left
+        crop_h = top - bottom
+
+        fig = plt.figure(frameon=False, figsize=(20, 20 * crop_h / crop_w))
+        ax = fig.add_axes([0., 0., 1., 1.])
+        ax.set_axis_off()
+
+        # Plot background
+        rioshow(oceans, transform=ocean_transform, vmin=0, vmax = 1, cmap='gray', ax = ax)
+
+        # Plot raster
+        ret = ax.imshow(means, extent=[left, right, bottom, top], cmap = cmap, norm=colors.Normalize(vmin=np.nanmin(means), vmax=np.nanmax(means)),
+                origin='upper', aspect='auto', interpolation='nearest')
+    
+
+
+        gdf = gpd.read_file("/home/gaetan/Downloads/aus_highly_protected.gpkg")
+        gdf.plot(
+            ax=ax,
+            facecolor='white',
+            edgecolor='black',
+            linewidth=0.5,
+            zorder=10
+        )
+
+        ax.set_xlim(crop_left, crop_right)
+        ax.set_ylim(crop_bottom, crop_top)
+    
+
+        # Plot legend
+        cmap = plt.get_cmap(cmap)
+
+        vmin, vmax = int(np.nanmin(means)), int(np.nanmax(means))
+
+        handles = []
+
+        for v in range(vmin, vmax + 1):
+
+            color = cmap((v - vmin) / (vmax - vmin))
+            handles.append(
+                Patch(facecolor=color, edgecolor='none', label=f"{v}-{v+1}")
+            )
+
+        legend = ax.legend(
+            handles=handles,
+            title="",
+            loc="lower left",
+            fontsize=18,
+            title_fontsize=20,
+            framealpha=0.9
+        )
+
+
+        # fig.text(   0.05, 0.95,
+        #             f"Predictions for\nThreatened species richness"\non {date}",
+        #             ha='left', va='top',
+        #             fontsize=40
+        #         )
+        
+        
+        plt.show()
+        # plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
+
+
 
 
 def load_bootstrap_metrics(output_dir, cp_name, reindex = True, pa_metric = 'F1'):
