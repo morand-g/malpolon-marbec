@@ -8,6 +8,7 @@ from rasterio.plot import show as rioshow
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.patches import Patch
+import plotly.express as px
 
 import geopandas as gpd
 
@@ -168,6 +169,9 @@ def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
 
     date = input_file.split('_')[-1].replace('.tif', '')
 
+    def treat_color(c, opacity = 1):
+        return px.colors.unconvert_from_RGB_255(px.colors.unlabel_rgb(c)) + (opacity,)
+
     with rasterio.open('/home/gaetan/Downloads/oceans50m.tiff') as src:
 
         oceans = src.read(1)
@@ -190,18 +194,24 @@ def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
         crop_right  = left   + crop['right'] * (right - left)
         crop_bottom = bottom + crop['bottom'] * (top - bottom)
         crop_top    = bottom + crop['top'] * (top - bottom)
-        crop_w = right - left
-        crop_h = top - bottom
+        crop_w = crop_right - crop_left
+        crop_h = crop_top - crop_bottom
 
-        fig = plt.figure(frameon=False, figsize=(20, 20 * crop_h / crop_w))
+        print(f"Crop extent: left={crop_left}, right={crop_right}, bottom={crop_bottom}, top={crop_top}")
+        fig = plt.figure(frameon=False, figsize=(10, 10 * crop_h / crop_w))
         ax = fig.add_axes([0., 0., 1., 1.])
         ax.set_axis_off()
 
         # Plot background
         rioshow(oceans, transform=ocean_transform, vmin=0, vmax = 1, cmap='gray', ax = ax)
 
+        masked = np.ma.masked_where(means <= 2, means)
+
+        custom_cmap = colors.ListedColormap([treat_color(px.colors.qualitative.Pastel[2])])
+        custom_cmap.set_bad(alpha=0)
+
         # Plot raster
-        ret = ax.imshow(means, extent=[left, right, bottom, top], cmap = cmap, norm=colors.Normalize(vmin=np.nanmin(means), vmax=np.nanmax(means)),
+        ret = ax.imshow(masked, extent=[left, right, bottom, top], cmap = custom_cmap, norm=colors.Normalize(vmin=np.nanmin(means), vmax=np.nanmax(means)),
                 origin='upper', aspect='auto', interpolation='nearest')
     
 
@@ -209,7 +219,7 @@ def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
         gdf = gpd.read_file("/home/gaetan/Downloads/aus_highly_protected.gpkg")
         gdf.plot(
             ax=ax,
-            facecolor='white',
+            facecolor=treat_color(px.colors.qualitative.Pastel[0], opacity=0.5),
             edgecolor='black',
             linewidth=0.5,
             zorder=10
@@ -220,18 +230,10 @@ def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
     
 
         # Plot legend
-        cmap = plt.get_cmap(cmap)
+    
+        handles = [Patch(facecolor=treat_color(px.colors.qualitative.Pastel[0], opacity=0.5), edgecolor='black', label="Highly protected areas"),
+                   Patch(facecolor=treat_color(px.colors.qualitative.Pastel[2]), edgecolor='none', label="Blindspots (2+ threatened species)")]
 
-        vmin, vmax = int(np.nanmin(means)), int(np.nanmax(means))
-
-        handles = []
-
-        for v in range(vmin, vmax + 1):
-
-            color = cmap((v - vmin) / (vmax - vmin))
-            handles.append(
-                Patch(facecolor=color, edgecolor='none', label=f"{v}-{v+1}")
-            )
 
         legend = ax.legend(
             handles=handles,
@@ -241,18 +243,9 @@ def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
             title_fontsize=20,
             framealpha=0.9
         )
-
-
-        # fig.text(   0.05, 0.95,
-        #             f"Predictions for\nThreatened species richness"\non {date}",
-        #             ha='left', va='top',
-        #             fontsize=40
-        #         )
         
         
         plt.show()
-        # plt.savefig(Path(input_dir) / input_file.replace('.tif', '.png'), bbox_inches='tight', pad_inches=0)
-
 
 
 
