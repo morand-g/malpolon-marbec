@@ -103,7 +103,7 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
             relative_ci = ci / (means + 1e-8)
             ys, xs = np.where(relative_ci > uncertainty_threshold)
         else:
-            threshold_name = f"{uncertainty_threshold:.3f}"
+            threshold_name = f"{uncertainty_threshold:.2f}"
             ys, xs = np.where(ci > uncertainty_threshold)
 
         lons = transform.c + (xs + 0.5) * transform.a
@@ -130,9 +130,9 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
 
 
         # Plot colorbar
-        cax = fig.add_axes([0, 0, 0.1, 1])
+        cax = fig.add_axes([-0.07, 0.12, 0.5, 0.2])
         cax.set_axis_off()  
-        cbar = fig.colorbar(ret, ax=cax)
+        cbar = fig.colorbar(ret, ax=cax, orientation='horizontal')#, fraction=0.05, pad=0.01)
         cbar.ax.tick_params(labelsize=40)
         cbar.ax.tick_params(length=10, width=2)
 
@@ -143,7 +143,7 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
 
         legend = ax.legend(
             handles=[handle_certain, handle_uncertain],
-            loc='lower center',
+            loc='lower left',
             fontsize=30,
             framealpha=0.8,
             handleheight=1.2
@@ -154,7 +154,7 @@ def convert_to_png(input_dir, input_file, colormap, species = False,
         fig.text(   title_coords[0], title_coords[1],
                     f"Predictions for\n" + title + f"\non {date}",
                     ha='left', va='top',
-                    fontsize=40
+                    fontsize=40,
                 )
         
         
@@ -244,9 +244,7 @@ def blindspots_map(input_dir, input_file, crop = None, cmap = 'turbo'):
             framealpha=0.9
         )
         
-        
         plt.show()
-
 
 
 def load_bootstrap_metrics(output_dir, cp_name, reindex = True, pa_metric = 'F1'):
