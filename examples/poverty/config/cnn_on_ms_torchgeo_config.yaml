@@ -19,7 +19,7 @@ data:
   test_split: 0.2
   nature: seasonal
   nightlight:
-  dict_normalize: mean_std_normalize_all.json
+  dict_normalize: mean_std_normalize_HS.json
   fold_path: folds_mada.pkl
 
 task:

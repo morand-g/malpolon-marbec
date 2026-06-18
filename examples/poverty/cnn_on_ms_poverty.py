@@ -69,19 +69,19 @@ def main(cfg: DictConfig) -> None:
     logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=f"tensorboard_logs/fold_{fold}", version="")
     logger_tb.log_hyperparams(cfg)
 
-    # Datamodule & Model
-    datamodule = DALIWebDatasetModule(
-    wds_dir=cfg.data.dataset_path,
-    fold=fold,                     # 0-4 for 5-fold CV
-    n_folds=5,
-    train_batch_size=cfg.data.train_batch_size,
-    inference_batch_size=cfg.data.inference_batch_size,
-    num_workers=4,              # DALI I/O threads (not PyTorch workers)
-)
+#     # Datamodule & Model
+#     datamodule = DALIWebDatasetModule(
+#     wds_dir=cfg.data.dataset_path,
+#     fold=fold,                     # 0-4 for 5-fold CV
+#     n_folds=5,
+#     train_batch_size=cfg.data.train_batch_size,
+#     inference_batch_size=cfg.data.inference_batch_size,
+#     num_workers=4,              # DALI I/O threads (not PyTorch workers)
+# )
 
-    datamodule.transfer_batch_to_device = lambda batch, device, idx: batch
+#     datamodule.transfer_batch_to_device = lambda batch, device, idx: batch
 
-    # datamodule = MSDataModule(**cfg.data, fold=fold)
+    datamodule = MSDataModule(**cfg.data, fold=fold)
     
     model = RegressionSystem(cfg.model, **cfg.optim)
 
@@ -91,12 +91,12 @@ def main(cfg: DictConfig) -> None:
         # Summary(),
         ModelCheckpoint(
             dirpath=log_dir_fold,
-            filename="{epoch:02d}-{step}",
+            filename="best",
             monitor="loss/val",
             mode="min",
             save_on_train_epoch_end=True,
-            save_top_k=2,
-            save_last=True,
+            save_top_k=1,
+            save_last=False,
             every_n_train_steps=10,
         ),
         LearningRateMonitor(),
@@ -205,7 +205,7 @@ def inference(cfg: DictConfig) -> None:
         'prediction': all_predictions.flatten()
         })
     
-    df.to_csv(f'{log_dir}/all_folds_predictions_vs_targets.csv', index=False)
+    df.to_csv(f'{log_dir}/all_folds_predictions_vs_targets_mada.csv', index=False)
 
     plt.figure(figsize=(8, 6))
     plt.scatter(all_targets, all_predictions, alpha=0.5)
@@ -213,7 +213,7 @@ def inference(cfg: DictConfig) -> None:
     plt.xlabel('Target')
     plt.ylabel('Prediction')
     plt.title(f'Target vs Prediction (All Folds)\n$R^2 = {r2:.3f}$')
-    plt.savefig(f'{log_dir}/all_folds_target_vs_prediction.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{log_dir}/all_folds_target_vs_prediction_mada.png', dpi=300, bbox_inches='tight')
     plt.close()
 
 
@@ -241,4 +241,4 @@ def plot_dataset(cfg: DictConfig) -> None:
     
 if __name__ == "__main__":
 
-   inference()
+   main()
