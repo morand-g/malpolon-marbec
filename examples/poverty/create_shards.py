@@ -1,8 +1,8 @@
 """Create WebDataset tar shards from Landsat TIFFs for DALI training.
 
 Reads multi-band float64 Landsat TIFFs (from Planetary Computer), extracts
-7 spectral bands, scales to uint16, center-crops to 224x224, stacks
-4 trimesters into 28 channels, and writes fold-grouped tar shards ready
+6 reflectance bands, scales to uint16, resizes to 224x224, stacks
+4 trimesters into 24 channels, and writes fold-grouped tar shards ready
 for GPU data loading.
 
 The output shards can be consumed by ``DALIWebDatasetModule`` from
@@ -31,14 +31,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import rasterio
+from rasterio.enums import Resampling
 
 # ── Band selection ──────────────────────────────────────────────────────────
-# 6 reflectance + 1 thermal — the spectral bands useful for prediction.
+# 6 reflectance bands useful for prediction.
 # Aliases handle different Landsat sensor naming conventions.
 
 TARGET_BANDS = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22']
-REFLECTANCE_BANDS = {'red', 'green', 'blue', 'nir08', 'swir16', 'swir22'}
-THERMAL_BANDS = set()
+REFLECTANCE_BANDS = set(TARGET_BANDS)
+NORMALIZE_MEAN = [1087.0, 1342.0, 1433.0, 2734.0, 1958.0, 1363.0]
+NORMALIZE_STD = [2248.0, 2179.0, 2178.0, 1850.0, 1242.0, 1049.0]
+NORMALIZE_MAX_PIXEL_VALUE = 0.0001
 
 BAND_ALIASES = {
     'red': ['red', 'SR_B3', 'SR_B4'],
@@ -58,16 +61,16 @@ def _find_band_index(descriptions, target_name):
     return None
 
 
-def _read_tile(tiff_path, crop_size):
-    """Read a Landsat TIFF and return a (7, crop_size, crop_size) uint16 array.
+def _read_tile(tiff_path, image_size):
+    """Read a Landsat TIFF and return a (6, image_size, image_size) uint16 array.
 
-    Selects the 7 target bands from the multi-band float64 source,
-    replaces NaN with 0, scales to uint16 (reflectance x 10000,
-    thermal x 100), and center-crops to *crop_size*.
+    Selects the 6 reflectance target bands from the multi-band float64 source,
+    replaces NaN with 0, scales reflectance to uint16 (x 10000),
+    and resizes to *image_size* x *image_size*.
     """
     with rasterio.open(tiff_path) as src:
         descriptions = src.descriptions
-        tile = np.empty((len(TARGET_BANDS), src.height, src.width), dtype=np.uint16)
+        tile = np.empty((len(TARGET_BANDS), image_size, image_size), dtype=np.uint16)
         for i, name in enumerate(TARGET_BANDS):
             idx = _find_band_index(descriptions, name)
             if idx is None:
@@ -75,30 +78,27 @@ def _read_tile(tiff_path, crop_size):
                     f"Band '{name}' not found in {tiff_path} "
                     f"(available: {descriptions})"
                 )
-            data = src.read(idx).astype(np.float64)
+            data = src.read(
+                idx,
+                out_shape=(image_size, image_size),
+                resampling=Resampling.bilinear,
+            ).astype(np.float64)
             data = np.nan_to_num(data, nan=0.0)
-            if name in REFLECTANCE_BANDS:
-                data *= 10000.0
-            elif name in THERMAL_BANDS:
-                data *= 100.0
+            data *= 10000.0
             np.clip(data, 0, 65535, out=data)
             tile[i] = data.astype(np.uint16)
 
-    # CenterCrop from any input size
-    _, h, w = tile.shape
-    oh = (h - crop_size) // 2
-    ow = (w - crop_size) // 2
-    return tile[:, oh:oh + crop_size, ow:ow + crop_size]
+    return tile
 
 
-def _process_sample(source_dir, country, year, cluster_id, iwi, crop_size):
+def _process_sample(source_dir, country, year, cluster_id, iwi, image_size):
     """Read and preprocess one sample (4 trimesters). Worker function.
 
     Returns (key, stacked_bytes, label_bytes, band_sum, band_sq_sum, n_pixels)
     or None if any trimester is missing.
 
-    band_sum/band_sq_sum are (7,) float64 arrays in physical units
-    (after uint16 rescale), accumulated over all 4 trimesters and all pixels.
+    band_sum/band_sq_sum are (6,) float64 arrays in stored uint16 units,
+    accumulated over all 4 trimesters and all pixels.
     """
     source_dir = Path(source_dir)
     key = f"{country}_{year}_{cluster_id}"
@@ -106,24 +106,21 @@ def _process_sample(source_dir, country, year, cluster_id, iwi, crop_size):
     for trimester in range(1, 5):
         tiff_path = source_dir / country / year / f"{cluster_id}_{trimester}.tif"
         if not tiff_path.exists():
+            print(tiff_path)
             return None
-        tiles.append(_read_tile(str(tiff_path), crop_size))
+        tiles.append(_read_tile(str(tiff_path), image_size))
 
-    # Accumulate per-band stats in physical units for normalization
-    scale = np.array(
-    [1 / 10000.0 if b in REFLECTANCE_BANDS else 1 / 100.0 for b in TARGET_BANDS],
-    dtype=np.float64,
-)
+    # Accumulate per-band stats in stored uint16 units.
     band_sum = np.zeros(len(TARGET_BANDS), dtype=np.float64)
     band_sq_sum = np.zeros(len(TARGET_BANDS), dtype=np.float64)
     n_pixels = 0
     for tile in tiles:
-        phys = tile.astype(np.float64) * scale[:, None, None]
-        band_sum += phys.sum(axis=(1, 2))
-        band_sq_sum += (phys ** 2).sum(axis=(1, 2))
+        values = tile.astype(np.float64)
+        band_sum += values.sum(axis=(1, 2))
+        band_sq_sum += (values ** 2).sum(axis=(1, 2))
         n_pixels += tile.shape[1] * tile.shape[2]
 
-    stacked = np.concatenate(tiles, axis=0)  # (28, crop_size, crop_size) uint16
+    stacked = np.concatenate(tiles, axis=0)  # (24, image_size, image_size) uint16
     return key, stacked.tobytes(), np.float32(iwi).tobytes(), band_sum, band_sq_sum, n_pixels
 
 
@@ -137,21 +134,21 @@ def create_shards(
     n_folds: int = 5,
     fold_column: str = None,
     seed: int = 42,
-    crop_size: int = 224,
+    image_size: int = 224,
     num_workers: int = None,
 ):
     """Pack Landsat TIFFs into fold-based WebDataset shards.
 
-    Reads multi-band float64 Landsat TIFFs directly, extracts the 7
-    spectral bands (6 reflectance + 1 thermal), scales to uint16,
-    center-crops to *crop_size*, stacks 4 trimesters into 28 channels,
+    Reads multi-band float64 Landsat TIFFs directly, extracts the 6
+    reflectance spectral bands, scales to uint16,
+    resizes to *image_size*, stacks 4 trimesters into 24 channels,
     and writes raw uint16 bytes into tar shards grouped by fold.
 
     TIFF reading is parallelized across *num_workers* processes for
     throughput on multi-core / Lustre systems.
 
     Per-sample tar entries:
-        {key}.input  -- raw uint16 bytes for (28, crop_size, crop_size)
+        {key}.input  -- raw uint16 bytes for (24, image_size, image_size)
         {key}.target -- raw 4-byte float32 (IWI label)
 
     Shard naming: fold{k}-{shard_idx:06d}.tar
@@ -174,8 +171,8 @@ def create_shards(
         deterministic shuffle with *seed*.
     seed : int
         Random seed for fold assignment (ignored when *fold_column* is set).
-    crop_size : int
-        Spatial size after center crop.
+    image_size : int
+        Spatial size after resize.
     num_workers : int, optional
         Number of parallel worker processes for TIFF reading.
         Defaults to ``os.cpu_count()``.
@@ -194,7 +191,7 @@ def create_shards(
     n = len(df)
     print(f"Packing {n} clusters into {n_folds}-fold shards "
           f"({n_bands} bands x 4 trimesters = {n_channels} channels, "
-          f"uint16, {crop_size}x{crop_size}, {num_workers} workers)")
+          f"uint16, {image_size}x{image_size}, {num_workers} workers)")
 
     # --- Assign each sample to a fold ---
     if fold_column and fold_column in df.columns:
@@ -242,12 +239,14 @@ def create_shards(
             futures = []
             for df_idx, row in samples:
                 country = str(row["country"]).lower()
+                if country != "madagascar":
+                    continue
                 year = str(row["year"])
                 cluster_id = str(row["cluster_id"])
                 iwi = float(row["iwi"])
                 fut = pool.submit(
                     _process_sample,
-                    src_dir_str, country, year, cluster_id, iwi, crop_size,
+                    src_dir_str, country, year, cluster_id, iwi, image_size,
                 )
                 futures.append(fut)
 
@@ -295,24 +294,23 @@ def create_shards(
 
         fold_sizes[fold_k] = sample_count
 
-    # Compute per-band normalization stats (physical units, 7 bands)
-    print(total_pixels)
-    band_mean = total_band_sum / total_pixels
-    band_std = np.sqrt(total_band_sq_sum / total_pixels - band_mean ** 2)
-
+    # Store the requested Albumentations normalization constants for the 6 bands.
+    # With max_pixel_value=0.0001 and reflectance stored as uint16 = reflectance * 10000,
+    # DALI can apply the equivalent normalization as (uint16 - mean) / std.
     normalize = {
-        "mean": band_mean.tolist(),
-        "std": band_std.tolist(),
+        "mean": NORMALIZE_MEAN,
+        "std": NORMALIZE_STD,
+        "max_pixel_value": NORMALIZE_MAX_PIXEL_VALUE,
         "bands": TARGET_BANDS,
     }
     with open(output_dir / "normalize.json", "w") as f:
         json.dump(normalize, f, indent=2)
-    print(f"  Normalization stats (7-band) saved to {output_dir / 'normalize.json'}")
+    print(f"  Normalization constants (6-band) saved to {output_dir / 'normalize.json'}")
 
     # Write metadata
     meta = {
         "format": "uint16",
-        "shape": [n_channels, crop_size, crop_size],
+        "shape": [n_channels, image_size, image_size],
         "dtype": "uint16",
         "n_bands": n_bands,
         "n_trimesters": 4,
@@ -330,8 +328,8 @@ if __name__=="__main__":
     
     create_shards(
     source_dir="../../../images/seasonal",              # country/year/cluster_trimester.tiff
-    source_csv="madagascar_folds.csv",        # semicolon-separated CSV
-    output_dir="../../../webdataset_mada",             # will be created
+    source_csv="common_seasonal_composite_folds.csv",        # semicolon-separated CSV
+    output_dir="../../../webdataset_mada_tempov",             # will be created
     n_folds=5,                               # number of CV folds
     num_workers=32,                          # parallel TIFF reads (default: all cores)
     fold_column="fold",                    # uncomment if your CSV has a fold column
