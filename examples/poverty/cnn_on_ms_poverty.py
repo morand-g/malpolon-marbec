@@ -41,7 +41,7 @@ warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 # torch.backends.cuda.matmul.allow_tf32 = True # Allow TF32 on CuBlas
 # torch.backends.cudnn.allow_tf32 = True       # Allow TF32 on CuDNN
 
-from dali_datamodule import DALIWebDatasetModule
+# from dali_datamodule import DALIWebDatasetModule
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
@@ -69,19 +69,19 @@ def main(cfg: DictConfig) -> None:
     logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=f"tensorboard_logs/fold_{fold}", version="")
     logger_tb.log_hyperparams(cfg)
 
-    # Datamodule & Model
-    datamodule = DALIWebDatasetModule(
-    wds_dir=cfg.data.dataset_path,
-    fold=fold,                     # 0-4 for 5-fold CV
-    n_folds=5,
-    train_batch_size=cfg.data.train_batch_size,
-    inference_batch_size=cfg.data.inference_batch_size,
-    num_workers=4,              # DALI I/O threads (not PyTorch workers)
-)
+#     # Datamodule & Model
+#     datamodule = DALIWebDatasetModule(
+#     wds_dir=cfg.data.dataset_path,
+#     fold=fold,                     # 0-4 for 5-fold CV
+#     n_folds=5,
+#     train_batch_size=cfg.data.train_batch_size,
+#     inference_batch_size=cfg.data.inference_batch_size,
+#     num_workers=4,              # DALI I/O threads (not PyTorch workers)
+# )
 
-    datamodule.transfer_batch_to_device = lambda batch, device, idx: batch
+#     datamodule.transfer_batch_to_device = lambda batch, device, idx: batch
 
-    # datamodule = MSDataModule(**cfg.data, fold=fold)
+    datamodule = MSDataModule(**cfg.data, fold=fold)
     
     model = RegressionSystem(cfg.model, **cfg.optim)
 
@@ -241,4 +241,4 @@ def plot_dataset(cfg: DictConfig) -> None:
     
 if __name__ == "__main__":
 
-   inference()
+   main()

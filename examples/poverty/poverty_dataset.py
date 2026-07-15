@@ -1,3 +1,4 @@
+
 import os
 import json
 from typing import Callable, Any, Union
@@ -13,13 +14,18 @@ import math
 import albumentations as A
 import albumentations.pytorch
 
+
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 import torchvision
 
+from tqdm import tqdm
+
 from torch.cuda import nvtx
+
+
 
 from malpolon.data.data_module import BaseDataModule
 
@@ -92,9 +98,30 @@ class MSDataModule(BaseDataModule):
         ])
         return T
 
+    # def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
+    #     return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
+    #                      nightlight= self.nightlight, transform=transform)
+
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
-                         nightlight= self.nightlight, transform=transform)
+        """New approach that reade a np.memmap file"""
+        print(f"<Loading Fast Memmap Dataset for split: {split}")
+
+        # We need to recreate the dataframe logic here because MemmapDataset
+        # expects a dataframe, but MSDataset used to load it internally.
+        # We can borrow the helper from the old class or just instantiate it briefly.
+
+        # Fast trick: Use the old class just to get the dataframe (it's fast to load CSVs)
+        # We pass transform=None because we only want the metadata/labels right now
+        temp_ds = MSDataset(self.dataset_path, self.labels_name, self.fold_dict,
+                            split=split, nature=self.nature, nightlight=self.nightlight,
+                            transform=None)
+
+        return MemmapDataset(
+            ref_path="composite_reflectance.dat",
+            meta_path="composite_meta.npy",
+            dataframe=temp_ds.dataframe, # Pass the loaded labels
+            transform=transform
+        )
 
 
     def get_all_dataset(self) -> Dataset:
@@ -159,16 +186,16 @@ class MSDataModule(BaseDataModule):
 
 
     def export_predict_csv_basic(self,
-                                 predictions: Union[Tensor, np.ndarray],
-                                 out_name: str = "predictions",
-                                 out_dir: str = './',
-                                 return_csv: bool = False,
-                                 top_k: int = None,
-                                 **kwargs: Any):
+                             predictions: Union[Tensor, np.ndarray],
+                             out_name: str = "predictions",
+                             out_dir: str = './',
+                             return_csv: bool = False,
+                             top_k: int = None,
+                             **kwargs: Any):
         """Export predictions to csv file.
-
+    
         Exports predictions, probabilities and ids to a csv file.
-
+    
         Parameters
         ----------
         predictions : Union[Tensor, np.ndarray]
@@ -183,7 +210,7 @@ class MSDataModule(BaseDataModule):
         top_k : int, optional
             number of top predictions to return, by default None (max
             number of predictions)
-
+    
         Returns
         -------
         pandas.DataFrame
@@ -202,6 +229,48 @@ class MSDataModule(BaseDataModule):
         return None
 
 
+class MemmapDataset(Dataset):
+    def __init__(self, ref_path, meta_path, dataframe, transform=None):
+        self.dataframe = dataframe
+        self.observation_ids = dataframe.index
+        self.targets = dataframe.iwi.values
+        self.transform = transform
+
+        meta = np.load(meta_path, allow_pickle=True).item()
+
+        self.ref_data = np.memmap(ref_path, dtype='uint16', mode='r', shape=meta["shape_ref"])
+
+        self.ref_offset = meta["ref_offset"]
+        self.ref_scale = meta["ref_scale"]
+    def __len__(self):
+        return len(self.dataframe)
+
+    def __getitem__(self, idx):
+        real_idx = self.dataframe.index[idx]
+    
+        # Decompress reflectance: (C, H, W)
+        ref_raw = self.ref_data[real_idx].astype(np.float32)
+        ref_img = (ref_raw * self.ref_scale) - self.ref_offset
+    
+        # Albumentations expects (H, W, C)
+        full_img = np.moveaxis(ref_img, 0, -1)
+        full_img = np.ascontiguousarray(full_img)
+    
+        row = self.dataframe.iloc[idx]
+        target = torch.tensor(
+            row.iwi,
+            dtype=torch.float32,
+        ).unsqueeze(-1)
+    
+        if self.transform is not None:
+            full_img = self.transform(image=full_img)["image"]
+        else:
+            # Back to PyTorch format if no ToTensorV2 transform is applied
+            full_img = torch.from_numpy(
+                np.moveaxis(full_img, -1, 0).copy()
+            )
+    
+        return full_img, target
 
 class MSDataset(Dataset):
     """ Dataset returning the LANDSAT tiles and wealth index corresponding to the DHS cluster.
@@ -360,23 +429,18 @@ class MSDataset(Dataset):
         labels_fp = Path(labels_fp)
         df = pd.read_csv(
             labels_fp,
+            # sep=";",
         )
         self.unique_labels = np.sort(np.unique(df[iwi_key]))
 
-        if subsets != "all":
-            df = df.iloc[folds[subsets]]
-        else:
-            # Prend tous les indices de tous les splits
-            all_indices = []
-            for v in folds.values():
-                all_indices.extend(v)
-            df = df.iloc[all_indices]
+        df = df.iloc[folds[subsets]] if subsets!="all" else df
 
         self.observation_ids = df.index
         self.coordinates = df[[x_key, y_key]].values
         self.targets = df[iwi_key].values
 
         return df
+
 
 
     def plot(self, idx, rgb=False):
@@ -442,6 +506,7 @@ class MSDataset(Dataset):
             # show the plot
             plt.tight_layout(rect=[0, 0.03, 1, 0.95])
             plt.show()
+
 
 if __name__ == '__main__':
     folds = pd.read_pickle('folds_mada_hrea.pkl')
