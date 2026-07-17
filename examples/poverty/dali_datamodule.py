@@ -17,6 +17,8 @@ Shard layout (created by ``create_shards.py``)::
 At training time, *fold* selects which groups are test / val / train:
     fold=k -> test=fold_k, val=fold_{k+1}, train=remaining folds
 """
+import os
+import time
 
 import json
 from pathlib import Path
@@ -29,15 +31,39 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
 
 
 class _DALIWrapper:
-    """Wraps DALIGenericIterator to yield (tile, label) tuples for Lightning."""
-
-    def __init__(self, dali_iter):
+    def __init__(self, dali_iter, split):
         self._dali_iter = dali_iter
+        self._split = split
+        self._epoch = 0
 
     def __iter__(self):
-        for batch_list in self._dali_iter:
-            d = batch_list[0]  # single GPU
+        start = time.perf_counter()
+        previous = start
+
+        for batch_idx, batch_list in enumerate(self._dali_iter):
+            now = time.perf_counter()
+            wait = now - previous
+
+            if batch_idx % 20 == 0 or wait > 2:
+                print(
+                    f"[DALI WAIT] split={self._split} "
+                    f"epoch={self._epoch} "
+                    f"batch={batch_idx} "
+                    f"wait={wait:.3f}s"
+                )
+
+            d = batch_list[0]
             yield d["tile"], d["label"]
+
+            previous = time.perf_counter()
+
+        elapsed = time.perf_counter() - start
+        print(
+            f"[DALI EPOCH] split={self._split} "
+            f"epoch={self._epoch} "
+            f"time={elapsed:.1f}s"
+        )
+        self._epoch += 1
 
     def __len__(self):
         return len(self._dali_iter)
@@ -129,19 +155,36 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         self._std_list = self._std.ravel().tolist()
 
     def _get_shard_paths(self, split):
-        """Collect tar shard paths for all folds assigned to *split*."""
-        paths = []
+        """Collect tar shard paths and corresponding index paths for *split*."""
+        shard_paths = []
+    
         for k in self._split_folds[split]:
-            paths.extend(sorted(self.wds_dir.glob(f"fold{k}-*.tar")))
-        if not paths:
+            shard_paths.extend(sorted(self.wds_dir.glob(f"fold{k}-*.tar")))
+    
+        if not shard_paths:
             raise FileNotFoundError(
-                f"No shards for split '{split}' (folds {self._split_folds[split]}) "
+                f"No shards for split '{split}' "
+                f"(folds {self._split_folds[split]}) "
                 f"in {self.wds_dir}"
             )
-        return [str(p) for p in paths]
+    
+        index_paths = [p.with_suffix(".idx") for p in shard_paths]
+    
+        missing = [str(p) for p in index_paths if not p.exists()]
+        if missing:
+            raise FileNotFoundError(
+                "Missing WebDataset index files:\n" + "\n".join(missing)
+            )
+    
+        return (
+            [str(p) for p in shard_paths],
+            [str(p) for p in index_paths],
+        )
+        
 
     def _build_pipeline(self, split, batch_size, is_train):
-        shard_paths = self._get_shard_paths(split)
+
+        shard_paths, index_paths = self._get_shard_paths(split)
         shape = self._shape
         n_channels = shape[0]
         mean_list = self._mean_list
@@ -153,8 +196,12 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         def pipe():
             raw_tile, raw_label = fn.readers.webdataset(
                 paths=shard_paths,
+                index_paths=index_paths,
                 ext=["input", "target"],
                 random_shuffle=is_train,
+                prefetch_queue_depth=1,
+                read_ahead=False,
+                dont_use_mmap=True,
                 name="reader",
             )
 
@@ -197,7 +244,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
                 reader_name="reader",
                 auto_reset=True,
                 last_batch_policy=LastBatchPolicy.PARTIAL,
-            )
+            ), split = split
         )
 
     def train_dataloader(self):

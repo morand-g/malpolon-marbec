@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 import random
 
+import psutil
+
 import matplotlib
 matplotlib.use("Agg")  # backend non interactif pour serveur
 import matplotlib.pyplot as plt
@@ -27,7 +29,6 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, Ba
 import torch
 torch.set_float32_matmul_precision('medium')
 
-
 from poverty_dataset import MSDataModule
 from malpolon.logging import Summary
 from malpolon.models.standard_prediction_systems import RegressionSystem
@@ -41,7 +42,39 @@ warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 # torch.backends.cuda.matmul.allow_tf32 = True # Allow TF32 on CuBlas
 # torch.backends.cudnn.allow_tf32 = True       # Allow TF32 on CuDNN
 
-# from dali_datamodule import DALIWebDatasetModule
+from dali_datamodule import DALIWebDatasetModule
+
+class ResourceMonitor(pl.Callback):
+    def _report(self, trainer, phase):
+        process = psutil.Process(os.getpid())
+        memory = process.memory_info()
+        swap = psutil.swap_memory()
+
+        gpu_allocated = torch.cuda.memory_allocated() / 1024**3
+        gpu_reserved = torch.cuda.memory_reserved() / 1024**3
+        gpu_max = torch.cuda.max_memory_allocated() / 1024**3
+
+        print(
+            f"\n[RESOURCE] epoch={trainer.current_epoch} phase={phase} "
+            f"RAM={memory.rss / 1024**3:.2f} GiB "
+            f"VMS={memory.vms / 1024**3:.2f} GiB "
+            f"swap_used={swap.used / 1024**3:.2f} GiB "
+            f"fds={process.num_fds()} "
+            f"GPU_alloc={gpu_allocated:.2f} GiB "
+            f"GPU_reserved={gpu_reserved:.2f} GiB "
+            f"GPU_max={gpu_max:.2f} GiB"
+        )
+
+    def on_train_epoch_start(self, trainer, pl_module):
+        torch.cuda.reset_peak_memory_stats()
+        self._report(trainer, "train_start")
+
+    def on_validation_epoch_start(self, trainer, pl_module):
+        self._report(trainer, "val_start")
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        torch.cuda.synchronize()
+        self._report(trainer, "val_end")
 
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
@@ -69,19 +102,19 @@ def main(cfg: DictConfig) -> None:
     logger_tb = pl.loggers.TensorBoardLogger(log_dir, name=f"tensorboard_logs/fold_{fold}", version="")
     logger_tb.log_hyperparams(cfg)
 
-#     # Datamodule & Model
-#     datamodule = DALIWebDatasetModule(
-#     wds_dir=cfg.data.dataset_path,
-#     fold=fold,                     # 0-4 for 5-fold CV
-#     n_folds=5,
-#     train_batch_size=cfg.data.train_batch_size,
-#     inference_batch_size=cfg.data.inference_batch_size,
-#     num_workers=4,              # DALI I/O threads (not PyTorch workers)
-# )
+    # Datamodule & Model
+    datamodule = DALIWebDatasetModule(
+    wds_dir=cfg.data.dataset_path,
+    fold=fold,                     # 0-4 for 5-fold CV
+    n_folds=5,
+    train_batch_size=cfg.data.train_batch_size,
+    inference_batch_size=cfg.data.inference_batch_size,
+    num_workers=4,              # DALI I/O threads (not PyTorch workers)
+)
 
-#     datamodule.transfer_batch_to_device = lambda batch, device, idx: batch
+    datamodule.transfer_batch_to_device = lambda batch, device, idx: batch
 
-    datamodule = MSDataModule(**cfg.data, fold=fold)
+    # datamodule = MSDataModule(**cfg.data, fold=fold)
     
     model = RegressionSystem(cfg.model, **cfg.optim)
 
@@ -100,6 +133,7 @@ def main(cfg: DictConfig) -> None:
             every_n_train_steps=10,
         ),
         LearningRateMonitor(),
+        ResourceMonitor(),
         
     ]
 
