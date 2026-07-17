@@ -126,13 +126,11 @@ def create_processed_memmap_seasonal(config):
 
     # Create Memmaps with FIXED 224x224 size
     fp_ref = np.memmap("seasonal_reflectance.dat", dtype='uint16', mode='w+', shape=(N, 4, 6, TARGET_H, TARGET_W))
-    fp_temp = np.memmap("seasonal_temperature.dat", dtype='uint16', mode='w+', shape=(N, 4, 1, TARGET_H, TARGET_W))
-
+    
     for i in tqdm(range(N)):
         row = dataframe.iloc[i]
         
         ref_buffer = [] 
-        lwir_buffer = []
         
         for season in range(1, 5):
             filename = f"{row.cluster_id}_{season}.tif"
@@ -156,19 +154,6 @@ def create_processed_memmap_seasonal(config):
                         # CROP HERE before buffering (saves memory)
                         ref_stack = center_crop_array(ref_stack, TARGET_H, TARGET_W)
                         ref_buffer.append(ref_stack)
-
-                    # Read LWIR
-                    if LWIR_BAND[0] in desc_map:
-                        lwir_data = src.read(desc_map[LWIR_BAND[0]])
-                        lwir_data = center_crop_array(lwir_data, TARGET_H, TARGET_W)
-                        lwir_buffer.append(lwir_data)
-                    elif LWIR_BAND[1] in desc_map:
-                        lwir_data = src.read(desc_map[LWIR_BAND[1]])
-                        lwir_data = center_crop_array(lwir_data, TARGET_H, TARGET_W)
-                        lwir_buffer.append(lwir_data)
-
-                    else:
-                        print(f"Warning: LWIR band not found in {tile_path}")
                         
             except Exception as e:
                 print(f"Error processing {tile_path}: {e}")
@@ -189,32 +174,19 @@ def create_processed_memmap_seasonal(config):
         ref_quant = (ref_stack + REF_OFFSET) / REF_SCALE
         fp_ref[i] = np.clip(ref_quant, 0, 65535).astype(np.uint16)
 
-        # Temperature
-        temp_stack = np.zeros((T, TARGET_H, TARGET_W), dtype=np.float32)
-        
-        if len(lwir_buffer) > 0:
-            t = min(len(lwir_buffer), T)
-            temp_stack[:t] = np.stack(lwir_buffer[:t], axis=0)
-            temp_stack = np.nan_to_num(temp_stack)
-        
-        temp_quant = temp_stack * TEMP_SCALE
-        fp_temp[i] = np.clip(temp_quant, 0, 65535).astype(np.uint16)[:, None, :, :]
         
         if i % 500 == 0:
             fp_ref.flush()
-            fp_temp.flush()
 
         np.save("seasonal_meta.npy", {
                 "shape_ref":  (N, 4, 6, TARGET_H, TARGET_W),
-                "shape_temp": (N, 4, 1, TARGET_H, TARGET_W),
                 "ref_offset": REF_OFFSET,
                 "ref_scale":  REF_SCALE,
-                "temp_scale": TEMP_SCALE,
             })
 
 @hydra.main(version_base="1.3", config_path="config", config_name="cnn_on_ms_torchgeo_config")
 def main(cfg: DictConfig) -> None:
-    create_processed_memmap_composite(cfg)
+    create_processed_memmap_seasonal(cfg)
 
 if __name__ == "__main__":
     main()

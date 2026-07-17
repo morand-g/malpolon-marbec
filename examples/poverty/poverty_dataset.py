@@ -117,8 +117,8 @@ class MSDataModule(BaseDataModule):
                             transform=None)
 
         return MemmapDataset(
-            ref_path="composite_reflectance.dat",
-            meta_path="composite_meta.npy",
+            ref_path="seasonal_reflectance.dat",
+            meta_path="seasonal_meta.npy",
             dataframe=temp_ds.dataframe, # Pass the loaded labels
             transform=transform
         )
@@ -261,14 +261,14 @@ class MemmapDataset(Dataset):
             row.iwi,
             dtype=torch.float32,
         ).unsqueeze(-1)
-    
-        if self.transform is not None:
-            full_img = self.transform(image=full_img)["image"]
-        else:
-            # Back to PyTorch format if no ToTensorV2 transform is applied
-            full_img = torch.from_numpy(
-                np.moveaxis(full_img, -1, 0).copy()
-            )
+
+        if self.transform:
+            frames = []
+            for t in range(full_img.shape[0]):
+                frames.append(self.transform(image=full_img[t])["image"])
+            full_img = torch.stack(frames, dim=0)
+            
+        full_img = full_img.reshape(4 * 6, 224, 224)
     
         return full_img, target
 
