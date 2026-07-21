@@ -4,9 +4,12 @@ hydra:
     dir: outputs/${hydra.job.name}/${now:%Y-%m-%d}
 
 run:
-  fold: A
-  predict:
+  fold: 0
+  mode: train
   checkpoint_path:
+
+hpo:
+  n_trials: 20
 
 
 data:

@@ -118,7 +118,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         self._shape = list(self.meta["shape"])  # [24, 224, 224]
         n_channels = self._shape[0]
         n_bands = self.meta["n_bands"]  # 6
-        n_trimesters = self.meta["n_trimesters"]  # 4
+        n_trimesters = self.meta.get("n_trimesters", 1)  # 4
 
         # Map split -> list of fold indices
         self._split_folds = {
