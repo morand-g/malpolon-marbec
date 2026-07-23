@@ -242,7 +242,7 @@ def create_callbacks(
 
     callbacks = [
         checkpoint,
-        early_stopping,
+        # early_stopping,
         LearningRateMonitor(logging_interval="epoch"),
     ]
 
