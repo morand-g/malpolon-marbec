@@ -1,8 +1,8 @@
 
 import os
 import json
-from typing import Callable, Any, Union
 from pathlib import Path
+from typing import Callable, Any, Union
 
 import numpy as np
 import rasterio
@@ -31,6 +31,65 @@ from malpolon.data.data_module import BaseDataModule
 
 
 SPECTRUM_ALL = ['red', 'green', 'blue', 'nir08', 'swir16', 'swir22']
+FOLD_ORDER = ["A", "B", "C", "D", "E"]
+
+
+def _normalize_fold_label(value: Any) -> str:
+    if isinstance(value, str):
+        value = value.strip()
+        if value in FOLD_ORDER:
+            return value
+        if value.isdigit():
+            return FOLD_ORDER[int(value)]
+    return FOLD_ORDER[int(value)]
+
+
+def _sample_key_from_row(row: pd.Series) -> str:
+    if "sample_id" in row.index and pd.notna(row["sample_id"]):
+        return str(row["sample_id"])
+    return f"{str(row['country']).lower()}_{int(row['year'])}_{int(row['cluster_id'])}"
+
+
+def _load_fold_dict_from_csv(labels_df: pd.DataFrame, fold_path: Path, fold: str) -> dict[str, list[int]]:
+    fold_df = pd.read_csv(fold_path)
+    if "fold" not in fold_df.columns:
+        raise ValueError(f"Fold CSV {fold_path} must contain a 'fold' column")
+
+    if "sample_id" in fold_df.columns:
+        fold_df["sample_key"] = fold_df["sample_id"].astype(str)
+    elif {"country", "year", "cluster_id"}.issubset(fold_df.columns):
+        fold_df["sample_key"] = fold_df.apply(
+            lambda row: f"{str(row['country']).lower()}_{int(row['year'])}_{int(row['cluster_id'])}",
+            axis=1,
+        )
+    else:
+        raise ValueError(
+            f"Fold CSV {fold_path} must contain either 'sample_id' or 'country/year/cluster_id' columns"
+        )
+
+    fold_df["fold"] = fold_df["fold"].map(_normalize_fold_label)
+
+    labels_df = labels_df.copy()
+    labels_df["sample_key"] = labels_df.apply(_sample_key_from_row, axis=1)
+    key_to_index = {key: idx for idx, key in enumerate(labels_df["sample_key"])}
+
+    fold_idx = FOLD_ORDER.index(_normalize_fold_label(fold))
+    test_fold = FOLD_ORDER[fold_idx]
+    val_fold = FOLD_ORDER[(fold_idx + 1) % len(FOLD_ORDER)]
+    train_folds = [name for name in FOLD_ORDER if name not in {test_fold, val_fold}]
+
+    split_to_folds = {
+        "test": [test_fold],
+        "val": [val_fold],
+        "train": train_folds,
+    }
+
+    fold_dict: dict[str, list[int]] = {}
+    for split_name, split_folds in split_to_folds.items():
+        sample_keys = fold_df.loc[fold_df["fold"].isin(split_folds), "sample_key"]
+        fold_dict[split_name] = [key_to_index[key] for key in sample_keys if key in key_to_index]
+
+    return fold_dict
 
 
 class MSDataModule(BaseDataModule):
@@ -65,7 +124,13 @@ class MSDataModule(BaseDataModule):
 
         self.dataset_path = dataset_path
         self.labels_name = labels_name
-        self.fold_dict = pd.read_pickle(fold_path)[fold]
+        fold_path = Path(fold_path)
+        if fold_path.suffix.lower() == ".csv":
+            labels_fp = Path(dataset_path) / labels_name.lstrip("/\\")
+            labels_df = pd.read_csv(labels_fp, sep=";")
+            self.fold_dict = _load_fold_dict_from_csv(labels_df, fold_path, fold)
+        else:
+            self.fold_dict = pd.read_pickle(fold_path)[fold]
         self.nature = nature
         self.nightlight = nightlight
         self.dict_normalize = json.load(open(dict_normalize, 'r'))

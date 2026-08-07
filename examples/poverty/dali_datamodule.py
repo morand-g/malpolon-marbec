@@ -199,6 +199,8 @@ class DALIWebDatasetModule(pl.LightningDataModule):
                 index_paths=index_paths,
                 ext=["input", "target"],
                 random_shuffle=is_train,
+                initial_fill=20_000 if is_train else 1,
+                seed=42,
                 prefetch_queue_depth=1,
                 read_ahead=False,
                 dont_use_mmap=True,

@@ -145,27 +145,56 @@ class OptunaPruningCallback(pl.Callback):
 
 def create_datamodule(
     cfg: DictConfig,
-    fold: int,
+    fold,
     train_batch_size: Optional[int] = None,
-) -> DALIWebDatasetModule:
-    datamodule = DALIWebDatasetModule(
-        wds_dir=cfg.data.dataset_path,
-        fold=fold,
-        n_folds=5,
-        train_batch_size=(
-            train_batch_size
-            if train_batch_size is not None
-            else cfg.data.train_batch_size
-        ),
-        inference_batch_size=cfg.data.inference_batch_size,
-        num_workers=cfg.data.get("num_workers", 4),
+) -> pl.LightningDataModule:
+    batch_size = (
+        train_batch_size
+        if train_batch_size is not None
+        else cfg.data.train_batch_size
     )
 
-    datamodule.transfer_batch_to_device = (
-        lambda batch, device, dataloader_idx: batch
-    )
+    backend = str(cfg.data.get("backend", "dali")).lower()
+    tiff_root = cfg.data.get("tiff_root", cfg.data.get("dataset_path"))
+    wds_root = cfg.data.get("wds_root", cfg.data.get("dataset_path"))
 
-    return datamodule
+    if backend == "dali":
+        datamodule = DALIWebDatasetModule(
+            wds_dir=wds_root,
+            fold=int(fold),
+            n_folds=cfg.data.get("n_folds", 5),
+            train_batch_size=batch_size,
+            inference_batch_size=cfg.data.inference_batch_size,
+            num_workers=cfg.data.get("num_workers", 4),
+        )
+
+        datamodule.transfer_batch_to_device = (
+            lambda batch, device, dataloader_idx: batch
+        )
+
+        return datamodule
+
+    if backend == "tiff":
+        fold=chr(ord("A") + fold)
+        datamodule = MSDataModule(
+            dataset_path=tiff_root,
+            labels_name=cfg.data.labels_name,
+            train_batch_size=cfg.data.train_batch_size,
+            inference_batch_size=cfg.data.inference_batch_size,
+            num_workers=cfg.data.num_workers,
+            fold=fold,
+            fold_path=cfg.data.fold_path,
+            nature=cfg.data.nature,
+            nightlight=cfg.data.get("nightlight"),
+            dict_normalize=cfg.data.dict_normalize,
+        )
+
+        return datamodule
+
+    raise ValueError(
+        f"data.backend={backend!r} n'est pas valide. "
+        "Utiliser 'dali' ou 'tiff'."
+    )
 
 def create_loggers(
     cfg: DictConfig,
@@ -242,7 +271,7 @@ def create_callbacks(
 
     callbacks = [
         checkpoint,
-        # early_stopping,
+        early_stopping,
         LearningRateMonitor(logging_interval="epoch"),
     ]
 
@@ -490,20 +519,52 @@ def predict_fold(
 
     return output_path
 
-def run_crossval_inference(cfg: DictConfig) -> None:
-    output_dir = Path(
-        hydra.core.hydra_config.HydraConfig.get().runtime.output_dir
-    )
-
+def run_crossval_inference(
+    cfg: DictConfig,
+    checkpoint_root: Path,
+    inference_backend: str,
+) -> None:
     all_targets = []
     all_predictions = []
 
     for fold in range(5):
-        fold_dir = output_dir / f"fold_{fold}"
-        checkpoint_path = fold_dir / "best.ckpt"
+        checkpoint_path = (
+            checkpoint_root
+            / f"fold_{fold}"
+            / "best.ckpt"
+        )
 
-        datamodule = create_datamodule(cfg, fold)
+        datamodule = create_datamodule(
+            cfg=cfg,
+            fold=fold,
+        )
         datamodule.setup(stage="test")
+        
+        loader = datamodule.test_dataloader()
+
+        batch = next(iter(loader))
+        
+        print(type(batch))
+        
+        if isinstance(batch, list):
+            batch = batch[0]
+        
+        if isinstance(batch, dict):
+            tile = batch["input"]
+            label = batch["target"]
+        else:
+            tile, label = batch
+        
+        print("tile shape :", tile.shape)
+        print("tile dtype :", tile.dtype)
+        
+        print("label shape :", label.shape)
+        print("label dtype :", label.dtype)
+        
+        print("tile mean :", tile.mean().item())
+        print("tile std  :", tile.std().item())
+        print("tile min  :", tile.min().item())
+        print("tile max  :", tile.max().item())
 
         base_system = RegressionSystem(
             cfg.model,
@@ -514,7 +575,6 @@ def run_crossval_inference(cfg: DictConfig) -> None:
             str(checkpoint_path),
             model=base_system.model,
             hparams_preprocess=False,
-            weights_dir=str(fold_dir),
             loss=cfg.optim.loss,
             metrics=cfg.optim.metrics,
             strict=True,
@@ -534,7 +594,9 @@ def run_crossval_inference(cfg: DictConfig) -> None:
                 predictions.append(
                     prediction.detach().cpu()
                 )
-                targets.append(label.detach().cpu())
+                targets.append(
+                    label.detach().cpu()
+                )
 
         all_predictions.append(
             torch.cat(predictions).numpy()
@@ -546,63 +608,17 @@ def run_crossval_inference(cfg: DictConfig) -> None:
         del model
         del base_system
         del datamodule
-
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
 
     targets = np.concatenate(all_targets).reshape(-1)
     predictions = np.concatenate(all_predictions).reshape(-1)
 
-    mse = mean_squared_error(targets, predictions)
-    rmse = np.sqrt(mse)
-    mae = mean_absolute_error(targets, predictions)
-    r2 = r2_score(targets, predictions)
-
-    results = pd.DataFrame(
-        {
-            "target": targets,
-            "prediction": predictions,
-        }
-    )
-
-    results.to_csv(
-        output_dir / "all_folds_predictions_vs_targets.csv",
-        index=False,
-    )
-
-    metrics = {
-        "mse": float(mse),
-        "rmse": float(rmse),
-        "mae": float(mae),
-        "r2": float(r2),
-    }
-
-    pd.Series(metrics).to_json(
-        output_dir / "crossval_metrics.json",
-        indent=2,
-    )
-
-    plt.figure(figsize=(8, 6))
-    plt.scatter(targets, predictions, alpha=0.5)
-
-    bounds = [
-        min(targets.min(), predictions.min()),
-        max(targets.max(), predictions.max()),
-    ]
-
-    plt.plot(bounds, bounds, "k--", linewidth=2)
-    plt.xlabel("Target")
-    plt.ylabel("Prediction")
-    plt.title(
-        "Target vs Prediction — all folds\n"
-        f"RMSE={rmse:.3f}, MAE={mae:.3f}, R²={r2:.3f}"
-    )
-    plt.savefig(
-        output_dir / "all_folds_target_vs_prediction.png",
-        dpi=300,
-        bbox_inches="tight",
-    )
-    plt.close()
+    print("R²:", r2_score(targets, predictions))
+    print("RMSE:", mean_squared_error(
+        targets,
+        predictions,
+        squared=False,
+    ))
 
     
 
@@ -625,7 +641,11 @@ def main(cfg: DictConfig) -> None:
         print(f"Predictions saved to {output_path}")
 
     elif mode == "crossval_inference":
-        run_crossval_inference(cfg)
+        run_crossval_inference(
+            cfg,
+            checkpoint_root=Path(cfg.run.checkpoint_path),
+            inference_backend=cfg.run.inference_backend,
+        )
 
     elif mode == "hpo":
         run_hpo(cfg)
