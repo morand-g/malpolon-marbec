@@ -13,6 +13,7 @@ hpo:
 
 
 data:
+  backend: dali
   dataset_path: ../../../images/seasonal
   tiff_root: ../../../images/seasonal
   wds_root: ../../../images/seasonal

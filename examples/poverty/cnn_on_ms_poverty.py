@@ -19,12 +19,10 @@ import lightning.pytorch as pl
 import matplotlib
 import numpy as np
 import optuna
-import pandas as pd
 import psutil
 import torch
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 from lightning.pytorch.callbacks import (
     LearningRateMonitor,
@@ -35,7 +33,7 @@ from omegaconf import DictConfig, OmegaConf
 from optuna.integration import PyTorchLightningPruningCallback
 
 from rasterio.errors import NotGeoreferencedWarning
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 
 from dali_datamodule import DALIWebDatasetModule
 from poverty_dataset import MSDataModule
@@ -155,8 +153,12 @@ def create_datamodule(
     )
 
     backend = str(cfg.data.get("backend", "dali")).lower()
-    tiff_root = cfg.data.get("tiff_root", cfg.data.get("dataset_path"))
-    wds_root = cfg.data.get("wds_root", cfg.data.get("dataset_path"))
+    tiff_root = hydra.utils.to_absolute_path(
+        str(cfg.data.get("tiff_root", cfg.data.get("dataset_path")))
+    )
+    wds_root = hydra.utils.to_absolute_path(
+        str(cfg.data.get("wds_root", cfg.data.get("dataset_path")))
+    )
 
     if backend == "dali":
         datamodule = DALIWebDatasetModule(
@@ -183,10 +185,12 @@ def create_datamodule(
             inference_batch_size=cfg.data.inference_batch_size,
             num_workers=cfg.data.num_workers,
             fold=fold,
-            fold_path=cfg.data.fold_path,
+            fold_path=hydra.utils.to_absolute_path(str(cfg.data.fold_path)),
             nature=cfg.data.nature,
             nightlight=cfg.data.get("nightlight"),
-            dict_normalize=cfg.data.dict_normalize,
+            dict_normalize=hydra.utils.to_absolute_path(
+                str(cfg.data.dict_normalize)
+            ),
         )
 
         return datamodule
