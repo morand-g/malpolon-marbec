@@ -35,6 +35,7 @@ from optuna.integration import PyTorchLightningPruningCallback
 from rasterio.errors import NotGeoreferencedWarning
 from sklearn.metrics import mean_squared_error, r2_score
 
+from canonical_split import load_canonical_folds
 from dali_datamodule import DALIWebDatasetModule
 from poverty_dataset import MSDataModule
 from malpolon.models.standard_prediction_systems import RegressionSystem
@@ -159,11 +160,18 @@ def create_datamodule(
     wds_root = hydra.utils.to_absolute_path(
         str(cfg.data.get("wds_root", cfg.data.get("dataset_path")))
     )
+    split_path = cfg.data.get("split_path")
+    canonical_fold_ids = (
+        load_canonical_folds(hydra.utils.to_absolute_path(str(split_path)))
+        if split_path
+        else None
+    )
 
     if backend == "dali":
         datamodule = DALIWebDatasetModule(
             wds_dir=wds_root,
             fold=int(fold),
+            canonical_fold_ids=canonical_fold_ids,
             n_folds=cfg.data.get("n_folds", 5),
             train_batch_size=batch_size,
             inference_batch_size=cfg.data.inference_batch_size,
@@ -177,14 +185,14 @@ def create_datamodule(
         return datamodule
 
     if backend == "tiff":
-        fold=chr(ord("A") + fold)
         datamodule = MSDataModule(
             dataset_path=tiff_root,
             labels_name=cfg.data.labels_name,
             train_batch_size=cfg.data.train_batch_size,
             inference_batch_size=cfg.data.inference_batch_size,
             num_workers=cfg.data.num_workers,
-            fold=fold,
+            fold=int(fold),
+            canonical_fold_ids=canonical_fold_ids,
             fold_path=hydra.utils.to_absolute_path(str(cfg.data.fold_path)),
             nature=cfg.data.nature,
             nightlight=cfg.data.get("nightlight"),

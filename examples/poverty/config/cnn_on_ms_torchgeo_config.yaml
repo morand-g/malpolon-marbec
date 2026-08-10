@@ -17,6 +17,7 @@ data:
   dataset_path: ../../../images/seasonal
   tiff_root: ../../../images/seasonal
   wds_root: ../../../images/seasonal
+  split_path: ???
   labels_name: /../common_seasonal_composite.csv
   train_batch_size: 64
   inference_batch_size: 64

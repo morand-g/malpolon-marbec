@@ -26,6 +26,7 @@ from pathlib import Path
 import numpy as np
 import lightning.pytorch as pl
 
+from canonical_split import split_sample_ids, validate_shard_folds
 from nvidia.dali import fn, pipeline_def, types
 from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
 
@@ -100,6 +101,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         wds_dir: str,
         fold: int = 0,
         n_folds: int = 5,
+        canonical_fold_ids: dict[str, list[str]] = None,
         train_batch_size: int = 32,
         inference_batch_size: int = 16,
         num_workers: int = 4,
@@ -126,6 +128,9 @@ class DALIWebDatasetModule(pl.LightningDataModule):
             "val":   [(fold + 1) % n_folds],
             "train": [(fold + i) % n_folds for i in range(2, n_folds)],
         }
+        if canonical_fold_ids is not None:
+            validate_shard_folds(self.wds_dir, canonical_fold_ids)
+            self.split_sample_ids = split_sample_ids(canonical_fold_ids, fold)
 
         # Load 6-band normalization constants.
         # Albumentations Normalize(mean, std, max_pixel_value=0.0001) applied
