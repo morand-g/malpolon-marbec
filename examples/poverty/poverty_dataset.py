@@ -159,30 +159,30 @@ class MSDataModule(BaseDataModule):
         ])
         return T
 
-    # def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-    #     return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
-    #                      nightlight= self.nightlight, transform=transform)
-
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        """New approach that reade a np.memmap file"""
-        print(f"<Loading Fast Memmap Dataset for split: {split}")
+        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
+                         nightlight= self.nightlight, transform=transform)
 
-        # We need to recreate the dataframe logic here because MemmapDataset
-        # expects a dataframe, but MSDataset used to load it internally.
-        # We can borrow the helper from the old class or just instantiate it briefly.
+    # def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
+    #     """New approach that reade a np.memmap file"""
+    #     print(f"<Loading Fast Memmap Dataset for split: {split}")
 
-        # Fast trick: Use the old class just to get the dataframe (it's fast to load CSVs)
-        # We pass transform=None because we only want the metadata/labels right now
-        temp_ds = MSDataset(self.dataset_path, self.labels_name, self.fold_dict,
-                            split=split, nature=self.nature, nightlight=self.nightlight,
-                            transform=None)
+    #     # We need to recreate the dataframe logic here because MemmapDataset
+    #     # expects a dataframe, but MSDataset used to load it internally.
+    #     # We can borrow the helper from the old class or just instantiate it briefly.
 
-        return MemmapDataset(
-            ref_path="seasonal_reflectance.dat",
-            meta_path="seasonal_meta.npy",
-            dataframe=temp_ds.dataframe, # Pass the loaded labels
-            transform=transform
-        )
+    #     # Fast trick: Use the old class just to get the dataframe (it's fast to load CSVs)
+    #     # We pass transform=None because we only want the metadata/labels right now
+    #     temp_ds = MSDataset(self.dataset_path, self.labels_name, self.fold_dict,
+    #                         split=split, nature=self.nature, nightlight=self.nightlight,
+    #                         transform=None)
+
+    #     return MemmapDataset(
+    #         ref_path="seasonal_reflectance.dat",
+    #         meta_path="seasonal_meta.npy",
+    #         dataframe=temp_ds.dataframe, # Pass the loaded labels
+    #         transform=transform
+    #     )
 
 
     def get_all_dataset(self) -> Dataset:
@@ -290,48 +290,6 @@ class MSDataModule(BaseDataModule):
         return None
 
 
-class MemmapDataset(Dataset):
-    def __init__(self, ref_path, meta_path, dataframe, transform=None):
-        self.dataframe = dataframe
-        self.observation_ids = dataframe.index
-        self.targets = dataframe.iwi.values
-        self.transform = transform
-
-        meta = np.load(meta_path, allow_pickle=True).item()
-
-        self.ref_data = np.memmap(ref_path, dtype='uint16', mode='r', shape=meta["shape_ref"])
-
-        self.ref_offset = meta["ref_offset"]
-        self.ref_scale = meta["ref_scale"]
-    def __len__(self):
-        return len(self.dataframe)
-
-    def __getitem__(self, idx):
-        real_idx = self.dataframe.index[idx]
-    
-        # Decompress reflectance: (C, H, W)
-        ref_raw = self.ref_data[real_idx].astype(np.float32)
-        ref_img = (ref_raw * self.ref_scale) - self.ref_offset
-    
-        # Albumentations expects (H, W, C)
-        full_img = np.moveaxis(ref_img, 0, -1)
-        full_img = np.ascontiguousarray(full_img)
-    
-        row = self.dataframe.iloc[idx]
-        target = torch.tensor(
-            row.iwi,
-            dtype=torch.float32,
-        ).unsqueeze(-1)
-
-        if self.transform:
-            frames = []
-            for t in range(full_img.shape[0]):
-                frames.append(self.transform(image=full_img[t])["image"])
-            full_img = torch.stack(frames, dim=0)
-            
-        full_img = full_img.reshape(4 * 6, 224, 224)
-    
-        return full_img, target
 
 class MSDataset(Dataset):
     """ Dataset returning the LANDSAT tiles and wealth index corresponding to the DHS cluster.

@@ -1,40 +1,29 @@
-hydra:
-#  output_subdir: null
-  run:
-    dir: outputs/${hydra.job.name}/${now:%Y-%m-%d}
-
 run:
-  fold: 0
+  fold: 4
   mode: train
-  checkpoint_path:
-
+  checkpoint_path: null
 hpo:
-  n_trials: 20
-
-
+  n_trials: 15
 data:
   backend: dali
-  tiff_root: ../../../images/seasonal
-  wds_root: ../../../images/seasonal
-  split_path: ???
+  tiff_root: /lustre/fswork/projects/rech/cvn/udm31lu/images/composite
+  wds_root: /lustre/fswork/projects/rech/cvn/udm31lu/webdataset_mada_composite_tempov
+  split_path: /lustre/fswork/projects/rech/cvn/udm31lu/poverty-benchmark/splits/madagascar_5fold.csv
   labels_name: /../common_seasonal_composite.csv
-  train_batch_size: 64
+  train_batch_size: 32
   inference_batch_size: 64
   num_workers: 9
-  nature: seasonal
-  nightlight:
+  nature: composite
+  nightlight: null
   dict_normalize: mean_std_normalize_HS.json
   fold_path: folds_mada.pkl
-
 task:
   task: regression
-
 trainer:
   accelerator: gpu
   devices: 1
   max_epochs: 100
   check_val_every_n_epoch: 1
-
 model:
   provider_name: torchvision
   model_name: resnet18
@@ -46,32 +35,26 @@ model:
     global_pool: null
   modifiers:
     change_first_convolutional_layer:
-      num_input_channels: 24
+      num_input_channels: 6
     change_last_layer:
       num_outputs: 1
-
 optim:
   optimizer:
-    adamw: # ['adam', 'sgd', 'adamw', 'adadelta', 'adagrad', 'adamax', 'rmsprop']
-      # callable: 'optim.SGD'
+    adamw:
       kwargs:
-        lr: 1e-4
-        weight_decay: 1.0e-05
-      scheduler: # Optional, delete key or leave empty to not use any learning rate scheduler
+        lr: 0.00028489913502573454
+        weight_decay: 0.00031953462329992085
+      scheduler:
         reduce_lr_on_plateau:
           kwargs:
             threshold: 0.001
           lr_scheduler_config:
-            monitor: loss/val  # ['loss/train', 'loss/val', '<metric>/train', '<metric>/val', ...]
-
+            monitor: loss/val
   loss: mse_loss
   loss_kwargs:
-    reduction: "mean"
-
-
+    reduction: mean
   metrics:
     mae:
-      callable: "Fmetrics.regression.mean_absolute_error"
+      callable: Fmetrics.regression.mean_absolute_error
       kwargs: {}
-
 seed: 42

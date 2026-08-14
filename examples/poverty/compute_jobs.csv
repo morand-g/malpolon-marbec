@@ -1,0 +1,79 @@
+JobID|JobName|State|ElapsedRaw|AllocCPUS|ReqTRES|AllocTRES
+833202|Madagascar_Composite_A|COMPLETED|85|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=21527,gres/gpu=1,mem=40000M,node=1
+833253|Madagascar_Composite_A|COMPLETED|63|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=17005,gres/gpu=1,mem=40000M,node=1
+833281|Madagascar_Composite_A|COMPLETED|33|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=8926,gres/gpu=1,mem=40000M,node=1
+833537|Madagascar_Composite_A|COMPLETED|67|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=15109,gres/gpu=1,mem=40000M,node=1
+835976|crossval_africa|COMPLETED|12|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=2266,mem=160000M,node=1
+836016|crossval_africa|COMPLETED|97|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=30764,mem=160000M,node=1
+836090|crossval_africa|TIMEOUT|7210|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=2458733,mem=160000M,node=1
+839245|tempov_malpolon_earth_engine|CANCELLED by 304540|258|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=127392,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+839319|tempov_malpolon_earth_engine|CANCELLED by 304540|1338|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=702574,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+840056|tempov_malpolon_earth_engine|COMPLETED|47|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=23735,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+840431|tempov_malpolon_earth_engine|CANCELLED by 304540|1264|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=683932,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+855823|crossval_africa|COMPLETED|1587|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=559420,mem=160000M,node=1
+863772|crossval_africa|COMPLETED|1225|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=394129,mem=160000M,node=1
+864446|crossval_africa|COMPLETED|25|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=4639,mem=160000M,node=1
+864456|crossval_africa|COMPLETED|3575|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=1262990,mem=160000M,node=1
+864543|crossval_africa|COMPLETED|25|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=4577,mem=160000M,node=1
+866383|nofreeze|COMPLETED|35|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=16656,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+866504|crossval_africa|COMPLETED|21|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=4272,mem=160000M,node=1
+866973|tempov_malpolon_earth_engine|CANCELLED by 304540|1407|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=666267,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+868101|nofreeze|COMPLETED|32|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=14888,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+868643|nofreeze|COMPLETED|9|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=4326,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+868943|nofreeze|COMPLETED|7|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=3405,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+868973|nofreeze|COMPLETED|8|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=4364,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+869476|nofreeze|COMPLETED|7|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=3476,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+869519|nofreeze|COMPLETED|40|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=20772,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+869915|nofreeze|COMPLETED|1968|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=937902,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+870610|nofreeze|COMPLETED|1941|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=964951,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+873285|nofreeze|COMPLETED|45|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=22170,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+873758|nofreeze|COMPLETED|1969|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=956707,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+875538|nofreeze|COMPLETED|21559|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=11084014,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+894641|nofreeze|CANCELLED by 304540|1|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+894650|nofreeze|COMPLETED|7|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=3092,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+894742|nofreeze|COMPLETED|5|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=2294,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+894815|tempov_malpolon_earth_engine|TIMEOUT|7227|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+896287|Madagascar_Composite_Canonical-HPO|COMPLETED|31|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=9957,gres/gpu=1,mem=40000M,node=1
+896601|Madagascar_Composite_Canonical-HPO|COMPLETED|28|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=7967,gres/gpu=1,mem=40000M,node=1
+897710|Madagascar_Composite_Canonical-HPO|CANCELLED by 304540|314|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=77688,gres/gpu=1,mem=40000M,node=1
+898076|Madagascar_Composite_Canonical-HPO|COMPLETED|3404|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=1026289,gres/gpu=1,mem=40000M,node=1
+898314|Madagascar_Seasonal_Canonical-HPO|COMPLETED|111|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=28952,gres/gpu=1,mem=40000M,node=1
+898547|Madagascar_Seasonal_Canonical-HPO|COMPLETED|4552|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=1308970,gres/gpu=1,mem=40000M,node=1
+910992|tempov_malpolon_earth_engine|COMPLETED|2063|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=978167,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+911141|tempov_malpolon_earth_engine|COMPLETED|1991|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=982121,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+911619|Madagascar_Seasonal_Canonical_CV-0|COMPLETED|67|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=18759,gres/gpu=1,mem=40000M,node=1
+911815|Madagascar_Seasonal_Canonical_CV-0|COMPLETED|452|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=132387,gres/gpu=1,mem=40000M,node=1
+911947|Madagascar_Seasonal_Canonical_CV-1|COMPLETED|440|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=121999,gres/gpu=1,mem=40000M,node=1
+911951|Madagascar_Seasonal_Canonical_CV-2|COMPLETED|359|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=108678,gres/gpu=1,mem=40000M,node=1
+911954|Madagascar_Seasonal_Canonical_CV-3|COMPLETED|451|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=130115,gres/gpu=1,mem=40000M,node=1
+911955|Madagascar_Seasonal_Canonical_CV-4|COMPLETED|310|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=77785,gres/gpu=1,mem=40000M,node=1
+913509|Madagascar_Seasonal_Canonical-INF|COMPLETED|76|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=20374,gres/gpu=1,mem=40000M,node=1
+914103|Madagascar_Seasonal_Canonical-INF|COMPLETED|161|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=39891,gres/gpu=1,mem=40000M,node=1
+914528|plot_results|COMPLETED|18|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=3377,mem=160000M,node=1
+915172|Madagascar_Seasonal_Canonical-INF|COMPLETED|189|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=36565,gres/gpu=1,mem=40000M,node=1
+915623|nofreeze|COMPLETED|12|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=4851,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+916105|nofreeze|CANCELLED by 304540|0|0|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|
+916142|nofreeze|COMPLETED|11|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=5263,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+916221|nofreeze|RUNNING|68876|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+916317|nofreeze|COMPLETED|7|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=2157,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+916502|Madagascar_Seasonal_Canonical-INF|COMPLETED|194|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=59923,gres/gpu=1,mem=40000M,node=1
+916521|nofreeze|COMPLETED|12|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=4888,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+916829|nofreeze|COMPLETED|12|20|billing=1,cpu=10,gres/gpu=1,mem=50000M,node=1|billing=1,cpu=20,energy=4594,gres/gpu:h100=1,gres/gpu=1,mem=50000M,node=1
+917726|build_cnn_seasonal_report|COMPLETED|12|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=3011,gres/gpu=1,mem=40000M,node=1
+919214|crossval_africa|COMPLETED|26|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=5315,mem=160000M,node=1
+919745|crossval_africa|COMPLETED|29|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=5774,mem=160000M,node=1
+920221|Africa_Composite_Canonical_CV-0|COMPLETED|73|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=16952,gres/gpu=1,mem=40000M,node=1
+920272|Madagascar_Composite_Canonical_CV-0|CANCELLED by 304540|823|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=252981,gres/gpu=1,mem=40000M,node=1
+921561|Africa_Seasonal_Canonical_CV-0|COMPLETED|90|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=19825,gres/gpu=1,mem=40000M,node=1
+921888|Madagascar_Composite_Canonical_CV-0|COMPLETED|240|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=73322,gres/gpu=1,mem=40000M,node=1
+922583|create_shards|COMPLETED|6|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=1852,gres/gpu=1,mem=40000M,node=1
+923242|create_shards|COMPLETED|8|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=2163,gres/gpu=1,mem=40000M,node=1
+923372|create_shards|COMPLETED|8|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=2587,gres/gpu=1,mem=40000M,node=1
+923417|create_shards|COMPLETED|4|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=1326,gres/gpu=1,mem=40000M,node=1
+949681|Madagascar_Composite_Canonical_CV-0|COMPLETED|1376|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=363279,gres/gpu=1,mem=40000M,node=1
+950250|crossval_africa|COMPLETED|26|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=5262,mem=160000M,node=1
+950432|crossval_africa|COMPLETED|607|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=231711,mem=160000M,node=1
+951527|crossval_africa|COMPLETED|1268|80|billing=20,cpu=40,mem=160000M,node=1|billing=40,cpu=80,energy=486009,mem=160000M,node=1
+951835|build_cnn_composite_report|COMPLETED|15|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=2643,gres/gpu=1,mem=40000M,node=1
+953644|Madagascar_Composite_Pretrain_Canonical_CV|COMPLETED|807|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=191654,gres/gpu=1,mem=40000M,node=1
+956139|build_cnn_composite_pretrain_report|COMPLETED|11|20|billing=1,cpu=10,gres/gpu=1,mem=40000M,node=1|billing=1,cpu=20,energy=2714,gres/gpu=1,mem=40000M,node=1

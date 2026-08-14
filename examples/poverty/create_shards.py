@@ -239,8 +239,8 @@ def create_shards(
             futures = []
             for df_idx, row in samples:
                 country = str(row["country"]).lower()
-                if country != "madagascar":
-                    continue
+                # if country != "madagascar":
+                #     continue
                 year = str(row["year"])
                 cluster_id = str(row["cluster_id"])
                 iwi = float(row["iwi"])
@@ -328,8 +328,8 @@ if __name__=="__main__":
     
     create_shards(
     source_dir="../../../images/seasonal",              # country/year/cluster_trimester.tiff
-    source_csv="common_seasonal_composite_folds.csv",        # semicolon-separated CSV
-    output_dir="../../../webdataset_mada_tempov",             # will be created
+    source_csv="../../../poverty-benchmark/splits/africa_5fold.csv",        # semicolon-separated CSV
+    output_dir="../../../webdataset_africa_seasonal_canonical",             # will be created
     n_folds=5,                               # number of CV folds
     num_workers=32,                          # parallel TIFF reads (default: all cores)
     fold_column="fold",                    # uncomment if your CSV has a fold column

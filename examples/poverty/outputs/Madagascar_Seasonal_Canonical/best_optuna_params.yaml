@@ -1,0 +1,3 @@
+lr: 0.000132764996075
+weight_decay: 0.0001378941048200941
+train_batch_size: 16

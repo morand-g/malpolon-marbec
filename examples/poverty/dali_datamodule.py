@@ -21,6 +21,7 @@ import os
 import time
 
 import json
+import tarfile
 from pathlib import Path
 
 import numpy as np
@@ -114,6 +115,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         self.num_workers = num_workers
         self.wds_dir = Path(wds_dir).resolve()  # DALI needs absolute paths
         self.device_id = device_id
+        self.fold = fold
 
         # Load metadata
         self.meta = json.load(open(self.wds_dir / "meta.json"))
@@ -204,7 +206,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
                 index_paths=index_paths,
                 ext=["input", "target"],
                 random_shuffle=is_train,
-                initial_fill=20_000 if is_train else 1,
+                initial_fill=512 if is_train else 1,
                 seed=42,
                 prefetch_queue_depth=1,
                 read_ahead=False,
@@ -254,6 +256,23 @@ class DALIWebDatasetModule(pl.LightningDataModule):
             ), split = split
         )
 
+    def _ordered_fold_sample_ids(self, fold: int) -> list[str]:
+        sample_ids = []
+    
+        shard_paths = sorted(
+            Path(self.wds_dir).glob(f"fold{fold}-*.tar")
+        )
+    
+        for shard_path in shard_paths:
+            with tarfile.open(shard_path) as shard:
+                for member in shard:
+                    if member.isfile() and member.name.endswith(".input"):
+                        sample_ids.append(
+                            member.name.removesuffix(".input")
+                        )
+    
+        return sample_ids
+
     def train_dataloader(self):
         return self._make_loader("train", self.train_batch_size, is_train=True)
 
@@ -262,3 +281,6 @@ class DALIWebDatasetModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return self._make_loader("test", self.inference_batch_size, is_train=False)
+
+    def test_sample_ids(self) -> list[str]:
+        return self._ordered_fold_sample_ids(self.fold)

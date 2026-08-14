@@ -13,6 +13,7 @@ import os
 import random
 from pathlib import Path
 from typing import Optional
+import pandas as pd
 
 import hydra
 import lightning.pytorch as pl
@@ -30,7 +31,6 @@ from lightning.pytorch.callbacks import (
     EarlyStopping,
 )
 from omegaconf import DictConfig, OmegaConf
-from optuna.integration import PyTorchLightningPruningCallback
 
 from rasterio.errors import NotGeoreferencedWarning
 from sklearn.metrics import mean_squared_error, r2_score
@@ -519,15 +519,51 @@ def predict_fold(
     predictions = model.predict(datamodule, trainer)
     np_predictions = predictions.detach().cpu().numpy()
 
-    dataframe = datamodule.export_predict_csv_basic(
-        np_predictions,
-        out_dir=str(fold_dir),
-        out_name=f"predictions_test_dataset_{fold}",
-        return_csv=True,
-    )
-
     output_path = fold_dir / f"predictions_test_dataset_{fold}.csv"
-    dataframe.to_csv(output_path)
+
+    if isinstance(datamodule, DALIWebDatasetModule):
+        sample_ids = datamodule.test_sample_ids()
+    
+        # Targets in the same iteration order as predictions
+        targets = []
+        for _, labels in datamodule.test_dataloader():
+            targets.append(labels.detach().cpu())
+    
+        targets = torch.cat(targets).numpy().reshape(-1)
+        predictions_flat = np_predictions.reshape(-1)
+    
+        if not (
+            len(sample_ids)
+            == len(predictions_flat)
+            == len(targets)
+        ):
+            raise ValueError(
+                "DALI prediction export length mismatch: "
+                f"ids={len(sample_ids)}, "
+                f"predictions={len(predictions_flat)}, "
+                f"targets={len(targets)}"
+            )
+    
+        dataframe = pd.DataFrame(
+            {
+                "sample_id": sample_ids,
+                "fold": fold,
+                "target": targets,
+                "prediction": predictions_flat,
+            }
+        )
+    
+        dataframe.to_csv(output_path, index=False)
+    
+    else:
+        dataframe = datamodule.export_predict_csv_basic(
+            np_predictions,
+            out_dir=str(fold_dir),
+            out_name=f"predictions_test_dataset_{fold}",
+            return_csv=True,
+        )
+    
+        dataframe.to_csv(output_path, index=False)
 
     return output_path
 
@@ -656,7 +692,7 @@ def main(cfg: DictConfig) -> None:
         run_crossval_inference(
             cfg,
             checkpoint_root=Path(cfg.run.checkpoint_path),
-            inference_backend=cfg.run.inference_backend,
+            inference_backend=cfg.data.backend,
         )
 
     elif mode == "hpo":
