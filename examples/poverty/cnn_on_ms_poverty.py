@@ -19,7 +19,7 @@ import hydra
 import lightning.pytorch as pl
 import matplotlib
 import numpy as np
-import optuna
+# import optuna
 import psutil
 import torch
 
@@ -38,13 +38,30 @@ from sklearn.metrics import mean_squared_error, r2_score
 from canonical_split import load_canonical_folds
 from dali_datamodule import DALIWebDatasetModule
 from poverty_dataset import MSDataModule
-from malpolon.models.standard_prediction_systems import RegressionSystem
+from malpolon.models.standard_prediction_systems import (
+    RegressionSystem,
+    SeasonalAverageRegressionSystem,
+)
 
 import warnings
 
 warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
 torch.set_float32_matmul_precision("medium")
+
+
+def create_prediction_system(cfg: DictConfig):
+    """Build the standard or four-season averaged regression system."""
+    seasonal_cfg = cfg.task.get("seasonal_average")
+    if seasonal_cfg and seasonal_cfg.get("enabled", False):
+        return SeasonalAverageRegressionSystem(
+            cfg.model,
+            **cfg.optim,
+            num_seasons=seasonal_cfg.get("num_seasons", 4),
+            channels_per_season=seasonal_cfg.get("channels_per_season", 6),
+        )
+
+    return RegressionSystem(cfg.model, **cfg.optim)
 
 class ResourceMonitor(pl.Callback):
     def _report(self, trainer: pl.Trainer, phase: str) -> None:
@@ -176,6 +193,7 @@ def create_datamodule(
             train_batch_size=batch_size,
             inference_batch_size=cfg.data.inference_batch_size,
             num_workers=cfg.data.get("num_workers", 4),
+            seasonal_as_views=cfg.data.get("seasonal_as_views", False),
         )
 
         datamodule.transfer_batch_to_device = (
@@ -199,6 +217,7 @@ def create_datamodule(
             dict_normalize=hydra.utils.to_absolute_path(
                 str(cfg.data.dict_normalize)
             ),
+            seasonal_as_views=cfg.data.get("seasonal_as_views", False),
         )
 
         return datamodule
@@ -335,10 +354,7 @@ def train_fold(
         train_batch_size=batch_size,
     )
 
-    model = RegressionSystem(
-        cfg.model,
-        **cfg.optim,
-    )
+    model = create_prediction_system(cfg)
 
     callbacks, checkpoint, pruning_callback = create_callbacks(
         run_dir=run_dir,
@@ -494,12 +510,9 @@ def predict_fold(
 
     datamodule = create_datamodule(cfg, fold)
 
-    base_model = RegressionSystem(
-        cfg.model,
-        **cfg.optim,
-    )
+    base_model = create_prediction_system(cfg)
 
-    model = RegressionSystem.load_from_checkpoint(
+    model = type(base_model).load_from_checkpoint(
         str(checkpoint_path),
         model=base_model.model,
         hparams_preprocess=False,
@@ -516,8 +529,19 @@ def predict_fold(
         enable_checkpointing=False,
     )
 
-    predictions = model.predict(datamodule, trainer)
+    if isinstance(model, SeasonalAverageRegressionSystem):
+        predictions = model.predict(
+            datamodule,
+            trainer,
+            return_seasons=True,
+        )
+    else:
+        predictions = model.predict(datamodule, trainer)
     np_predictions = predictions.detach().cpu().numpy()
+    seasonal_predictions = None
+    if isinstance(model, SeasonalAverageRegressionSystem):
+        seasonal_predictions = np_predictions
+        np_predictions = seasonal_predictions.mean(axis=1)
 
     output_path = fold_dir / f"predictions_test_dataset_{fold}.csv"
 
@@ -554,6 +578,25 @@ def predict_fold(
         )
     
         dataframe.to_csv(output_path, index=False)
+
+        if seasonal_predictions is not None:
+            seasonal_predictions = seasonal_predictions.reshape(
+                len(sample_ids), model.num_seasons, -1
+            )
+            if seasonal_predictions.shape[-1] != 1:
+                raise ValueError(
+                    "Seasonal prediction export expects one regression output, "
+                    f"got shape {seasonal_predictions.shape}"
+                )
+            detailed = dataframe.copy()
+            for season in range(model.num_seasons):
+                detailed[f"prediction_season_{season + 1}"] = (
+                    seasonal_predictions[:, season, 0]
+                )
+            detailed.to_csv(
+                fold_dir / f"predictions_test_dataset_{fold}_by_season.csv",
+                index=False,
+            )
     
     else:
         dataframe = datamodule.export_predict_csv_basic(
@@ -614,12 +657,9 @@ def run_crossval_inference(
         print("tile min  :", tile.min().item())
         print("tile max  :", tile.max().item())
 
-        base_system = RegressionSystem(
-            cfg.model,
-            **cfg.optim,
-        )
+        base_system = create_prediction_system(cfg)
 
-        model = RegressionSystem.load_from_checkpoint(
+        model = type(base_system).load_from_checkpoint(
             str(checkpoint_path),
             model=base_system.model,
             hparams_preprocess=False,

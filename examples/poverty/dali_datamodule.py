@@ -33,9 +33,10 @@ from nvidia.dali.plugin.pytorch import DALIGenericIterator, LastBatchPolicy
 
 
 class _DALIWrapper:
-    def __init__(self, dali_iter, split):
+    def __init__(self, dali_iter, split, seasonal_shape=None):
         self._dali_iter = dali_iter
         self._split = split
+        self._seasonal_shape = seasonal_shape
         self._epoch = 0
 
     def __iter__(self):
@@ -55,7 +56,10 @@ class _DALIWrapper:
                 )
 
             d = batch_list[0]
-            yield d["tile"], d["label"]
+            tile = d["tile"]
+            if self._seasonal_shape is not None:
+                tile = tile.reshape(tile.shape[0], *self._seasonal_shape)
+            yield tile, d["label"]
 
             previous = time.perf_counter()
 
@@ -107,6 +111,7 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         inference_batch_size: int = 16,
         num_workers: int = 4,
         device_id: int = 0,
+        seasonal_as_views: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -123,6 +128,19 @@ class DALIWebDatasetModule(pl.LightningDataModule):
         n_channels = self._shape[0]
         n_bands = self.meta["n_bands"]  # 6
         n_trimesters = self.meta.get("n_trimesters", 1)  # 4
+        self._seasonal_shape = None
+        if seasonal_as_views:
+            if n_channels != n_trimesters * n_bands:
+                raise ValueError(
+                    f"Cannot expose seasonal views: shape has {n_channels} "
+                    f"channels, but metadata declares {n_trimesters} seasons "
+                    f"and {n_bands} bands"
+                )
+            self._seasonal_shape = [
+                n_trimesters,
+                n_bands,
+                *self._shape[1:],
+            ]
 
         # Map split -> list of fold indices
         self._split_folds = {
@@ -253,7 +271,9 @@ class DALIWebDatasetModule(pl.LightningDataModule):
                 reader_name="reader",
                 auto_reset=True,
                 last_batch_policy=LastBatchPolicy.PARTIAL,
-            ), split = split
+            ),
+            split=split,
+            seasonal_shape=self._seasonal_shape,
         )
 
     def _ordered_fold_sample_ids(self, fold: int) -> list[str]:

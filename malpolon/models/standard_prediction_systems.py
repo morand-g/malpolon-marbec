@@ -434,6 +434,143 @@ class RegressionSystem(GenericPredictionSystem):
         return y
 
 
+class SeasonalAverageRegressionSystem(RegressionSystem):
+    """Apply one shared regressor to each season and average predictions.
+
+    Seasonal inputs may be provided either as ``(B, S, C, H, W)`` tensors or
+    in the legacy channel-stacked form ``(B, S * C, H, W)``.  The underlying
+    model always receives one ``C``-channel raster at a time.  Training and
+    validation losses are computed over all seasonal predictions, as if the
+    seasons were separate examples with a shared target.  ``forward`` returns
+    one prediction per observation by averaging the ``S`` predictions.
+    """
+
+    def __init__(
+        self,
+        model: Union[torch.nn.Module, Mapping],
+        loss: Union[torch.nn.modules.loss._Loss, str],
+        optimizer: Union[torch.nn.Module, Mapping] = None,
+        lr: float = 1e-2,
+        weight_decay: float = 0,
+        metrics: Optional[dict[str, Callable]] = None,
+        loss_kwargs: Optional[dict] = {},
+        num_seasons: int = 4,
+        channels_per_season: int = 6,
+    ):
+        if num_seasons < 1:
+            raise ValueError("num_seasons must be at least 1")
+        if channels_per_season < 1:
+            raise ValueError("channels_per_season must be at least 1")
+
+        self.num_seasons = num_seasons
+        self.channels_per_season = channels_per_season
+        super().__init__(
+            model=model,
+            loss=loss,
+            optimizer=optimizer,
+            lr=lr,
+            weight_decay=weight_decay,
+            metrics=metrics,
+            loss_kwargs=loss_kwargs,
+        )
+
+    def _as_season_batch(self, x: Tensor) -> Tensor:
+        if x.ndim == 5:
+            batch_size, num_seasons, num_channels, height, width = x.shape
+            if num_seasons != self.num_seasons:
+                raise ValueError(
+                    f"Expected {self.num_seasons} seasons, got {num_seasons}"
+                )
+            if num_channels != self.channels_per_season:
+                raise ValueError(
+                    f"Expected {self.channels_per_season} channels per season, "
+                    f"got {num_channels}"
+                )
+            return x.reshape(
+                batch_size * num_seasons, num_channels, height, width
+            )
+
+        if x.ndim == 4:
+            batch_size, num_channels, height, width = x.shape
+            expected_channels = self.num_seasons * self.channels_per_season
+            if num_channels != expected_channels:
+                raise ValueError(
+                    f"Expected {expected_channels} stacked channels "
+                    f"({self.num_seasons} seasons x "
+                    f"{self.channels_per_season} channels), got {num_channels}"
+                )
+            return x.reshape(
+                batch_size * self.num_seasons,
+                self.channels_per_season,
+                height,
+                width,
+            )
+
+        raise ValueError(
+            "Seasonal inputs must have shape (B, S, C, H, W) or "
+            "(B, S*C, H, W)"
+        )
+
+    def predict_seasons(self, x: Tensor) -> Tensor:
+        """Return the individual prediction for every season."""
+        batch_size = x.shape[0]
+        season_batch = self._as_season_batch(x)
+        predictions = self.model(season_batch)
+        return predictions.reshape(
+            batch_size, self.num_seasons, *predictions.shape[1:]
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.predict_seasons(x).mean(dim=1)
+
+    def _step(
+        self, split: str, batch: tuple[Any, Any], batch_idx: int
+    ) -> Union[Tensor, dict[str, Any]]:
+        log_kwargs = {"on_step": True, "on_epoch": True, "sync_dist": True}
+
+        nvtx.range_push(f"{split}_step_{batch_idx}")
+        x, y = batch
+        seasonal_predictions = self.predict_seasons(x)
+
+        target = self._cast_type_to_loss(y)
+        while target.ndim < seasonal_predictions.ndim - 1:
+            target = target.unsqueeze(-1)
+        seasonal_target = target.unsqueeze(1).expand_as(seasonal_predictions)
+        loss = self.loss(seasonal_predictions, seasonal_target)
+        self.log(f"loss/{split}", loss, **log_kwargs)
+
+        averaged_prediction = seasonal_predictions.mean(dim=1)
+        for metric_name, metric_func in self.metrics.items():
+            if isinstance(metric_func, dict):
+                score = metric_func["callable"](
+                    averaged_prediction,
+                    y,
+                    **metric_func["kwargs"],
+                )
+            else:
+                score = metric_func(averaged_prediction, y)
+            self.log(f"{metric_name}/{split}", score, **log_kwargs)
+
+        nvtx.range_pop()
+        return loss
+
+    def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        x, _ = batch
+        return self.predict_seasons(x)
+
+    def predict(self, datamodule, trainer, return_seasons: bool = False):
+        """Predict observations, optionally retaining individual seasons."""
+        datamodule.setup(stage="test")
+        seasonal_predictions = trainer.predict(
+            dataloaders=datamodule.test_dataloader(),
+            model=self,
+        )
+        seasonal_predictions = torch.cat(seasonal_predictions)
+        if return_seasons:
+            return seasonal_predictions
+        return seasonal_predictions.mean(dim=1)
+
+
 class PopDensSystem(RegressionSystem):
     def __init__(self,
                  model: Union[torch.nn.Module, Mapping],

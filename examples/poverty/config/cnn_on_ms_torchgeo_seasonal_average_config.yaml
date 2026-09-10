@@ -1,0 +1,25 @@
+defaults:
+  - cnn_on_ms_torchgeo_config
+  - _self_
+
+# Four 6-band seasonal rasters are passed through one shared ResNet18.  The
+# individual predictions are averaged to produce one prediction per cluster.
+data:
+  seasonal_as_views: true
+  # Each cluster now expands to four CNN inputs inside a batch.
+  train_batch_size: 16
+  inference_batch_size: 16
+
+task:
+  task: regression
+  seasonal_average:
+    enabled: true
+    num_seasons: 4
+    channels_per_season: 6
+
+model:
+  modifiers:
+    change_first_convolutional_layer:
+      num_input_channels: 6
+    change_last_layer:
+      num_outputs: 1

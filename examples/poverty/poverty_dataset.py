@@ -89,6 +89,7 @@ class MSDataModule(BaseDataModule):
             nature: str = 'composite',
             nightlight: str = None,
             dict_normalize: str = 'mean_std_normalize_all.json',
+            seasonal_as_views: bool = False,
             **kwargs
     ):
 
@@ -129,6 +130,7 @@ class MSDataModule(BaseDataModule):
                 self.fold_dict = pd.read_pickle(fold_path)[fold_label]
         self.nature = nature
         self.nightlight = nightlight
+        self.seasonal_as_views = seasonal_as_views
         self.dict_normalize = json.load(open(dict_normalize, 'r'))
 
     @property
@@ -160,8 +162,16 @@ class MSDataModule(BaseDataModule):
         return T
 
     def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
-        return MSDataset(self.dataset_path, self.labels_name,self.fold_dict, split = split, nature=self.nature,
-                         nightlight= self.nightlight, transform=transform)
+        return MSDataset(
+            self.dataset_path,
+            self.labels_name,
+            self.fold_dict,
+            split=split,
+            nature=self.nature,
+            nightlight=self.nightlight,
+            transform=transform,
+            seasonal_as_views=self.seasonal_as_views,
+        )
 
     # def get_dataset(self, split: str, transform: Callable, **kwargs) -> Dataset:
     #     """New approach that reade a np.memmap file"""
@@ -296,7 +306,17 @@ class MSDataset(Dataset):
         Rasters were previously downloaded from Microsoft Planetary Computer.
         Images contain 16 bands, all consigned in the SPECTRUM_ALL variable."""
 
-    def __init__(self, root_dir, labels_name, fold, split,  nature="composite",  nightlight=None, transform=None):
+    def __init__(
+        self,
+        root_dir,
+        labels_name,
+        fold,
+        split,
+        nature="composite",
+        nightlight=None,
+        transform=None,
+        seasonal_as_views=False,
+    ):
         """
         Args:
             root_dir (string): Directory with all the images
@@ -316,6 +336,7 @@ class MSDataset(Dataset):
         self.nature = nature
         self.nightlight = nightlight
         self.transform = transform
+        self.seasonal_as_views = seasonal_as_views
 
 
     def __len__(self):
@@ -357,7 +378,7 @@ class MSDataset(Dataset):
 
         elif self.nature == 'seasonal':
 
-            tile = torch.empty((0, 224, 224), dtype=torch.float32)
+            seasonal_tiles = []
 
             for trimester in range(1, 5):
 
@@ -390,7 +411,12 @@ class MSDataset(Dataset):
                 tile_t = np.nan_to_num(tile_t)
                 tile_t = np.moveaxis(tile_t, 0, -1)
                 tile_t = self.transform(image=tile_t)["image"]
-                tile = torch.concat((tile, tile_t), dim=0)
+                seasonal_tiles.append(tile_t)
+
+            if self.seasonal_as_views:
+                tile = torch.stack(seasonal_tiles, dim=0)
+            else:
+                tile = torch.cat(seasonal_tiles, dim=0)
 
         value = torch.tensor(value, dtype=torch.float32).unsqueeze(-1)
 
