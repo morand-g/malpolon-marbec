@@ -1,9 +1,55 @@
-torch
-hydra-core
-lightning
-matplotlib
-rasterio
-torchgeo
-scikit-learn
+# RLS study Python environment
+#
+# Recommended: Python 3.10 or 3.11.
+# Install the local Malpolon package separately from the repository root:
+#   python -m pip install -e ./malpolon
+#
+# Install torch, torchvision, and their CUDA runtime as a compatible trio for
+# the target machine. For a CUDA-specific wheel, use the index URL documented
+# at https://pytorch.org/get-started/locally/ before installing this file.
+
+# Scientific Python
+numpy
+pandas
 scipy
+scikit-learn
+scikit-posthocs
+
+# Plotting and notebook analysis
+matplotlib
+seaborn
+plotly
+Pillow
+tqdm
+jupyterlab
+ipykernel
+kaleido
+
+# Deep learning and model training
+torch
+torchvision
+lightning
+torchmetrics
+timm
+torchgeo
 captum
+
+# Configuration and experiment logging
+hydra-core
+omegaconf
+tensorboard
+
+# RLS baselines and image features
+xgboost
+opencv-python
+pyCompare
+
+# Geospatial processing
+rasterio
+geopandas
+shapely
+
+# GeoEnrich and optional Planetary Computer/STAC acquisition used by RLS0
+geoenrich
+pystac-client
+planetary-computer

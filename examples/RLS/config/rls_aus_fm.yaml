@@ -15,7 +15,7 @@ data:
   train_batch_size: 16
   inference_batch_size: 64
   num_workers: 2
-  mask_inputs: 0.75
+  mask_inputs: 0.5
   mae_patch_size: 8
 trainer:
   accelerator: "auto"
